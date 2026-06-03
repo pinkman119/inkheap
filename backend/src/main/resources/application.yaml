@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: personal-website-management
+  datasource:
+    url: jdbc:postgresql://localhost:5432/personal_profile
+    username: postgres
+    password: LXJ520skr
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          lob:
+            non_contextual_creation: true
+
+server:
+  port: 8090
+
+security:
+  jwt:
+    secret: "change-this-secret-at-least-32-chars-long"
+    expiration-seconds: 3600
+  admin:
+    username: admin
+    password: admin123
+    display-name: Admin User
+    roles:
+      - ADMIN
+
+logging:
+  level:
+    org.hibernate.SQL: debug
