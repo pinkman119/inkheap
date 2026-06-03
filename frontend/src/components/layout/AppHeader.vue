@@ -33,14 +33,16 @@
         </button>
       </div>
       <div class="account">
-        <div class="account__avatar">{{ initials }}</div>
-        <div class="account__meta">
-          <span class="account__name">{{ displayName }}</span>
-          <span class="account__role">{{ primaryRole }}</span>
-        </div>
-        <button class="account__logout" type="button" @click="handleLogout">
-          退出
+        <button class="account__trigger" type="button">
+          <span class="account__avatar">{{ initials }}</span>
         </button>
+        <div class="account__menu">
+          <div class="account__actions">
+            <button class="account__action" type="button" @click="handleLogout">
+              退出
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </header>
@@ -268,18 +270,24 @@ const handleLogout = async () => {
 }
 
 .account {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.35rem 0.65rem;
-  border-radius: 999px;
-  background: var(--surface-card);
-  box-shadow: 0 12px 24px rgba(31, 35, 68, 0.12);
+}
+
+.account__trigger {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .account__avatar {
-  width: 2rem;
-  height: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
   border-radius: 50%;
   background: linear-gradient(135deg, #4c5df0, #7a6bff);
   color: white;
@@ -288,36 +296,81 @@ const handleLogout = async () => {
   justify-content: center;
   font-weight: 700;
   letter-spacing: 0.05em;
+  box-shadow: 0 12px 24px rgba(31, 35, 68, 0.16);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.account__meta {
+.account__trigger:hover .account__avatar,
+.account__trigger:focus .account__avatar {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 32px rgba(31, 35, 68, 0.2);
+}
+
+.account__menu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 50%;
+  width: 4.30rem;
+  padding: 0.55rem;
+  border-radius: 1rem;
+  background: var(--surface-card);
+  box-shadow: 0 22px 48px rgba(31, 35, 68, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -6px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  z-index: 10;
+}
+
+.account:hover .account__menu,
+.account:focus-within .account__menu {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+
+.account__menu::before {
+  content: '';
+  position: absolute;
+  top: -0.4rem;
+  left: 50%;
+  width: 0.95rem;
+  height: 0.95rem;
+  background: var(--surface-card);
+  transform: translateX(-50%) rotate(45deg);
+  border-radius: 0.25rem;
+  box-shadow: -6px -6px 16px rgba(31, 35, 68, 0.08);
+  z-index: -1;
+}
+
+.account__actions {
   display: flex;
   flex-direction: column;
-  line-height: 1.1;
+  gap: 0.3rem;
+  margin-top: 0.2rem;
 }
 
-.account__name {
-  font-weight: 600;
-}
-
-.account__role {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.account__logout {
+.account__action {
   border: none;
-  background: rgba(76, 93, 240, 0.12);
+  width: 100%;
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.75rem;
+  background: rgba(76, 93, 240, 0.08);
   color: #4653d8;
-  border-radius: 999px;
-  padding: 0.45rem 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease, transform 0.18s ease;
 }
 
-.account__logout:hover {
-  background: rgba(76, 93, 240, 0.22);
+.account__action:hover,
+.account__action:focus {
+  background: rgba(76, 93, 240, 0.18);
+  transform: translateX(2px);
+}
+
+.account__action:active {
+  transform: translateX(0);
 }
 
 @media (max-width: 768px) {
