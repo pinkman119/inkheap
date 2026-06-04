@@ -5,7 +5,7 @@
       :class="{ 'calendar--loading': showMonthOverlay, 'calendar--locked': isMonthLoading }"
     >
       <header>
-        <h3>日记日历</h3>
+        <h3 style="margin-left: 20px;">📅</h3>
         <div class="controls">
           <button type="button" @click="prevMonth" aria-label="上一个月">◀</button>
           <span>{{ monthLabel }}</span>
@@ -874,6 +874,18 @@ watch(
 
 .cell span {
   font-weight: 600;
+  font-size: 1.2rem;
+}
+
+.cell:not(.active):hover {
+  background: linear-gradient(135deg, rgba(76, 93, 240, 0.16), rgba(122, 107, 255, 0.22));
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(55, 64, 120, 0.16);
+}
+
+.cell.active:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(55, 64, 120, 0.22);
 }
 
 .cell--outside {
