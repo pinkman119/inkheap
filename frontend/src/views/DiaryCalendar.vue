@@ -1,15 +1,18 @@
 <template>
   <div class="diary-calendar">
-    <section class="calendar">
+    <section
+      class="calendar"
+      :class="{ 'calendar--loading': showMonthOverlay, 'calendar--locked': isMonthLoading }"
+    >
       <header>
         <h3>日记日历</h3>
         <div class="controls">
-          <button type="button" @click="prevMonth" :disabled="isMonthLoading" aria-label="上一个月">◀</button>
+          <button type="button" @click="prevMonth" aria-label="上一个月">◀</button>
           <span>{{ monthLabel }}</span>
-          <button type="button" @click="nextMonth" :disabled="isMonthLoading" aria-label="下一个月">▶</button>
+          <button type="button" @click="nextMonth" aria-label="下一个月">▶</button>
         </div>
       </header>
-      <p v-if="isMonthLoading" class="calendar-hint">正在加载当月日记...</p>
+      <p v-if="showMonthOverlay" class="calendar-hint">正在加载当月日记...</p>
       <p v-else-if="monthError" class="calendar-hint calendar-hint--error">{{ monthError }}</p>
       <div class="grid">
         <div class="weekday" v-for="day in weekdays" :key="day">{{ day }}</div>
@@ -221,6 +224,10 @@ const showDetailOverlay = ref(false);
 let detailOverlayTimer: ReturnType<typeof setTimeout> | null = null;
 const DETAIL_OVERLAY_DELAY = 160;
 
+const showMonthOverlay = ref(false);
+let monthOverlayTimer: ReturnType<typeof setTimeout> | null = null;
+const MONTH_OVERLAY_DELAY = 160;
+
 const cancelDetailOverlayTimer = () => {
   if (detailOverlayTimer) {
     clearTimeout(detailOverlayTimer);
@@ -235,6 +242,22 @@ const scheduleDetailOverlay = () => {
     showDetailOverlay.value = true;
     detailOverlayTimer = null;
   }, DETAIL_OVERLAY_DELAY);
+};
+
+const cancelMonthOverlayTimer = () => {
+  if (monthOverlayTimer) {
+    clearTimeout(monthOverlayTimer);
+    monthOverlayTimer = null;
+  }
+};
+
+const scheduleMonthOverlay = () => {
+  cancelMonthOverlayTimer();
+  showMonthOverlay.value = false;
+  monthOverlayTimer = setTimeout(() => {
+    showMonthOverlay.value = true;
+    monthOverlayTimer = null;
+  }, MONTH_OVERLAY_DELAY);
 };
 
 const form = reactive({
@@ -360,6 +383,7 @@ const loadSummaries = async (target: Date) => {
   const requestId = ++currentMonthRequest;
   isMonthLoading.value = true;
   monthError.value = null;
+  scheduleMonthOverlay();
 
   try {
     const data = await fetchDiarySummaries(target.getFullYear(), target.getMonth() + 1);
@@ -378,6 +402,8 @@ const loadSummaries = async (target: Date) => {
     console.error('[DiaryCalendar] loadSummaries', error);
   } finally {
     if (currentMonthRequest === requestId) {
+      cancelMonthOverlayTimer();
+      showMonthOverlay.value = false;
       isMonthLoading.value = false;
     }
   }
@@ -429,6 +455,7 @@ const ensureDetailLoaded = async (date: Date) => {
 
 onBeforeUnmount(() => {
   cancelDetailOverlayTimer();
+  cancelMonthOverlayTimer();
 });
 
 const syncViewMonth = (date: Date) => {
@@ -450,11 +477,17 @@ watch(selectedDate, (date) => {
 }, { immediate: true });
 
 const prevMonth = () => {
+  if (isMonthLoading.value) {
+    return;
+  }
   const base = viewMonth.value;
   viewMonth.value = new Date(base.getFullYear(), base.getMonth() - 1, 1);
 };
 
 const nextMonth = () => {
+  if (isMonthLoading.value) {
+    return;
+  }
   const base = viewMonth.value;
   viewMonth.value = new Date(base.getFullYear(), base.getMonth() + 1, 1);
 };
@@ -736,6 +769,16 @@ watch(
 .calendar {
   grid-column: 1;
   grid-row: 1 / span 2;
+  position: relative;
+}
+
+.calendar--loading .grid {
+  opacity: 0.55;
+  transition: opacity 160ms ease;
+}
+
+.calendar--loading .cell {
+  pointer-events: none;
 }
 
 .diary-search {
@@ -777,13 +820,20 @@ watch(
 }
 
 .controls button:disabled {
-  opacity: 0.45;
   cursor: not-allowed;
+  opacity: 1;
+  pointer-events: none;
 }
 
 .controls button:not(:disabled):hover {
   background: rgba(76, 93, 240, 0.18);
   transform: translateY(-1px);
+}
+
+.calendar--loading .controls button,
+.calendar--locked .controls button {
+  opacity: 0.45;
+  pointer-events: none;
 }
 
 .grid {
