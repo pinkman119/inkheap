@@ -142,7 +142,7 @@
               placeholder="每行填写一条计划，例如：完成用户访谈"
               :disabled="isFormDisabled"
             ></textarea>
-            <small>留空表示今天没有安排计划。</small>
+            <!-- <small>留空表示今天没有安排计划。</small> -->
           </label>
 
           <label class="form-group">

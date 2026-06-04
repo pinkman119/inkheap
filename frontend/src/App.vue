@@ -130,7 +130,7 @@ const isAuthLayout = computed(() => route.meta.layout === 'auth');
 .app-shell__main {
   display: flex;
   flex-direction: column;
-  padding: 2.5rem 2.5rem 2rem;
+  padding: 1.5rem 2.5rem 2rem;
   gap: 1.5rem;
   height: 100vh;
   overflow-y: auto;
@@ -141,7 +141,7 @@ const isAuthLayout = computed(() => route.meta.layout === 'auth');
   flex: 1;
   background: rgba(255, 255, 255, 0.18);
   border-radius: 1.75rem;
-  padding: 2rem;
+  padding: 1rem;
   backdrop-filter: blur(24px);
   box-shadow: 0 18px 45px rgba(20, 18, 38, 0.14);
   overflow: visible;
