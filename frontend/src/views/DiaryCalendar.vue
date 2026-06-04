@@ -104,11 +104,22 @@
         </div>
       </header>
 
-      <div class="diary-detail__body">
+      <div
+        class="diary-detail__body"
+        :class="{ 'diary-detail__body--loading': showDetailOverlay }"
+      >
+        <div
+          v-show="showDetailOverlay"
+          class="diary-detail__loader detail-state"
+          role="status"
+          aria-live="polite"
+          aria-hidden="false"
+        >
+          正在加载该日的日记...
+        </div>
         <p v-if="detailError" class="inline-feedback inline-feedback--error">{{ detailError }}</p>
         <p v-if="detailSuccess" class="inline-feedback inline-feedback--success">{{ detailSuccess }}</p>
-        <p v-if="isDetailLoading" class="detail-state">正在加载该日的日记...</p>
-        <form v-else class="diary-form" @submit.prevent="handleSave">
+        <form class="diary-form" :aria-busy="isDetailLoading" @submit.prevent="handleSave">
           <label class="form-group">
             <span>情绪标记</span>
             <input
@@ -116,6 +127,7 @@
               type="text"
               maxlength="64"
               placeholder="如：🌤️ 活力焕发"
+              :disabled="isFormDisabled"
             />
           </label>
 
@@ -125,6 +137,7 @@
               v-model="form.plansText"
               rows="3"
               placeholder="每行填写一条计划，例如：完成用户访谈"
+              :disabled="isFormDisabled"
             ></textarea>
             <small>留空表示今天没有安排计划。</small>
           </label>
@@ -136,6 +149,7 @@
               rows="6"
               placeholder="记录今天的灵感与感受..."
               required
+              :disabled="isFormDisabled"
             ></textarea>
           </label>
 
@@ -144,7 +158,7 @@
             <button
               class="primary"
               type="submit"
-              :disabled="isSaving || !isFormValid || !isFormDirty"
+              :disabled="isDetailLoading || isSaving || !isFormValid || !isFormDirty"
             >
               {{ hasExistingEntry ? '保存更新' : '立即记录' }}
             </button>
@@ -156,7 +170,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import {
@@ -203,6 +217,26 @@ const detailSuccess = ref<string | null>(null);
 const isSaving = ref(false);
 const isDeleting = ref(false);
 
+const showDetailOverlay = ref(false);
+let detailOverlayTimer: ReturnType<typeof setTimeout> | null = null;
+const DETAIL_OVERLAY_DELAY = 160;
+
+const cancelDetailOverlayTimer = () => {
+  if (detailOverlayTimer) {
+    clearTimeout(detailOverlayTimer);
+    detailOverlayTimer = null;
+  }
+};
+
+const scheduleDetailOverlay = () => {
+  cancelDetailOverlayTimer();
+  showDetailOverlay.value = false;
+  detailOverlayTimer = setTimeout(() => {
+    showDetailOverlay.value = true;
+    detailOverlayTimer = null;
+  }, DETAIL_OVERLAY_DELAY);
+};
+
 const form = reactive({
   mood: '',
   plansText: '',
@@ -245,6 +279,8 @@ const isFormDirty = computed(() => {
     original.plans.join('\n') !== normalizedPlans
   );
 });
+
+const isFormDisabled = computed(() => isDetailLoading.value || isSaving.value || isDeleting.value);
 
 const calendarCells = computed(() => {
   const year = viewMonth.value.getFullYear();
@@ -361,7 +397,6 @@ const ensureDetailLoaded = async (date: Date) => {
   currentDetailRequest = iso;
   isDetailLoading.value = true;
   detailError.value = null;
-
   try {
     const detail = await fetchDiaryDetail(iso);
     if (currentDetailRequest !== iso) {
@@ -384,11 +419,17 @@ const ensureDetailLoaded = async (date: Date) => {
     }
   } finally {
     if (currentDetailRequest === iso) {
+      cancelDetailOverlayTimer();
+      showDetailOverlay.value = false;
       isDetailLoading.value = false;
       currentDetailRequest = null;
     }
   }
 };
+
+onBeforeUnmount(() => {
+  cancelDetailOverlayTimer();
+});
 
 const syncViewMonth = (date: Date) => {
   const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
@@ -969,6 +1010,27 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  position: relative;
+}
+
+.diary-detail__body--loading .diary-form {
+  opacity: 0.55;
+}
+
+.diary-detail__loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  text-align: center;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(245, 247, 255, 0.82));
+  border-radius: 1.1rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .inline-feedback {
@@ -999,6 +1061,7 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  transition: opacity 160ms ease;
 }
 
 .form-group {
