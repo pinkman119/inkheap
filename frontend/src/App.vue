@@ -55,7 +55,9 @@ const isAuthLayout = computed(() => route.meta.layout === 'auth');
   display: grid;
   grid-template-columns: 16rem 1fr;
   min-height: 100vh;
+  height: 100vh;
   background: var(--surface-backdrop);
+  overflow: hidden;
 }
 
 .app-shell__sidebar {
@@ -66,6 +68,10 @@ const isAuthLayout = computed(() => route.meta.layout === 'auth');
   flex-direction: column;
   gap: 2.5rem;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  align-self: start;
 }
 
 .brand {
@@ -126,6 +132,9 @@ const isAuthLayout = computed(() => route.meta.layout === 'auth');
   flex-direction: column;
   padding: 2.5rem 2.5rem 2rem;
   gap: 1.5rem;
+  height: 100vh;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .app-shell__content {
@@ -135,12 +144,14 @@ const isAuthLayout = computed(() => route.meta.layout === 'auth');
   padding: 2rem;
   backdrop-filter: blur(24px);
   box-shadow: 0 18px 45px rgba(20, 18, 38, 0.14);
-  overflow: hidden;
+  overflow: visible;
 }
 
 @media (max-width: 960px) {
   .app-shell {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
   }
 
   .app-shell__sidebar {
@@ -150,6 +161,8 @@ const isAuthLayout = computed(() => route.meta.layout === 'auth');
     padding: 1.5rem 1.25rem;
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    position: static;
+    height: auto;
   }
 
   nav {
@@ -159,6 +172,15 @@ const isAuthLayout = computed(() => route.meta.layout === 'auth');
 
   .nav-link {
     padding: 0.5rem 0.75rem;
+  }
+
+  .app-shell__main {
+    height: auto;
+    overflow: visible;
+  }
+
+  .app-shell__content {
+    overflow: visible;
   }
 }
 </style>
