@@ -95,15 +95,6 @@
           >
             重置
           </button>
-          <button
-            v-if="hasExistingEntry"
-            type="button"
-            class="danger"
-            @click="handleDelete"
-            :disabled="isDetailLoading || isDeleting"
-          >
-            删除
-          </button>
         </div>
       </header>
 
@@ -177,7 +168,6 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import {
-  deleteDiaryEntry,
   fetchDiaryDetail,
   fetchDiarySummaries,
   upsertDiaryEntry,
@@ -218,7 +208,6 @@ const isDetailLoading = ref(false);
 const detailError = ref<string | null>(null);
 const detailSuccess = ref<string | null>(null);
 const isSaving = ref(false);
-const isDeleting = ref(false);
 
 const showDetailOverlay = ref(false);
 let detailOverlayTimer: ReturnType<typeof setTimeout> | null = null;
@@ -303,7 +292,7 @@ const isFormDirty = computed(() => {
   );
 });
 
-const isFormDisabled = computed(() => isDetailLoading.value || isSaving.value || isDeleting.value);
+const isFormDisabled = computed(() => isDetailLoading.value || isSaving.value);
 
 const calendarCells = computed(() => {
   const year = viewMonth.value.getFullYear();
@@ -540,37 +529,6 @@ const handleSave = async () => {
     console.error('[DiaryCalendar] handleSave', error);
   } finally {
     isSaving.value = false;
-  }
-};
-
-const handleDelete = async () => {
-  if (!hasExistingEntry.value) {
-    hydrateForm(null);
-    return;
-  }
-
-  if (!window.confirm('确定要删除这一天的日记吗？')) {
-    return;
-  }
-
-  isDeleting.value = true;
-  detailError.value = null;
-  detailSuccess.value = null;
-
-  const iso = selectedIso.value;
-
-  try {
-    await deleteDiaryEntry(iso);
-    const { [iso]: _removed, ...restDetails } = detailCache.value;
-    detailCache.value = restDetails;
-    refreshSummaryForIso(iso, null);
-    hydrateForm(null);
-    detailSuccess.value = '已删除日记。';
-  } catch (error) {
-    detailError.value = '删除失败，请稍后重试。';
-    console.error('[DiaryCalendar] handleDelete', error);
-  } finally {
-    isDeleting.value = false;
   }
 };
 
@@ -1222,30 +1180,6 @@ button.ghost:disabled {
 
 button.ghost:not(:disabled):hover {
   background: rgba(76, 93, 240, 0.1);
-}
-
-button.danger {
-  border: none;
-  background: linear-gradient(135deg, #ef476f, #ff8a65);
-  color: white;
-  padding: 0.55rem 1.2rem;
-  border-radius: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 12px 28px rgba(239, 71, 111, 0.28);
-  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
-}
-
-button.danger:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 18px 36px rgba(239, 71, 111, 0.38);
-}
-
-button.danger:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
 @media (max-width: 1024px) {
