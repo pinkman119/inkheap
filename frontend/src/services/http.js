@@ -1,9 +1,7 @@
 import axios from 'axios';
 import router from '@/router';
 import { useAuthStore } from '@/stores/auth';
-
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8090/api';
-
 export const httpClient = axios.create({
     baseURL: apiBaseUrl,
     headers: {
@@ -11,7 +9,6 @@ export const httpClient = axios.create({
     },
     timeout: 10000
 });
-
 export const isHttpError = (error, status) => {
     if (!axios.isAxiosError(error))
         return false;
@@ -20,7 +17,6 @@ export const isHttpError = (error, status) => {
     }
     return error.response?.status === status;
 };
-
 httpClient.interceptors.request.use((config) => {
     const authStore = useAuthStore();
     if (!authStore.ready) {
@@ -32,7 +28,6 @@ httpClient.interceptors.request.use((config) => {
     }
     return config;
 });
-
 httpClient.interceptors.response.use(undefined, (error) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
         const authStore = useAuthStore();

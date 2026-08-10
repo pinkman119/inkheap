@@ -1,0 +1,249 @@
+/* 前台样式 - 简约个人主页风格 - 黑白灰主题 */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  color-scheme: light;
+
+  /* 前台专用 CSS 变量 - 黑白灰配色 */
+  --public-bg: #ffffff;
+  --public-surface: #ffffff;
+  --public-text: #22272e;
+  --public-text-secondary: #666666;
+  --public-text-muted: #999999;
+  --public-accent: #333333;
+  --public-accent-hover: #2d333b;
+  --public-border: #d1d5db;
+  --public-border-light: #e5e7eb;
+  --public-shadow: rgba(0, 0, 0, 0.08);
+  --public-shadow-hover: rgba(0, 0, 0, 0.12);
+
+  /* 链接颜色 */
+  --public-link: #333333;
+  --public-link-hover: #2d333b;
+
+  /* 间距 */
+  --public-spacing-sm: 0.5rem;
+  --public-spacing-md: 1rem;
+  --public-spacing-lg: 1.5rem;
+  --public-spacing-xl: 2rem;
+  --public-spacing-2xl: 3rem;
+
+  /* 圆角 */
+  --public-radius-sm: 0.375rem;
+  --public-radius-md: 0.5rem;
+  --public-radius-lg: 0.75rem;
+  --public-radius-xl: 1rem;
+  --radius-3xl: 1.25rem;
+
+  /* 字体 */
+  --public-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --public-font-size-xs: 0.75rem;
+  --public-font-size-sm: 0.875rem;
+  --public-font-size-base: 1rem;
+  --public-font-size-lg: 1.125rem;
+  --public-font-size-xl: 1.25rem;
+  --public-font-size-2xl: 1.5rem;
+  --public-font-size-3xl: 1.875rem;
+}
+
+/* 全局重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--public-font-family);
+  font-size: var(--public-font-size-base);
+  line-height: 1.6;
+  color: var(--public-text);
+  background-color: var(--public-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--public-link);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--public-link-hover);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  line-height: 1.3;
+  color: var(--public-text);
+}
+
+h1 {
+  font-size: var(--public-font-size-3xl);
+  font-weight: 700;
+}
+
+h2 {
+  font-size: var(--public-font-size-2xl);
+  font-weight: 600;
+}
+
+h3 {
+  font-size: var(--public-font-size-xl);
+  font-weight: 600;
+}
+
+h4 {
+  font-size: var(--public-font-size-lg);
+  font-weight: 600;
+}
+
+p {
+  margin-bottom: var(--public-spacing-md);
+}
+
+p:last-child {
+  margin-bottom: 0;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* 容器 */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 var(--public-spacing-lg);
+  position: relative;
+}
+
+/* 卡片 */
+.card {
+  background: var(--public-surface);
+  border-radius: var(--public-radius-lg);
+  padding: var(--public-spacing-xl);
+  box-shadow: 0 1px 3px var(--public-shadow);
+}
+
+/* 按钮 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--public-spacing-sm) var(--public-spacing-lg);
+  border-radius: var(--public-radius-md);
+  border: none;
+  font-size: var(--public-font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background-color: var(--public-accent);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--public-accent-hover);
+}
+
+.btn-secondary {
+  background-color: var(--public-surface);
+  color: var(--public-text);
+  border: 1px solid var(--public-border);
+}
+
+.btn-secondary:hover {
+  background-color: var(--public-bg);
+}
+
+/* 标签 */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: var(--public-font-size-xs);
+  font-weight: 500;
+  background-color: var(--public-bg);
+  color: var(--public-text-secondary);
+}
+
+/* 响应式断点 */
+@media (max-width: 768px) {
+  :root {
+    --public-spacing-lg: 1rem;
+    --public-spacing-xl: 1.5rem;
+    --public-spacing-2xl: 2rem;
+  }
+
+  h1 {
+    font-size: var(--public-font-size-2xl);
+  }
+
+  h2 {
+    font-size: var(--public-font-size-xl);
+  }
+}
+
+/* 夜间模式 - 黑白灰主题 */
+.dark-mode {
+  --public-bg: #22272e;
+  --public-surface: #2d333b;
+  --public-text: #e0e0e0;
+  --public-text-secondary: #a0a0a0;
+  --public-text-muted: #808080;
+  --public-border: #404040;
+  --public-border-light: #333333;
+  --public-shadow: rgba(0, 0, 0, 0.4);
+  --public-shadow-hover: rgba(0, 0, 0, 0.5);
+  --public-link: #e0e0e0;
+  --public-link-hover: #ffffff;
+}
+
+.dark-mode body {
+  background-color: var(--public-bg);
+  color: var(--public-text);
+}
+
+.dark-mode h1,
+.dark-mode h2,
+.dark-mode h3,
+.dark-mode h4,
+.dark-mode h5,
+.dark-mode h6 {
+  color: #ffffff;
+}
+
+.dark-mode ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

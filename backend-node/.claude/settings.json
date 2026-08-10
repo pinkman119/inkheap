@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "permissions": {
+    "Bash": {
+      "allow": [
+        "npm run *",
+        "nest *",
+        "jest *",
+        "eslint *",
+        "prettier *",
+        "git *"
+      ]
+    }
+  }
+}
