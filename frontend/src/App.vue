@@ -1,38 +1,43 @@
-<template>
-  <component :is="layoutComponent">
-    <RouterView />
-  </component>
-</template>
+<script setup>
+import { watch, computed } from 'vue'
+import { useRoute } from 'vue-router'
+import AdminShell from '@/layouts/AdminShell.vue'
 
-<script setup lang="ts">
-import { computed } from 'vue';
-import { useRoute } from 'vue-router';
-import PublicLayout from './layouts/PublicLayout.vue';
-import AdminLayout from './layouts/AdminLayout.vue';
+const route = useRoute()
 
-const route = useRoute();
+const isAdmin = computed(() => route.path.startsWith('/admin'))
 
-const layoutComponent = computed(() => {
-  const layout = route.meta.layout as string;
-
-  switch (layout) {
-    case 'public':
-      return PublicLayout;
-    case 'auth':
-      // 登录页使用简化的 admin 布局
-      return AdminLayout;
-    case 'admin':
-    default:
-      return AdminLayout;
-  }
-});
+/**
+ * 原型把布局差异写在 <body> 上（首页/关于我/小记是 flex 列，数字生命是满屏不滚动）。
+ * SPA 里统一落到 #app + <html>，逐页还原。
+ */
+watch(
+  () => route.meta.layout,
+  (layout) => {
+    const app = document.getElementById('app')
+    if (!app) return
+    if (layout === 'layout-admin') {
+      app.className = ''
+      document.documentElement.classList.remove('layout-fixed')
+    } else {
+      app.className = layout || 'layout-flow'
+      document.documentElement.classList.toggle('layout-fixed', layout === 'layout-fixed')
+    }
+  },
+  { immediate: true },
+)
 </script>
 
-<style>
-/* 移除原有全局样式，样式由布局组件提供 */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-</style>
+<template>
+  <!-- Admin 路由：使用 Admin 布局外壳 -->
+  <AdminShell v-if="isAdmin">
+    <RouterView v-slot="{ Component }">
+      <component :is="Component" />
+    </RouterView>
+  </AdminShell>
+
+  <!-- 公共页面：普通 RouterView -->
+  <RouterView v-else v-slot="{ Component }">
+    <component :is="Component" />
+  </RouterView>
+</template>

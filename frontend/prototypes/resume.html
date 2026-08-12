@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>简历 - 墨堆</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-body: #fafafa;
+      --bg-card: #ffffff;
+      --bg-soft: #f7f9f7;
+      --bg-sidebar: #f5f5f5;
+      --bg-green-soft: #eef6f1;
+      --text-primary: #1a1a1a;
+      --text-secondary: #666666;
+      --text-tertiary: #999999;
+      --border: #e8e8e8;
+      --border-light: #f0f0f0;
+      --accent: #2d8264;
+      --accent-light: #e9f4ef;
+      --accent-hover: #246f53;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --font-serif: 'Noto Serif SC', 'Source Han Serif SC', 'STSong', serif;
+      --font-sans: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+    }
+    [data-theme="dark"] {
+      --bg-body: #0f0f0f;
+      --bg-card: #1a1a1a;
+      --bg-soft: #1d201e;
+      --bg-sidebar: #242424;
+      --bg-green-soft: #182b23;
+      --text-primary: #f5f5f5;
+      --text-secondary: #a8a8a8;
+      --text-tertiary: #737373;
+      --border: #2a2a2a;
+      --border-light: #222222;
+      --accent: #5fc59a;
+      --accent-light: #133028;
+      --accent-hover: #82d7b3;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-body);
+      color: var(--text-primary);
+      line-height: 1.8;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::selection { background-color: var(--accent-light); color: var(--accent-hover); }
+
+    /* ===== Reading progress ===== */
+    .progress {
+      position: fixed; top: 0; left: 0; height: 2px; width: 0%;
+      background-color: var(--accent); z-index: 200; transition: width 0.1s linear;
+    }
+
+    /* ===== Header ===== */
+    .header {
+      position: sticky; top: 0; z-index: 100;
+      background-color: color-mix(in srgb, var(--bg-body) 92%, transparent);
+      border-bottom: 1px solid var(--border-light);
+      backdrop-filter: blur(12px);
+    }
+    .header-inner {
+      max-width: 1120px; margin: 0 auto; padding: 0 24px; height: 68px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .brand {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-family: var(--font-serif); text-decoration: none; color: var(--text-primary);
+    }
+    .brand-mark { display: inline-flex; width: 30px; height: 30px; flex-shrink: 0; }
+    .brand-mark svg { width: 100%; height: 100%; display: block; }
+    .brand-name { font-size: 22px; font-weight: 700; letter-spacing: 0.08em; line-height: 1; color: var(--accent); }
+    .nav { display: flex; align-items: center; gap: 28px; }
+    .nav-links {
+      position: relative; display: flex; align-items: center;
+      gap: 6px; height: 44px;
+    }
+    .nav-underline {
+      position: absolute; left: 0; bottom: 5px; height: 2.5px;
+      background: linear-gradient(90deg, var(--accent), #3fae86);
+      border-radius: 100px;
+      transition: transform .5s cubic-bezier(.22, 1, .36, 1),
+                  width .5s cubic-bezier(.22, 1, .36, 1),
+                  opacity .35s ease;
+      z-index: 0; pointer-events: none;
+    }
+    .nav-links a {
+      position: relative; z-index: 1;
+      display: inline-flex; align-items: center; height: 44px; padding: 0 16px;
+      font-size: 15px; font-weight: 500; color: var(--text-primary);
+      text-decoration: none; letter-spacing: 0.04em; border-radius: 10px;
+      transition: color var(--transition), background-color var(--transition);
+    }
+    .nav-links a:hover {
+      color: var(--accent);
+      background-color: var(--accent-light);
+    }
+    .nav-links a.active { color: var(--accent); font-weight: 600; }
+
+    .nav-underline.preview { opacity: .4; }
+    .theme-toggle {
+      width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border);
+      background: transparent; color: var(--text-secondary); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all var(--transition);
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); background-color: var(--accent-light); }
+    .theme-toggle svg { transition: transform .55s cubic-bezier(.22, 1, .36, 1); }
+    .theme-toggle svg.spin { transform: rotate(360deg); }
+
+    /* ===== Layout ===== */
+    .page { max-width: 1120px; margin: 0 auto; padding: 40px 24px 80px; }
+    .layout {
+      display: grid; grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 48px; align-items: start; margin-top: 36px;
+    }
+
+    /* ===== Hero ===== */
+    .hero {
+      display: flex; align-items: center; justify-content: space-between; gap: 32px;
+      background-color: var(--bg-green-soft);
+      border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+      border-radius: var(--radius-lg);
+      padding: 36px 40px;
+    }
+    .hero-main { display: flex; align-items: center; gap: 24px; min-width: 0; }
+    .avatar-xl {
+      width: 88px; height: 88px; border-radius: 24px; flex-shrink: 0;
+      background: linear-gradient(135deg, #2d8264, #5fc59a); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-serif); font-size: 40px; font-weight: 700;
+      box-shadow: var(--shadow-md);
+    }
+    .hero-name { font-family: var(--font-serif); font-size: 32px; font-weight: 700; line-height: 1.2; letter-spacing: 0.04em; }
+    .hero-handle { font-size: 14px; color: var(--accent-hover); font-weight: 500; margin: 4px 0 8px; letter-spacing: 0.02em; }
+    .hero-tagline { font-size: 14.5px; color: var(--text-secondary); max-width: 460px; line-height: 1.7; }
+    .hero-side { display: flex; flex-direction: column; align-items: flex-end; gap: 16px; flex-shrink: 0; }
+    .btn-download {
+      display: inline-flex; align-items: center; gap: 8px;
+      background-color: var(--accent); color: #fff; border: none; cursor: pointer;
+      font-family: var(--font-sans); font-size: 14px; font-weight: 600; letter-spacing: 0.04em;
+      padding: 11px 22px; border-radius: 100px; transition: all var(--transition);
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-download:hover { background-color: var(--accent-hover); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+    .btn-download svg { width: 16px; height: 16px; }
+    .hero-chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; max-width: 260px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12.5px; color: var(--text-secondary); background-color: var(--bg-card);
+      border: 1px solid var(--border); padding: 5px 11px; border-radius: 100px; text-decoration: none;
+      transition: all var(--transition);
+    }
+    .chip:hover { border-color: var(--accent); color: var(--accent); }
+    .chip svg { width: 13px; height: 13px; color: var(--accent); }
+
+    /* ===== Main sections ===== */
+    .main { min-width: 0; }
+    .section { margin-bottom: 48px; }
+    .section:last-child { margin-bottom: 0; }
+    .section-title {
+      font-family: var(--font-serif); font-size: 23px; font-weight: 600; line-height: 1.4;
+      margin-bottom: 22px; padding-left: 16px; position: relative;
+    }
+    .section-title::before {
+      content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 4px;
+      background-color: var(--accent); border-radius: 2px;
+    }
+    .lead-text { font-size: 15.5px; color: var(--text-secondary); line-height: 1.9; }
+    .lead-text strong { color: var(--text-primary); font-weight: 600; }
+    .callout {
+      display: flex; gap: 14px; margin-top: 22px; padding: 18px 20px;
+      background-color: var(--bg-card); border: 1px solid var(--border-light);
+      border-left: 3px solid var(--accent); border-radius: var(--radius-sm);
+    }
+    .callout svg { width: 20px; height: 20px; color: var(--accent); flex-shrink: 0; margin-top: 3px; }
+    .callout p { font-size: 14px; color: var(--text-secondary); margin: 0; }
+
+    /* ===== Experience timeline ===== */
+    .exp { list-style: none; position: relative; padding-left: 26px; }
+    .exp::before {
+      content: ''; position: absolute; left: 7px; top: 6px; bottom: 6px; width: 2px;
+      background: linear-gradient(var(--accent), color-mix(in srgb, var(--accent) 30%, transparent));
+    }
+    .exp-item { position: relative; margin-bottom: 32px; }
+    .exp-item:last-child { margin-bottom: 0; }
+    .exp-item::before {
+      content: ''; position: absolute; left: -23px; top: 7px; width: 11px; height: 11px;
+      border-radius: 50%; background-color: var(--bg-body); border: 3px solid var(--accent);
+    }
+    .exp-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .exp-role { font-family: var(--font-serif); font-size: 17px; font-weight: 600; color: var(--text-primary); }
+    .exp-period { font-family: var(--font-mono); font-size: 13px; color: var(--accent-hover); white-space: nowrap; }
+    .exp-org { font-size: 14px; color: var(--text-secondary); margin: 3px 0 12px; font-weight: 500; }
+    .exp-desc { list-style: none; margin: 0; padding: 0; }
+    .exp-desc li {
+      position: relative; padding-left: 18px; margin-bottom: 9px;
+      font-size: 14.5px; color: var(--text-secondary); line-height: 1.75;
+    }
+    .exp-desc li::before {
+      content: ''; position: absolute; left: 0; top: 11px; width: 6px; height: 6px;
+      border-radius: 50%; background-color: var(--accent); opacity: 0.6;
+    }
+
+    /* ===== Project cards ===== */
+    .proj {
+      background-color: var(--bg-card); border: 1px solid var(--border-light);
+      border-radius: var(--radius-md); padding: 22px 24px; margin-bottom: 18px;
+      transition: all var(--transition);
+    }
+    .proj:last-child { margin-bottom: 0; }
+    .proj:hover { border-color: color-mix(in srgb, var(--accent) 35%, transparent); box-shadow: var(--shadow-sm); transform: translateY(-2px); }
+    .proj-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .proj-title { font-family: var(--font-serif); font-size: 17px; font-weight: 600; color: var(--text-primary); }
+    .proj-year { font-family: var(--font-mono); font-size: 12.5px; color: var(--text-tertiary); }
+    .proj-desc { font-size: 14.5px; color: var(--text-secondary); line-height: 1.75; margin-bottom: 14px; }
+    .proj-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    /* ===== Sidebar ===== */
+    .aside { display: flex; flex-direction: column; gap: 20px; position: sticky; top: 92px; }
+    .side-card {
+      background-color: var(--bg-card); border: 1px solid var(--border-light);
+      border-radius: var(--radius-md); padding: 22px 22px;
+    }
+    .side-title {
+      font-size: 12px; font-weight: 600; color: var(--text-tertiary); letter-spacing: 0.12em;
+      text-transform: uppercase; margin-bottom: 16px;
+    }
+    .contact-list { list-style: none; display: flex; flex-direction: column; gap: 13px; }
+    .contact-list li { display: flex; align-items: center; gap: 11px; font-size: 14px; }
+    .contact-list svg { width: 16px; height: 16px; color: var(--accent); flex-shrink: 0; }
+    .contact-list a { color: var(--text-primary); text-decoration: none; transition: color var(--transition); }
+    .contact-list a:hover { color: var(--accent); }
+    .contact-list .c-label { color: var(--text-tertiary); font-size: 12.5px; min-width: 42px; }
+    .tag-group { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tag {
+      font-size: 13px; color: var(--text-secondary); background-color: var(--bg-card);
+      border: 1px solid var(--border); padding: 5px 13px; border-radius: 100px; transition: all var(--transition);
+    }
+    .tag:hover { border-color: var(--accent); color: var(--accent); background-color: var(--accent-light); }
+    .tag--accent { background-color: var(--accent-light); border-color: transparent; color: var(--accent-hover); font-weight: 500; }
+    .lang-row { display: flex; align-items: center; justify-content: space-between; font-size: 14px; padding: 8px 0; border-bottom: 1px solid var(--border-light); }
+    .lang-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .lang-row:first-child { padding-top: 0; }
+    .lang-row .l-level { font-size: 12.5px; color: var(--text-tertiary); }
+    .bar { height: 6px; border-radius: 3px; background-color: var(--bg-sidebar); margin-top: 6px; overflow: hidden; }
+    .bar > span { display: block; height: 100%; background: linear-gradient(90deg, #2d8264, #5fc59a); border-radius: 3px; }
+
+    /* ===== Footer ===== */
+    .footer { border-top: 1px solid var(--border-light); padding: 36px 24px; text-align: center; margin-top: 64px; }
+    .footer p { font-size: 13px; color: var(--text-tertiary); }
+
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; gap: 40px; }
+      .aside { position: static; flex-direction: row; flex-wrap: wrap; }
+      .side-card { flex: 1 1 240px; }
+    }
+    @media (max-width: 720px) {
+      .header-inner { height: 60px; padding: 0 16px; }
+      .nav-links a { font-size: 13px; padding: 0 13px; }
+      .brand-name { font-size: 19px; }
+      .brand-mark { width: 26px; height: 26px; }
+      .hero { flex-direction: column; align-items: flex-start; padding: 28px 24px; }
+      .hero-side { align-items: flex-start; width: 100%; }
+      .hero-chips { justify-content: flex-start; }
+      .page { padding: 28px 16px 56px; }
+      .hero-name { font-size: 27px; }
+      .avatar-xl { width: 72px; height: 72px; font-size: 32px; border-radius: 20px; }
+      .aside { flex-direction: column; }
+    }
+    @media (max-width: 480px) {
+      .nav-links { display: none; }
+    }
+
+    /* ===== Print ===== */
+    @media print {
+      .header, .theme-toggle, .progress, .btn-download, .footer { display: none !important; }
+      body { background: #fff; color: #000; }
+      .page { padding: 0; max-width: 100%; }
+      .layout { grid-template-columns: minmax(0, 1fr) 260px; gap: 32px; margin-top: 16px; }
+      .hero { background: none; border: 1px solid #ccc; padding: 20px 24px; }
+      .aside { position: static; }
+      a { color: #000 !important; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="article-list.html" class="brand" aria-label="墨堆">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+  <rect width="28" height="28" rx="8" fill="#2d8264"/>
+  <circle cx="14" cy="9" r="3.2" fill="#ffffff"/>
+  <rect x="7.5" y="14.5" width="13" height="2.8" rx="1.4" fill="#ffffff"/>
+  <rect x="7.5" y="19" width="13" height="2.8" rx="1.4" fill="#ffffff"/>
+</svg>
+        </span>
+        <span class="brand-name">墨堆</span>
+      </a>
+      <nav class="nav">
+        <div class="nav-links" id="navLinks"></div>
+        <button class="theme-toggle" id="themeToggle" aria-label="切换主题">
+          <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <div class="page">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-main">
+        <div class="avatar-xl" aria-hidden="true">墨</div>
+        <div>
+          <h1 class="hero-name">林知墨</h1>
+          <p class="hero-handle">墨堆 · 产品设计 / 前端工程</p>
+          <p class="hero-tagline">在设计与工程之间，记录思考的碎片。专注设计系统、人机交互与全栈落地。</p>
+        </div>
+      </div>
+      <div class="hero-side">
+        <button class="btn-download" onclick="window.print()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          下载 PDF
+        </button>
+        <div class="hero-chips">
+          <a class="chip" href="mailto:hi@modui.design"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z" opacity="0"/><path d="M22 6l-10 7L2 6"></path><rect x="2" y="4" width="20" height="16" rx="2"></rect></svg>hi@modui.design</a>
+          <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>杭州 · 中国</span>
+          <a class="chip" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>modui.design</a>
+        </div>
+      </div>
+    </section>
+
+    <div class="layout">
+      <!-- Main -->
+      <main class="main">
+        <section class="section">
+          <h2 class="section-title">关于我</h2>
+          <p class="lead-text">我是一名横跨<strong>产品设计</strong>与<strong>前端工程</strong>的从业者，习惯把模糊的需求翻译成可落地的界面与系统。过去 6 年里，我在设计系统、B 端中台与开发者工具之间往返，相信好的产品来自设计约束与工程可行性的反复对齐。</p>
+          <p class="lead-text" style="margin-top:14px;">工作之余以「墨堆」为名记录技术随笔，把读过的论文、踩过的坑、想通的设计原则沉淀成文字。我追求一种<strong>克制而精确</strong>的表达——无论写代码还是写文章。</p>
+          <div class="callout">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <p>设计不是装饰，而是把复杂性藏到恰好的深度；工程不是实现，而是让好的设计活下来。</p>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">工作经历</h2>
+          <ul class="exp">
+            <li class="exp-item">
+              <div class="exp-head">
+                <div class="exp-role">高级产品设计师 / 设计系统负责人</div>
+                <div class="exp-period">2021.06 — 至今</div>
+              </div>
+              <div class="exp-org">星澜科技 · 设计平台部</div>
+              <ul class="exp-desc">
+                <li>从 0 到 1 搭建跨 Web / 小程序 / 桌面端的设计系统，覆盖 120+ 组件，推动设计交付效率提升约 40%。</li>
+                <li>主导设计 Token 体系建设，统一色彩、间距、字体语义，使多团队 UI 一致性达到 95%+。</li>
+                <li>建立组件文档与可视化 QA 流程，把设计还原度从 78% 拉升至 92%+。</li>
+              </ul>
+            </li>
+            <li class="exp-item">
+              <div class="exp-head">
+                <div class="exp-role">前端工程师</div>
+                <div class="exp-period">2019.03 — 2021.05</div>
+              </div>
+              <div class="exp-org">云栖网络 · 数据中台</div>
+              <ul class="exp-desc">
+                <li>负责可视化分析平台前端架构，基于 React + TypeScript 重构报表引擎，首屏加载从 4.2s 降至 1.1s。</li>
+                <li>设计可配置图表组件库，支撑 8 条业务线自助搭建看板，减少重复开发约 60%。</li>
+                <li>推动前端工程化：引入微前端与按需构建，CI 构建耗时下降 35%。</li>
+              </ul>
+            </li>
+            <li class="exp-item">
+              <div class="exp-head">
+                <div class="exp-role">UI 设计师（实习 → 转正）</div>
+                <div class="exp-period">2018.07 — 2019.02</div>
+              </div>
+              <div class="exp-org">明远互动 · 用户体验组</div>
+              <ul class="exp-desc">
+                <li>参与电商 App 改版，负责商品详情与结算流程的体验优化，转化率提升 11%。</li>
+                <li>输出高保真原型与交互动效规范，建立团队首个可复用的组件草稿库。</li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">项目经历</h2>
+          <div class="proj">
+            <div class="proj-head">
+              <div class="proj-title">墨堆 · 个人知识站</div>
+              <div class="proj-year">2023</div>
+            </div>
+            <p class="proj-desc">一个以设计与技术为主题的内容站点，包含多级分类、明暗双主题与阅读进度等细节。强调克制的视觉语言与一致的设计 Token。</p>
+            <div class="proj-tags">
+              <span class="tag tag--accent">设计系统</span>
+              <span class="tag">HTML / CSS</span>
+              <span class="tag">无障碍</span>
+              <span class="tag">暗色模式</span>
+            </div>
+          </div>
+          <div class="proj">
+            <div class="proj-head">
+              <div class="proj-title">Orbit · 设计协作插件</div>
+              <div class="proj-year">2022</div>
+            </div>
+            <p class="proj-desc">面向设计团队的 Figma 插件，把设计稿一键同步为可维护的 Token JSON，并生成前端组件骨架，打通设计到代码的最后一公里。</p>
+            <div class="proj-tags">
+              <span class="tag tag--accent">Figma API</span>
+              <span class="tag">TypeScript</span>
+              <span class="tag">DX</span>
+            </div>
+          </div>
+          <div class="proj">
+            <div class="proj-head">
+              <div class="proj-title">InsightBoard · 数据看板</div>
+              <div class="proj-year">2020</div>
+            </div>
+            <p class="proj-desc">低代码可视化分析平台，支持拖拽式图表编排与主题换肤。作为前端主程主导渲染性能优化与图表组件抽象。</p>
+            <div class="proj-tags">
+              <span class="tag tag--accent">React</span>
+              <span class="tag">可视化</span>
+              <span class="tag">性能优化</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">教育背景</h2>
+          <ul class="exp">
+            <li class="exp-item">
+              <div class="exp-head">
+                <div class="exp-role">数字媒体技术 · 工学学士</div>
+                <div class="exp-period">2014 — 2018</div>
+              </div>
+              <div class="exp-org">江南大学 · 设计学院</div>
+              <ul class="exp-desc">
+                <li>主修人机交互、信息可视化与前端开发，毕业设计获院级优秀作品。</li>
+                <li>担任设计社团视觉负责人，统筹校内多个活动的品牌与物料。</li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+      </main>
+
+      <!-- Sidebar -->
+      <aside class="aside">
+        <div class="side-card">
+          <div class="side-title">联系方式</div>
+          <ul class="contact-list">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 6l-10 7L2 6"></path><rect x="2" y="4" width="20" height="16" rx="2"></rect></svg><span class="c-label">邮箱</span><a href="mailto:hi@modui.design">hi@modui.design</a></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"></path></svg><span class="c-label">电话</span><a href="tel:+8613800000000">+86 138 0000 0000</a></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg><span class="c-label">GitHub</span><a href="#">github.com/modui</a></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg><span class="c-label">站点</span><a href="#">modui.design</a></li>
+          </ul>
+        </div>
+
+        <div class="side-card">
+          <div class="side-title">核心技能</div>
+          <div class="tag-group">
+            <span class="tag tag--accent">设计系统</span>
+            <span class="tag">用户体验</span>
+            <span class="tag">交互设计</span>
+            <span class="tag">Figma</span>
+            <span class="tag">设计 Token</span>
+            <span class="tag">无障碍</span>
+            <span class="tag">用户研究</span>
+          </div>
+        </div>
+
+        <div class="side-card">
+          <div class="side-title">工程能力</div>
+          <div class="tag-group">
+            <span class="tag">HTML / CSS</span>
+            <span class="tag">JavaScript</span>
+            <span class="tag">TypeScript</span>
+            <span class="tag">React</span>
+            <span class="tag">Vue</span>
+            <span class="tag">Node.js</span>
+            <span class="tag">构建优化</span>
+          </div>
+        </div>
+
+        <div class="side-card">
+          <div class="side-title">语言能力</div>
+          <div class="lang-row">
+            <div>
+              <div>中文</div>
+              <div class="bar"><span style="width:100%"></span></div>
+            </div>
+            <div class="l-level">母语</div>
+          </div>
+          <div class="lang-row">
+            <div>
+              <div>English</div>
+              <div class="bar"><span style="width:80%"></span></div>
+            </div>
+            <div class="l-level">流利 · CET-6</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <footer class="footer"><p>© 2024 墨堆 · 以设计记录思考</p></footer>
+
+  <script>
+    // ===== Smart nav (day/night aware, sliding indicator) =====
+    const navLinksEl = document.getElementById('navLinks');
+    const navData = {
+      day: [
+        { key: 'home',    label: '首页',     href: 'article-list.html' },
+        { key: 'kb',      label: '知识库',   href: '#' },
+        { key: 'resume',  label: '简历',     href: 'resume.html' },
+        { key: 'digital', label: '数字生命', href: '#' },
+      ],
+      night: [
+        { key: 'home',    label: '首页',     href: 'article-list.html' },
+        { key: 'notes',   label: '小记',     href: 'xiaoji.html' },
+        { key: 'about',   label: '关于我',   href: 'about-me.html' },
+        { key: 'digital', label: '数字生命', href: '#' },
+      ],
+    };
+    const activeNavKey = 'resume';
+    let navIndicator = null;
+
+    function moveIndicator(target) {
+      if (!target || !navIndicator) return;
+      navIndicator.style.width = target.offsetWidth + 'px';
+      navIndicator.style.transform = 'translateX(' + target.offsetLeft + 'px)';
+    }
+    function renderNav() {
+      const isDark = root.getAttribute('data-theme') === 'dark';
+      const items = isDark ? navData.night : navData.day;
+      const activeKey = items.some(i => i.key === activeNavKey) ? activeNavKey : items[0].key;
+      navLinksEl.innerHTML = '';
+      items.forEach(it => {
+        const a = document.createElement('a');
+        a.href = it.href; a.textContent = it.label; a.dataset.key = it.key;
+        if (it.key === activeKey) a.classList.add('active');
+        a.addEventListener('mouseenter', () => {
+          if (a.classList.contains('active')) return;
+          navIndicator.classList.add('preview');
+          moveIndicator(a);
+        });
+        navLinksEl.appendChild(a);
+      });
+      if (!navIndicator) {
+        navIndicator = document.createElement('span');
+        navIndicator.className = 'nav-underline';
+      }
+      navLinksEl.appendChild(navIndicator);
+      moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+    }
+    navLinksEl.addEventListener('mouseleave', () => {
+      if (!navIndicator) return;
+      navIndicator.classList.remove('preview');
+      moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+    });
+    window.addEventListener('resize', () => {
+      moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+    });
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+      });
+    }
+
+    // ===== Theme toggle =====
+    const root = document.documentElement;
+    const toggle = document.getElementById('themeToggle');
+    const icon = document.getElementById('themeIcon');
+    const moonIcon = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+    const sunIcon = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
+    function setTheme(t) {
+      root.setAttribute('data-theme', t);
+      icon.innerHTML = t === 'dark' ? sunIcon : moonIcon;
+      try { localStorage.setItem('theme', t); } catch (e) {}
+      renderNav();
+    }
+    const saved = (function(){ try { return localStorage.getItem('theme'); } catch(e){ return null; } })();
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (saved) setTheme(saved);
+    else if (prefersDark) setTheme('dark');
+    else renderNav();
+    toggle.addEventListener('click', () => {
+      setTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+      const svg = toggle.querySelector('svg');
+      if (svg) { svg.classList.remove('spin'); void svg.offsetWidth; svg.classList.add('spin'); }
+    });
+
+    // ===== Reading progress =====
+    const progress = document.getElementById('progress');
+    window.addEventListener('scroll', () => {
+      const h = document.documentElement;
+      const scrolled = h.scrollTop / (h.scrollHeight - h.clientHeight);
+      progress.style.width = (scrolled * 100) + '%';
+    }, { passive: true });
+  </script>
+</body>
+</html>

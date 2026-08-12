@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文章 - 墨堆</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-body: #fafafa;
+      --bg-card: #ffffff;
+      --bg-soft: #f7f9f7;
+      --bg-sidebar: #f5f5f5;
+      --bg-tree: #fafafa;
+      --bg-green-soft: #eef6f1;
+      --text-primary: #1a1a1a;
+      --text-secondary: #666666;
+      --text-tertiary: #999999;
+      --border: #e8e8e8;
+      --border-light: #f0f0f0;
+      --accent: #2d8264;
+      --accent-light: #e9f4ef;
+      --accent-hover: #246f53;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --font-serif: 'Noto Serif SC', 'Source Han Serif SC', 'STSong', serif;
+      --font-sans: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+      /* Heatmap levels (light) */
+      --hm-0: #eceef0;
+      --hm-1: #bfe3d0;
+      --hm-2: #7cc6a3;
+      --hm-3: #2d8264;
+      --hm-4: #18583f;
+    }
+
+    [data-theme="dark"] {
+      --bg-body: #0f0f0f;
+      --bg-card: #1a1a1a;
+      --bg-soft: #1d201e;
+      --bg-sidebar: #242424;
+      --bg-tree: #0f0f0f;
+      --bg-green-soft: #182b23;
+      --text-primary: #f5f5f5;
+      --text-secondary: #a8a8a8;
+      --text-tertiary: #737373;
+      --border: #2a2a2a;
+      --border-light: #222222;
+      --accent: #5fc59a;
+      --accent-light: #133028;
+      --accent-hover: #82d7b3;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+      /* Heatmap levels (dark) */
+      --hm-0: #1b2029;
+      --hm-1: #114530;
+      --hm-2: #1a6b4d;
+      --hm-3: #2d8264;
+      --hm-4: #5fc59a;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-body);
+      color: var(--text-primary);
+      line-height: 1.8;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Header */
+    .header {
+      position: sticky; top: 0; z-index: 100;
+      background-color: color-mix(in srgb, var(--bg-body) 92%, transparent);
+      border-bottom: 1px solid var(--border-light);
+      backdrop-filter: blur(12px);
+    }
+    .header-inner {
+      max-width: 1320px; margin: 0 auto; padding: 0 24px; height: 68px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .brand {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-family: var(--font-serif); text-decoration: none; color: var(--text-primary);
+    }
+    .brand-mark { display: inline-flex; width: 30px; height: 30px; flex-shrink: 0; }
+    .brand-mark svg { width: 100%; height: 100%; display: block; }
+    .brand-name {
+      font-size: 22px; font-weight: 700; letter-spacing: 0.08em; line-height: 1;
+      color: var(--accent);
+    }
+    .nav { display: flex; align-items: center; gap: 28px; }
+    .nav-links {
+      position: relative; display: flex; align-items: center;
+      gap: 6px; height: 44px;
+    }
+    /* Sliding underline — smooth, minimal active/hover indicator (black-white-green) */
+    .nav-underline {
+      position: absolute; left: 0; bottom: 5px; height: 2.5px;
+      background: linear-gradient(90deg, var(--accent), #3fae86);
+      border-radius: 100px;
+      transition: transform .5s cubic-bezier(.22, 1, .36, 1),
+                  width .5s cubic-bezier(.22, 1, .36, 1),
+                  opacity .35s ease;
+      z-index: 0; pointer-events: none;
+    }
+    .nav-links a {
+      position: relative; z-index: 1;
+      display: inline-flex; align-items: center; height: 44px; padding: 0 16px;
+      font-size: 15px; font-weight: 500; color: var(--text-primary);
+      text-decoration: none; letter-spacing: 0.04em; border-radius: 10px;
+      transition: color var(--transition), background-color var(--transition);
+    }
+    .nav-links a:hover {
+      color: var(--accent);
+      background-color: var(--accent-light);
+    }
+    .nav-links a.active { color: var(--accent); font-weight: 600; }
+    .nav-underline.preview { opacity: .4; }
+    .theme-toggle {
+      width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border);
+      background: transparent; color: var(--text-secondary); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all var(--transition);
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); background-color: var(--accent-light); }
+    .theme-toggle svg { transition: transform .55s cubic-bezier(.22, 1, .36, 1); }
+    .theme-toggle svg.spin { transform: rotate(360deg); }
+
+    /* Layout: 3 columns */
+    .container {
+      max-width: 1320px; margin: 0 auto; padding: 24px 24px 80px;
+      display: grid; grid-template-columns: 268px minmax(0, 1fr) 300px;
+      gap: 52px; align-items: start;
+    }
+
+    /* ============ Category Tree (left) ============ */
+    .cat-tree {
+      position: sticky; top: 76px;
+      background-color: var(--bg-tree);
+      border-radius: var(--radius-md);
+      padding: 8px 10px;
+    }
+    .cat-tree-title {
+      font-size: 13px; font-weight: 600; color: var(--text-tertiary);
+      letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 14px;
+      padding: 0 8px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .tree-reset {
+      font-size: 12px; color: var(--accent); cursor: pointer; text-transform: none;
+      letter-spacing: normal; font-weight: 500; background: none; border: none;
+      font-family: var(--font-sans); margin-left: auto;
+    }
+    .tree-reset:hover { color: var(--accent-hover); }
+
+    .tree, .tree ul { list-style: none; }
+    .tree ul { margin-left: 14px; border-left: 1px solid var(--border); padding-left: 6px; }
+    .tree li { margin: 2px 0; }
+    .tree-item {
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 10px; border-radius: var(--radius-sm);
+      cursor: pointer; color: var(--text-secondary); font-size: 14px;
+      transition: all var(--transition); user-select: none; position: relative;
+    }
+    .tree-item:hover { background-color: var(--bg-card); color: var(--text-primary); }
+    .tree-item.active {
+      background-color: var(--accent); color: var(--bg-card); font-weight: 600;
+    }
+    .tree-item.active::before {
+      content: ''; position: absolute; left: -7px; top: 50%; transform: translateY(-50%);
+      width: 3px; height: 18px; background-color: var(--bg-card); border-radius: 2px;
+    }
+    .tree-toggle {
+      width: 16px; height: 16px; flex-shrink: 0; display: flex; align-items: center;
+      justify-content: center; transition: transform var(--transition); color: var(--text-tertiary);
+    }
+    .tree-toggle.collapsed { transform: rotate(-90deg); }
+    .tree-toggle.leaf { visibility: hidden; }
+    .tree-count {
+      margin-left: auto; font-size: 11px; color: var(--text-tertiary);
+      background-color: var(--bg-card); padding: 1px 7px; border-radius: 100px;
+    }
+    .tree-item.active .tree-count { background-color: var(--bg-card); color: var(--accent); }
+    .tree-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ============ Main content (center) ============ */
+    .breadcrumb {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+      font-size: 14px; color: var(--text-tertiary);
+    }
+    .list-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .list-filter { position: relative; display: inline-flex; align-items: center; flex-shrink: 0; }
+    .list-filter .search-icon { position: absolute; left: 13px; width: 15px; height: 15px; color: var(--text-tertiary); pointer-events: none; }
+    .filter-input {
+      font-family: var(--font-sans); font-size: 14px; color: var(--text-primary);
+      background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 100px;
+      padding: 9px 38px 9px 36px; width: 220px;
+      transition: border-color var(--transition), box-shadow var(--transition), width var(--transition);
+    }
+    .filter-input::placeholder { color: var(--text-tertiary); }
+    .filter-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(45, 130, 100, 0.12); width: 260px; }
+    .filter-clear {
+      position: absolute; right: 11px; width: 20px; height: 20px; border: none; background: none;
+      color: var(--text-tertiary); font-size: 18px; line-height: 1; cursor: pointer; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center; padding: 0;
+    }
+    .filter-clear:hover { color: var(--text-primary); background: var(--bg-soft); }
+    .breadcrumb a {
+      color: var(--text-secondary); text-decoration: none; cursor: pointer;
+      padding: 2px 4px; border-radius: 4px; transition: color var(--transition);
+    }
+    .breadcrumb a:hover { color: var(--accent); }
+    .breadcrumb .sep { color: var(--text-tertiary); margin: 0 2px; }
+    .breadcrumb .current { color: var(--text-primary); font-weight: 500; padding: 2px 4px; }
+
+    .article-list { display: flex; flex-direction: column; gap: 24px; }
+    .article-card {
+      display: grid; grid-template-columns: 200px 1fr; gap: 22px; padding: 22px;
+      background-color: var(--bg-card); border: 1px solid var(--border-light);
+      border-radius: var(--radius-md); transition: all var(--transition);
+      text-decoration: none; color: inherit;
+    }
+    .article-card:hover { border-color: var(--border); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .article-card.hidden { display: none; }
+    .article-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+    .article-thumbnail {
+      width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: var(--radius-sm);
+      background-color: var(--bg-sidebar);
+    }
+    .article-content { display: flex; flex-direction: column; justify-content: center; }
+    .article-category {
+      display: inline-flex; align-self: flex-start; font-size: 12px; font-weight: 600;
+      color: var(--accent); background-color: var(--accent-light); padding: 4px 10px;
+      border-radius: 100px; margin-bottom: 10px; letter-spacing: 0.02em;
+    }
+    .article-title {
+      font-family: var(--font-serif); font-size: 21px; font-weight: 600;
+      color: var(--text-primary); margin-bottom: 9px; line-height: 1.4; transition: color var(--transition);
+    }
+    .article-card:hover .article-title { color: var(--accent); }
+    .article-excerpt {
+      font-size: 15px; color: var(--text-secondary); line-height: 1.8; margin-bottom: 14px;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .article-meta { display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--text-tertiary); flex-wrap: wrap; }
+    .article-meta span { display: inline-flex; align-items: center; gap: 5px; }
+    .article-meta svg { width: 14px; height: 14px; opacity: 0.7; }
+
+    .empty-state { text-align: center; padding: 64px 24px; color: var(--text-secondary); display: none; }
+    .empty-state.active { display: block; }
+    .empty-state svg { width: 48px; height: 48px; margin-bottom: 16px; color: var(--text-tertiary); }
+    .empty-state p { font-size: 15px; }
+
+    /* ============ Sidebar (right) ============ */
+    .sidebar { display: flex; flex-direction: column; gap: 24px; position: sticky; top: 92px; }
+    .sidebar-block {
+      background-color: var(--bg-soft); border-radius: var(--radius-md);
+      padding: 22px; border: 1px solid var(--border-light);
+    }
+    .sidebar-block--green {
+      background-color: var(--bg-green-soft);
+      border-color: rgba(45, 130, 100, 0.18);
+      display: flex; flex-direction: column;
+      max-height: calc(100vh - 140px);
+    }
+    .feed-header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; flex-shrink: 0; margin-bottom: 18px;
+    }
+    .feed-title {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: var(--font-sans); font-size: 14px; font-weight: 600; letter-spacing: 0.02em;
+      color: #ffffff; background-color: #2d8264;
+      border: 1px solid #2d8264; border-radius: 100px;
+      padding: 7px 16px; cursor: pointer; line-height: 1;
+      transition: color var(--transition), border-color var(--transition), background-color var(--transition);
+    }
+    .feed-title:hover { color: #ffffff; background-color: #246f53; border-color: #246f53; }
+    .feed-title:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .feed-refresh {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      border: 1px solid var(--border); background: transparent; color: var(--text-secondary);
+      cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      transition: color var(--transition), border-color var(--transition), background-color var(--transition);
+    }
+    .feed-refresh:hover { color: var(--accent); border-color: var(--accent); background-color: var(--accent-light); }
+    .feed-refresh:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .feed-refresh svg { width: 15px; height: 15px; transition: transform .55s cubic-bezier(.22, 1, .36, 1); }
+    .feed-refresh.spin svg { transform: rotate(360deg); }
+    .timeline { transition: opacity var(--transition); }
+
+    /* ===== Update timeline ===== */
+    .timeline { list-style: none; position: relative; padding-left: 18px; overflow-y: auto; flex: 1 1 auto; min-height: 0; margin-right: -6px; padding-right: 6px; }
+    .timeline::-webkit-scrollbar { width: 6px; }
+    .timeline::-webkit-scrollbar-thumb { background: rgba(45, 130, 100, 0.25); border-radius: 100px; }
+    .timeline::-webkit-scrollbar-track { background: transparent; }
+    .timeline::before {
+      content: ''; position: absolute; left: 4px; top: 6px; bottom: 6px; width: 2px;
+      background: linear-gradient(rgba(45, 130, 100, 0.35), rgba(45, 130, 100, 0.12));
+    }
+    .timeline-item { position: relative; padding-bottom: 16px; }
+    .timeline-item:last-child { padding-bottom: 0; }
+    .timeline-item::before {
+      content: ''; position: absolute; left: -18px; top: 5px; width: 9px; height: 9px;
+      border-radius: 50%; background: var(--bg-green-soft); border: 2px solid var(--accent);
+      box-shadow: 0 0 0 3px var(--bg-green-soft);
+    }
+    .timeline-date { font-size: 12px; color: var(--text-tertiary); margin-bottom: 3px; font-variant-numeric: tabular-nums; }
+    .timeline-title {
+      font-size: 13.5px; line-height: 1.5; color: var(--text-primary); text-decoration: none;
+      display: block; transition: color var(--transition);
+    }
+    .timeline-title:hover { color: var(--accent); }
+
+    .footer { border-top: 1px solid var(--border-light); padding: 40px 24px; text-align: center; color: var(--text-tertiary); font-size: 13px; }
+
+    /* Mobile tree toggle */
+    .tree-mobile-toggle { display: none; }
+
+    /* ============ Responsive ============ */
+    @media (max-width: 1180px) {
+      .container { grid-template-columns: 240px minmax(0, 1fr) 280px; gap: 36px; }
+    }
+    @media (max-width: 1024px) {
+      .container { grid-template-columns: 1fr; gap: 28px; }
+      .cat-tree {
+        position: static; max-height: none; order: -1;
+      }
+      .cat-tree.collapsed .tree { display: none; }
+      .tree-mobile-toggle {
+        display: flex; align-items: center; gap: 6px; background: none; border: none;
+        font-family: var(--font-sans); font-size: 14px; font-weight: 600; color: var(--text-primary);
+        cursor: pointer; padding: 0; margin-left: 8px;
+      }
+      .sidebar { position: static; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+      .sidebar-block--green { max-height: none; }
+      .timeline { overflow: visible; margin-right: 0; padding-right: 0; }
+    }
+    @media (max-width: 768px) {
+      .header-inner { height: 60px; padding: 0 16px; }
+      .nav-links { gap: 2px; }
+      .nav-links a { font-size: 13px; padding: 0 13px; }
+      .brand-name { font-size: 19px; }
+      .brand-mark { width: 26px; height: 26px; }
+      .container { padding: 28px 16px 56px; }
+      .article-card { grid-template-columns: 1fr; padding: 18px; gap: 16px; }
+      .article-thumbnail { aspect-ratio: 16/9; }
+      .article-title { font-size: 18px; }
+      .list-toolbar { flex-direction: column; align-items: stretch; }
+      .list-filter { width: 100%; }
+      .filter-input { width: 100%; }
+      .filter-input:focus { width: 100%; }
+    }
+    @media (max-width: 480px) {
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a href="#" class="brand" aria-label="墨堆">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+  <rect width="28" height="28" rx="8" fill="#2d8264"/>
+  <circle cx="14" cy="9" r="3.2" fill="#ffffff"/>
+  <rect x="7.5" y="14.5" width="13" height="2.8" rx="1.4" fill="#ffffff"/>
+  <rect x="7.5" y="19" width="13" height="2.8" rx="1.4" fill="#ffffff"/>
+</svg>
+        </span>
+        <span class="brand-name">墨堆</span>
+      </a>
+      <nav class="nav">
+        <div class="nav-links" id="navLinks"></div>
+        <button class="theme-toggle" id="themeToggle" aria-label="切换主题">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- LEFT: Category Tree -->
+    <aside class="cat-tree" id="catTree">
+      <div class="cat-tree-title">
+        <button class="tree-mobile-toggle" id="treeMobileToggle">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+      </div>
+      <nav class="tree" id="treeRoot" aria-label="文章分类"></nav>
+    </aside>
+
+    <!-- CENTER: Article list -->
+    <section class="main-content">
+      <div class="list-toolbar">
+        <nav class="breadcrumb" id="breadcrumb" aria-label="当前分类路径"></nav>
+        <div class="list-filter">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="search" id="articleSearch" class="filter-input" placeholder="搜索文章…" aria-label="按标题或内容筛选文章">
+          <button type="button" class="filter-clear" id="filterClear" aria-label="清除筛选" hidden>&times;</button>
+        </div>
+      </div>
+
+      <div class="article-list" id="articleList">
+        <!-- NodeJS / 数据库 / Mysql -->
+        <a class="article-card" href="article-detail.html" data-key="nodejs-db-mysql">
+          <img src="https://images.unsplash.com/photo-1544383835-bda2bc66a55d?w=400&h=300&fit=crop" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">Mysql数据库</span>
+            <h2 class="article-title">MySQL 连接池调优：从 200ms 到 8ms 的实战</h2>
+            <p class="article-excerpt">在高并发场景下，连接池配置直接决定接口延迟。本文记录我们在 NodeJS 服务中对 Mysql 连接池的调优过程，包括最大连接数、空闲回收与超时策略。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 张三</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-05-15</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 1286 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- NodeJS / 数据库 / MongoDB -->
+        <a class="article-card" href="article-detail.html" data-key="nodejs-db-mongodb">
+          <img src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&h=300&fit=crop" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">MongoDB</span>
+            <h2 class="article-title">MongoDB 聚合管道性能分析与索引优化</h2>
+            <p class="article-excerpt">聚合管道是 MongoDB 最强大的特性之一，但也是性能陷阱的重灾区。本文通过 explain 输出逐段剖析一个慢查询的优化路径。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 李四</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-05-11</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 932 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- NodeJS / 框架 / Express -->
+        <a class="article-card" href="article-detail.html" data-key="nodejs-framework-express">
+          <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400&h=300&fit=crop" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">Express</span>
+            <h2 class="article-title">Express 中间件执行顺序的那些坑</h2>
+            <p class="article-excerpt">一个看似正确的中间件注册顺序，可能让你排查半天权限问题。本文梳理 Express 中间件栈的洋葱模型与常见误用。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 王五</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-05-08</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 754 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- AI 工程化 / 规格化开发 / openSpec -->
+        <a class="article-card" href="article-detail.html" data-key="ai-spec-openspec">
+          <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=300&fit=crop" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">openSpec</span>
+            <h2 class="article-title">openSpec 入门：用规格文件驱动 AI 编码</h2>
+            <p class="article-excerpt">规格化开发让 AI 在明确约束下工作，而不是自由发挥。本文带你从零搭建一个 openSpec 工作流，把需求变成可验证的规格。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 赵六</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-05-05</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 1103 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- AI 工程化 / 模型部署 / 推理优化 -->
+        <a class="article-card" href="article-detail.html" data-key="ai-deploy-infer">
+          <img src="https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=400&h=300&fit=crop" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">推理优化</span>
+            <h2 class="article-title">大模型推理优化实战：KV Cache 与批处理</h2>
+            <p class="article-excerpt">吞吐量和首字延迟往往是矛盾的，而 KV Cache 与连续批处理是化解矛盾的关键。本文记录一次线上推理服务的优化复盘。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 赵六</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-04-28</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 1567 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- 设计洞察 (一级，无子级演示) -->
+        <a class="article-card" href="article-detail.html" data-key="design">
+          <img src="https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400&h=300&fit=crop" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">设计洞察</span>
+            <h2 class="article-title">留白不是空白：东方美学中的负空间</h2>
+            <p class="article-excerpt">留白是中国传统艺术的核心语言，在现代界面设计中同样是控制信息层级与视觉焦点的关键手段。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 张三</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-04-20</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 802 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- 产品思考 (一级) -->
+        <a class="article-card" href="article-detail.html" data-key="product">
+          <img src="https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400&h=300&fit=crop" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">产品思考</span>
+            <h2 class="article-title">从用户反馈到产品决策的距离</h2>
+            <p class="article-excerpt">用户反馈是产品的养分，但直接将反馈转化为需求往往是危险的。我们需要一套分类、验证与排序的机制。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 王五</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-04-14</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 689 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- 生活随笔 (一级) -->
+        <a class="article-card" href="article-detail.html" data-key="life">
+          <img src="https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=400&h=300&fit=crop" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">生活随笔</span>
+            <h2 class="article-title">一个设计师的晨间仪式</h2>
+            <p class="article-excerpt">清晨的一杯咖啡、十分钟的冥想和一页手写笔记，这些微小习惯如何影响一天的创造力与工作节奏。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 李四</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-04-09</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 542 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- 前端开发 / 框架 / React -->
+        <a class="article-card" href="article-detail.html" data-key="frontend-framework-react">
+          <img src="https://picsum.photos/seed/reactjs/400/300" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">React</span>
+            <h2 class="article-title">从 Class 到 Hooks：一次 React 状态管理的迁移复盘</h2>
+            <p class="article-excerpt">Hooks 让组件逻辑复用变得优雅，但也带来闭包陷阱与依赖管理的隐性成本。本文复盘我们把一个中等规模应用从 Class 组件迁到函数组件的全过程。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 陈晨</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-05-18</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 1503 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- 后端开发 / 语言 / Go -->
+        <a class="article-card" href="article-detail.html" data-key="backend-lang-go">
+          <img src="https://picsum.photos/seed/golang/400/300" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">Go</span>
+            <h2 class="article-title">用 Go 泛型重写我们的配置解析库</h2>
+            <p class="article-excerpt">Go 1.18 引入的泛型终于让我们告别了满屏的 reflect。本文记录配置库在引入泛型后的类型安全性提升与一小撮性能回退的权衡。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 赵磊</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-05-12</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 889 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- 数据库 / 关系型 / PostgreSQL -->
+        <a class="article-card" href="article-detail.html" data-key="database-relational-postgres">
+          <img src="https://picsum.photos/seed/postgres/400/300" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">PostgreSQL</span>
+            <h2 class="article-title">PostgreSQL 分区表在我们的订单系统上的落地</h2>
+            <p class="article-excerpt">当单表突破两亿行，查询计划开始失控。本文介绍我们如何用声明式分区把 P99 延迟从 1.2s 压到 80ms，以及迁移期间的一致性保障。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 孙倩</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-05-02</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 1120 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- 编程语言 / Rust -->
+        <a class="article-card" href="article-detail.html" data-key="lang-rust">
+          <img src="https://picsum.photos/seed/rustlang/400/300" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">Rust</span>
+            <h2 class="article-title">用 Rust 重写热点路径：一次值得的 30 倍提速</h2>
+            <p class="article-excerpt">借用检查器一开始让人头秃，但编译通过后几乎零运行时错误。本文分享我们把一个 CPU 密集的解析服务用 Rust 重写后的收益与踩坑。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 周野</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-04-22</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 2041 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- 架构设计 / 模式 / 设计模式 -->
+        <a class="article-card" href="article-detail.html" data-key="arch-pattern">
+          <img src="https://picsum.photos/seed/architecture/400/300" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">设计模式</span>
+            <h2 class="article-title">策略模式在计费规则引擎中的实战应用</h2>
+            <p class="article-excerpt">当 if-else 嵌套超过三层，维护就成了噩梦。本文用一个真实的计费场景，演示如何用策略模式把数百行分支收敛成可插拔的规则单元。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 吴桐</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-04-15</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 1677 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- 微服务 / 通信 / gRPC -->
+        <a class="article-card" href="article-detail.html" data-key="microsvc-comm-grpc">
+          <img src="https://picsum.photos/seed/grpc/400/300" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">gRPC</span>
+            <h2 class="article-title">从 REST 到 gRPC：内部服务通信的协议演进</h2>
+            <p class="article-excerpt">Protobuf 的强类型契约让前后端联调少了一半扯皮。本文记录我们把核心链路从 JSON REST 切换到 gRPC 的动机、改造步骤与回归教训。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 郑凯</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-04-03</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 1358 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- 云计算 / 容器 / Kubernetes -->
+        <a class="article-card" href="article-detail.html" data-key="cloud-container-k8s">
+          <img src="https://picsum.photos/seed/kubernetes/400/300" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">Kubernetes</span>
+            <h2 class="article-title">我们如何用 K8s HPA 把成本砍掉 40%</h2>
+            <p class="article-excerpt">盲目给 Pod 配大资源请求，是云账单失控的主因。本文拆解我们基于自定义指标的弹性伸缩方案，以及如何避免抖动导致的频繁重启。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 冯磊</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-03-28</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 1922 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- 运维 DevOps / 监控 / Prometheus -->
+        <a class="article-card" href="article-detail.html" data-key="devops-monitor-prom">
+          <img src="https://picsum.photos/seed/prometheus/400/300" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">Prometheus</span>
+            <h2 class="article-title">Prometheus 告警疲劳治理：从 200 条到 12 条</h2>
+            <p class="article-excerpt">告警不是越多越好。本文分享我们如何用 SLO 驱动的告警分层，把噪音告警砍掉九成，让 oncall 重新睡上安稳觉的实践。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 许航</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-03-19</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 1430 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- 质量测试 / 单元 / 单测实践 -->
+        <a class="article-card" href="article-detail.html" data-key="qa-unit">
+          <img src="https://picsum.photos/seed/testing/400/300" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">单测实践</span>
+            <h2 class="article-title">让单测真正有用：我们团队的测试金字塔回归</h2>
+            <p class="article-excerpt">一堆互相依赖的集成测试跑一次要 40 分钟。本文记录我们如何把测试重心移回快速单测，并把覆盖率指标从"虚荣数字"变成"真实护栏"。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 何敏</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-03-11</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 998 阅读</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- 机器学习 / 训练 / 分布式训练 -->
+        <a class="article-card" href="article-detail.html" data-key="ml-train-dist">
+          <img src="https://picsum.photos/seed/mltrain/400/300" alt="" class="article-thumbnail">
+          <div class="article-content">
+            <span class="article-category">分布式训练</span>
+            <h2 class="article-title">从单机到 8 卡：一次大模型训练的效率爬坡</h2>
+            <p class="article-excerpt">数据并行简单，但通信开销会吃掉一半算力。本文拆解我们做梯度累积、混合精度与 ZeRO 优化的过程，把训练吞吐提升了 3.4 倍。</p>
+            <div class="article-meta">
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"/></svg> 林深</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 2024-02-26</span>
+              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 2215 阅读</span>
+            </div>
+          </div>
+        </a>
+
+      </div>
+
+      <div class="empty-state" id="emptyState">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+        <p>该分类下暂无文章</p>
+      </div>
+    </section>
+
+    <!-- RIGHT: Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-block sidebar-block--green">
+        <div class="feed-header">
+          <button class="feed-title" type="button" aria-expanded="true">动态</button>
+          <button class="feed-refresh" type="button" aria-label="刷新动态">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path><path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          </button>
+        </div>
+        <ul class="timeline">
+          <li class="timeline-item">
+            <div class="timeline-date">2024-05-21</div>
+            <a class="timeline-title" href="article-detail.html">Rust 异步运行时选型：Tokio 与 async-std 实测对比</a>
+          </li>
+          <li class="timeline-item">
+            <div class="timeline-date">2024-05-18</div>
+            <a class="timeline-title" href="article-detail.html">Kubernetes 探针配置：从误杀到优雅上下线</a>
+          </li>
+          <li class="timeline-item">
+            <div class="timeline-date">2024-05-15</div>
+            <a class="timeline-title" href="article-detail.html">MySQL 连接池调优：从 200ms 到 8ms 的实战</a>
+          </li>
+          <li class="timeline-item">
+            <div class="timeline-date">2024-05-08</div>
+            <a class="timeline-title" href="article-detail.html">Express 中间件执行顺序的那些坑</a>
+          </li>
+          <li class="timeline-item">
+            <div class="timeline-date">2024-05-05</div>
+            <a class="timeline-title" href="article-detail.html">openSpec 入门：用规格文件驱动 AI 编码</a>
+          </li>
+          <li class="timeline-item">
+            <div class="timeline-date">2024-04-28</div>
+            <a class="timeline-title" href="article-detail.html">大模型推理优化实战：KV Cache 与批处理</a>
+          </li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="footer"><p>© 2024 墨堆 · 以设计记录思考</p></footer>
+
+  <script>
+    // ===== Category tree data (max 3 levels) =====
+    const categoryData = [
+      {
+        name: 'NodeJS', key: 'nodejs', children: [
+          { name: '数据库', key: 'nodejs-db', children: [
+            { name: 'Mysql数据库', key: 'nodejs-db-mysql' },
+            { name: 'MongoDB', key: 'nodejs-db-mongodb' },
+          ]},
+          { name: '框架', key: 'nodejs-framework', children: [
+            { name: 'Express', key: 'nodejs-framework-express' },
+            { name: 'Koa', key: 'nodejs-framework-koa' },
+          ]},
+        ]
+      },
+      {
+        name: '前端开发', key: 'frontend', children: [
+          { name: '框架', key: 'frontend-framework', children: [
+            { name: 'React', key: 'frontend-framework-react' },
+            { name: 'Vue', key: 'frontend-framework-vue' },
+          ]},
+          { name: '工程化', key: 'frontend-eng', children: [
+            { name: '构建工具', key: 'frontend-eng-build' },
+            { name: '组件库', key: 'frontend-eng-ui' },
+          ]},
+        ]
+      },
+      {
+        name: '后端开发', key: 'backend', children: [
+          { name: '语言', key: 'backend-lang', children: [
+            { name: 'Go', key: 'backend-lang-go' },
+            { name: 'Java', key: 'backend-lang-java' },
+          ]},
+          { name: '网关', key: 'backend-gw', children: [
+            { name: '鉴权', key: 'backend-gw-auth' },
+          ]},
+        ]
+      },
+      {
+        name: 'AI 工程化', key: 'ai', children: [
+          { name: '规格化开发', key: 'ai-spec', children: [
+            { name: 'openSpec', key: 'ai-spec-openspec' },
+            { name: '规范文档', key: 'ai-spec-doc' },
+          ]},
+          { name: '模型部署', key: 'ai-deploy', children: [
+            { name: '推理优化', key: 'ai-deploy-infer' },
+          ]},
+        ]
+      },
+      {
+        name: '数据库', key: 'database', children: [
+          { name: '关系型', key: 'database-relational', children: [
+            { name: 'PostgreSQL', key: 'database-relational-postgres' },
+            { name: 'MySQL', key: 'database-relational-mysql' },
+          ]},
+          { name: '缓存', key: 'database-cache', children: [
+            { name: 'Redis', key: 'database-cache-redis' },
+          ]},
+        ]
+      },
+      {
+        name: '云计算', key: 'cloud', children: [
+          { name: '容器', key: 'cloud-container', children: [
+            { name: 'Kubernetes', key: 'cloud-container-k8s' },
+            { name: 'Docker', key: 'cloud-container-docker' },
+          ]},
+          { name: 'Serverless', key: 'cloud-serverless', children: [
+            { name: '函数计算', key: 'cloud-serverless-fn' },
+          ]},
+        ]
+      },
+      {
+        name: '运维 DevOps', key: 'devops', children: [
+          { name: '监控', key: 'devops-monitor', children: [
+            { name: 'Prometheus', key: 'devops-monitor-prom' },
+            { name: 'Grafana', key: 'devops-monitor-grafana' },
+          ]},
+          { name: 'CI/CD', key: 'devops-cicd', children: [
+            { name: '流水线', key: 'devops-cicd-pipeline' },
+          ]},
+        ]
+      },
+      {
+        name: '编程语言', key: 'lang', children: [
+          { name: 'Rust', key: 'lang-rust' },
+          { name: 'Python', key: 'lang-python' },
+          { name: 'TypeScript', key: 'lang-ts' },
+        ]
+      },
+      {
+        name: '架构设计', key: 'arch', children: [
+          { name: '模式', key: 'arch-pattern-group', children: [
+            { name: '设计模式', key: 'arch-pattern' },
+            { name: 'DDD', key: 'arch-ddd' },
+          ]},
+          { name: '性能', key: 'arch-perf', children: [
+            { name: '高并发', key: 'arch-perf-concurrency' },
+          ]},
+        ]
+      },
+      {
+        name: '微服务', key: 'microsvc', children: [
+          { name: '通信', key: 'microsvc-comm', children: [
+            { name: 'gRPC', key: 'microsvc-comm-grpc' },
+            { name: '消息队列', key: 'microsvc-comm-mq' },
+          ]},
+          { name: '治理', key: 'microsvc-govern', children: [
+            { name: '服务发现', key: 'microsvc-govern-discovery' },
+          ]},
+        ]
+      },
+      {
+        name: '网络安全', key: 'sec', children: [
+          { name: '应用安全', key: 'sec-app', children: [
+            { name: '注入防护', key: 'sec-app-injection' },
+          ]},
+          { name: '基础设施', key: 'sec-infra', children: [
+            { name: '零信任', key: 'sec-infra-zero' },
+          ]},
+        ]
+      },
+      {
+        name: '质量测试', key: 'qa', children: [
+          { name: '单元', key: 'qa-unit-group', children: [
+            { name: '单测实践', key: 'qa-unit' },
+          ]},
+          { name: '自动化', key: 'qa-auto', children: [
+            { name: 'E2E', key: 'qa-e2e' },
+          ]},
+        ]
+      },
+      { name: '设计洞察', key: 'design' },
+      { name: '产品设计', key: 'product' },
+      {
+        name: '用户体验', key: 'ux', children: [
+          { name: '交互', key: 'ux-interaction', children: [
+            { name: '动效', key: 'ux-interaction-motion' },
+          ]},
+          { name: '可用性原则', key: 'ux-principle' },
+        ]
+      },
+      {
+        name: '数据科学', key: 'datasci', children: [
+          { name: '可视化', key: 'datasci-viz', children: [
+            { name: '图表', key: 'datasci-viz-chart' },
+          ]},
+          { name: '分析', key: 'datasci-exp', children: [
+            { name: '实验', key: 'datasci-exp-experiment' },
+          ]},
+        ]
+      },
+      {
+        name: '机器学习', key: 'ml', children: [
+          { name: '训练', key: 'ml-train', children: [
+            { name: '分布式训练', key: 'ml-train-dist' },
+          ]},
+          { name: '推理', key: 'ml-infer', children: [
+            { name: '模型压缩', key: 'ml-infer-compress' },
+          ]},
+        ]
+      },
+      {
+        name: '移动开发', key: 'mobile', children: [
+          { name: 'iOS', key: 'mobile-ios' },
+          { name: 'Android', key: 'mobile-android' },
+          { name: '跨端', key: 'mobile-cross', children: [
+            { name: 'Flutter', key: 'mobile-cross-flutter' },
+          ]},
+        ]
+      },
+      {
+        name: '工具链', key: 'tool', children: [
+          { name: '包管理', key: 'tool-pkg', children: [
+            { name: 'pnpm', key: 'tool-pkg-pnpm' },
+          ]},
+          { name: '编辑器', key: 'tool-editor', children: [
+            { name: 'Neovim', key: 'tool-editor-neovim' },
+          ]},
+        ]
+      },
+      { name: '开源观察', key: 'opensource' },
+      { name: '读书笔记', key: 'reading' },
+      { name: '生活随笔', key: 'life' },
+    ];
+
+    const treeRoot = document.getElementById('treeRoot');
+    const breadcrumb = document.getElementById('breadcrumb');
+    const articleList = document.getElementById('articleList');
+    const articleCards = Array.from(document.querySelectorAll('.article-card'));
+    const emptyState = document.getElementById('emptyState');
+    const articleSearch = document.getElementById('articleSearch');
+    const filterClear = document.getElementById('filterClear');
+
+    let currentKey = null;
+    let searchTerm = '';
+
+    // Combined filter: category (key prefix) + free-text search
+    function applyFilters() {
+      const term = searchTerm.trim().toLowerCase();
+      let visible = 0;
+      articleCards.forEach(c => {
+        const matchCat = !currentKey || c.dataset.key.startsWith(currentKey);
+        const matchText = !term || c.textContent.toLowerCase().includes(term);
+        if (matchCat && matchText) {
+          c.classList.remove('hidden'); visible++;
+        } else {
+          c.classList.add('hidden');
+        }
+      });
+      emptyState.classList.toggle('active', visible === 0);
+    }
+
+    // Count articles under a given key prefix
+    function countUnder(prefix) {
+      return articleCards.filter(c => c.dataset.key.startsWith(prefix)).length;
+    }
+
+    // Build tree DOM recursively
+    function buildTree(nodes, container, level = 0) {
+      const ul = document.createElement('ul');
+      if (level === 0) ul.classList.add('tree');
+      nodes.forEach(node => {
+        const li = document.createElement('li');
+        const item = document.createElement('div');
+        item.className = 'tree-item';
+        item.dataset.key = node.key;
+
+        const hasChildren = node.children && node.children.length > 0;
+        const toggle = document.createElement('span');
+        toggle.className = 'tree-toggle' + (hasChildren ? '' : ' leaf');
+        toggle.innerHTML = hasChildren
+          ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>'
+          : '';
+        item.appendChild(toggle);
+
+        const label = document.createElement('span');
+        label.className = 'tree-label';
+        label.textContent = node.name;
+        item.appendChild(label);
+
+        const count = document.createElement('span');
+        count.className = 'tree-count';
+        count.textContent = countUnder(node.key);
+        item.appendChild(count);
+
+        li.appendChild(item);
+
+        if (hasChildren) {
+          const childContainer = buildTree(node.children, document.createElement('div'), level + 1);
+          childContainer.classList.add('tree-children');
+          li.appendChild(childContainer);
+          toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggle.classList.toggle('collapsed');
+            childContainer.style.display = toggle.classList.contains('collapsed') ? 'none' : 'block';
+          });
+        }
+
+        item.addEventListener('click', () => selectCategory(node));
+        ul.appendChild(li);
+      });
+      container.appendChild(ul);
+      return container;
+    }
+
+    // Find node + path by key
+    function findNode(key, nodes = categoryData, path = []) {
+      for (const n of nodes) {
+        const newPath = [...path, n];
+        if (n.key === key) return newPath;
+        if (n.children) {
+          const found = findNode(key, n.children, newPath);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
+    function selectCategory(node) {
+      // Update active state
+      document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
+      const activeEl = document.querySelector(`.tree-item[data-key="${node.key}"]`);
+      if (activeEl) activeEl.classList.add('active');
+
+      // Breadcrumb
+      const path = findNode(node.key);
+      breadcrumb.innerHTML = '';
+      const allLink = document.createElement('a');
+      allLink.textContent = '全部';
+      allLink.addEventListener('click', () => selectCategory({ key: null, name: '全部' }));
+      breadcrumb.appendChild(allLink);
+      path.forEach((p, i) => {
+        const sep = document.createElement('span');
+        sep.className = 'sep'; sep.textContent = '/';
+        breadcrumb.appendChild(sep);
+        if (i === path.length - 1) {
+          const cur = document.createElement('span');
+          cur.className = 'current'; cur.textContent = p.name;
+          breadcrumb.appendChild(cur);
+        } else {
+          const a = document.createElement('a');
+          a.textContent = p.name;
+          a.addEventListener('click', () => selectCategory(p));
+          breadcrumb.appendChild(a);
+        }
+      });
+
+      // Set active category and apply combined filters (category + search)
+      currentKey = node.key;
+      applyFilters();
+    }
+
+    // Reset
+    document.querySelector('.cat-tree-title').insertAdjacentHTML('beforeend',
+      '<button class="tree-reset" id="treeReset">清空</button>');
+    document.getElementById('treeReset').addEventListener('click', () => selectCategory({ key: null, name: '全部' }));
+
+    // Search filter
+    articleSearch.addEventListener('input', () => {
+      searchTerm = articleSearch.value;
+      filterClear.hidden = searchTerm.length === 0;
+      applyFilters();
+    });
+    filterClear.addEventListener('click', () => {
+      articleSearch.value = '';
+      searchTerm = '';
+      filterClear.hidden = true;
+      applyFilters();
+      articleSearch.focus();
+    });
+
+    // Init
+    buildTree(categoryData, treeRoot);
+    selectCategory({ key: null, name: '全部' });
+
+    // Mobile tree toggle
+    const treeMobileToggle = document.getElementById('treeMobileToggle');
+    const catTree = document.getElementById('catTree');
+    treeMobileToggle.addEventListener('click', () => catTree.classList.toggle('collapsed'));
+
+    // ===== Smart nav (day/night aware, sliding indicator) =====
+    const navLinksEl = document.getElementById('navLinks');
+    const navData = {
+      day: [
+        { key: 'home',    label: '首页',     href: 'article-list.html' },
+        { key: 'kb',      label: '知识库',   href: '#' },
+        { key: 'resume',  label: '简历',     href: '#' },
+        { key: 'digital', label: '数字生命', href: '#' },
+      ],
+      night: [
+        { key: 'home',    label: '首页',     href: 'article-list.html' },
+        { key: 'notes',   label: '小记',     href: 'xiaoji.html' },
+        { key: 'about',   label: '关于我',   href: 'about-me.html' },
+        { key: 'digital', label: '数字生命', href: '#' },
+      ],
+    };
+    const activeNavKey = 'kb';
+    let navIndicator = null;
+
+    function moveIndicator(target) {
+      if (!target || !navIndicator) return;
+      navIndicator.style.width = target.offsetWidth + 'px';
+      navIndicator.style.transform = 'translateX(' + target.offsetLeft + 'px)';
+    }
+    function renderNav() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const items = isDark ? navData.night : navData.day;
+      const activeKey = items.some(i => i.key === activeNavKey) ? activeNavKey : items[0].key;
+      navLinksEl.innerHTML = '';
+      items.forEach(it => {
+        const a = document.createElement('a');
+        a.href = it.href; a.textContent = it.label; a.dataset.key = it.key;
+        if (it.key === activeKey) a.classList.add('active');
+        a.addEventListener('mouseenter', () => {
+          if (a.classList.contains('active')) return;
+          navIndicator.classList.add('preview');
+          moveIndicator(a);
+        });
+        navLinksEl.appendChild(a);
+      });
+      if (!navIndicator) {
+        navIndicator = document.createElement('span');
+        navIndicator.className = 'nav-underline';
+      }
+      navLinksEl.appendChild(navIndicator);
+      moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+    }
+    navLinksEl.addEventListener('mouseleave', () => {
+      if (!navIndicator) return;
+      navIndicator.classList.remove('preview');
+      moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+    });
+    window.addEventListener('resize', () => {
+      moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+    });
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+      });
+    }
+
+    // ===== Theme toggle =====
+    const themeToggle = document.getElementById('themeToggle');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+    renderNav();
+    themeToggle.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      renderNav();
+      const svg = themeToggle.querySelector('svg');
+      if (svg) { svg.classList.remove('spin'); void svg.offsetWidth; svg.classList.add('spin'); }
+    });
+
+    // ===== Feed (动态) header: collapse + refresh =====
+    const feedTitle = document.querySelector('.feed-title');
+    const feedRefresh = document.querySelector('.feed-refresh');
+    const timelineEl = document.querySelector('.timeline');
+    feedTitle.addEventListener('click', () => {
+      const collapsed = timelineEl.style.display === 'none';
+      timelineEl.style.display = collapsed ? 'block' : 'none';
+      feedTitle.setAttribute('aria-expanded', String(collapsed));
+    });
+    feedRefresh.addEventListener('click', () => {
+      if (feedRefresh.classList.contains('spin')) return;
+      feedRefresh.classList.add('spin');
+      timelineEl.style.opacity = '0.35';
+      setTimeout(() => {
+        const items = Array.from(timelineEl.children).sort((a, b) =>
+          b.querySelector('.timeline-date').textContent.localeCompare(a.querySelector('.timeline-date').textContent)
+        );
+        items.forEach(it => timelineEl.appendChild(it));
+        timelineEl.style.opacity = '1';
+        feedRefresh.classList.remove('spin');
+      }, 600);
+    });
+  </script>
+</body>
+</html>

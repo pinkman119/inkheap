@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数字生命 · 墨堆</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-body: #fafafa;
+      --bg-card: #ffffff;
+      --bg-soft: #f7f9f7;
+      --bg-sidebar: #f5f5f5;
+      --bg-green-soft: #eef6f1;
+      --text-primary: #1a1a1a;
+      --text-secondary: #666666;
+      --text-tertiary: #999999;
+      --border: #e8e8e8;
+      --border-light: #f0f0f0;
+      --accent: #2d8264;
+      --accent-light: #e9f4ef;
+      --accent-hover: #246f53;
+      --text-brand: #2d8264;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.10);
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --font-serif: 'Noto Serif SC', 'Source Han Serif SC', 'STSong', serif;
+      --font-sans: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+    }
+
+    [data-theme="dark"] {
+      --bg-body: #0f0f0f;
+      --bg-card: #1a1a1a;
+      --bg-soft: #1d201e;
+      --bg-sidebar: #161616;
+      --bg-green-soft: #182b23;
+      --text-primary: #f5f5f5;
+      --text-secondary: #a8a8a8;
+      --text-tertiary: #737373;
+      --border: #2a2a2a;
+      --border-light: #222222;
+      --accent: #5fc59a;
+      --accent-light: #133028;
+      --accent-hover: #82d7b3;
+      --text-brand: #5fc59a;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { height: 100%; scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-body);
+      color: var(--text-primary);
+      line-height: 1.8;
+      -webkit-font-smoothing: antialiased;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    @supports (height: 100dvh) { body { height: 100dvh; } }
+
+    /* ===== Header (shared with other 墨堆 pages) ===== */
+    .header {
+      position: sticky; top: 0; z-index: 100;
+      background-color: color-mix(in srgb, var(--bg-body) 92%, transparent);
+      border-bottom: 1px solid var(--border-light);
+      backdrop-filter: blur(12px);
+    }
+    .header-inner {
+      max-width: 1320px; margin: 0 auto; padding: 0 24px; height: 68px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .brand {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-family: var(--font-serif); text-decoration: none; color: var(--text-primary);
+    }
+    .brand-mark { display: inline-flex; width: 30px; height: 30px; flex-shrink: 0; }
+    .brand-mark svg { width: 100%; height: 100%; display: block; }
+    .brand-name {
+      font-size: 22px; font-weight: 700; letter-spacing: 0.08em; line-height: 1;
+      color: var(--accent);
+    }
+    .nav { display: flex; align-items: center; gap: 28px; }
+    .nav-links {
+      position: relative; display: flex; align-items: center;
+      gap: 6px; height: 44px;
+    }
+    /* Sliding underline -- smooth, minimal active/hover indicator (black-white-green) */
+    .nav-underline {
+      position: absolute; left: 0; bottom: 5px; height: 2.5px;
+      background: linear-gradient(90deg, var(--accent), #3fae86);
+      border-radius: 100px;
+      transition: transform .5s cubic-bezier(.22, 1, .36, 1),
+                  width .5s cubic-bezier(.22, 1, .36, 1),
+                  opacity .35s ease;
+      z-index: 0; pointer-events: none;
+    }
+    .nav-links a {
+      position: relative; z-index: 1;
+      display: inline-flex; align-items: center; height: 44px; padding: 0 16px;
+      font-size: 15px; font-weight: 500; color: var(--text-primary);
+      text-decoration: none; letter-spacing: 0.04em; border-radius: 10px;
+      transition: color var(--transition), background-color var(--transition);
+    }
+    .nav-links a:hover {
+      color: var(--accent);
+      background-color: var(--accent-light);
+    }
+    .nav-links a.active { color: var(--accent); font-weight: 600; }
+    .nav-underline.preview { opacity: .4; }
+    .theme-toggle {
+      width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border);
+      background: transparent; color: var(--text-secondary); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all var(--transition);
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); background-color: var(--accent-light); }
+    .theme-toggle svg { transition: transform .55s cubic-bezier(.22, 1, .36, 1); }
+    .theme-toggle svg.spin { transform: rotate(360deg); }
+
+    /* ===== Chat app layout ===== */
+    .chat-app { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .chat-layout { flex: 1; display: flex; min-height: 0; }
+
+    /* Topics panel (left entry points) */
+    .topics-panel {
+      width: 280px; flex-shrink: 0;
+      border-right: 1px solid var(--border-light);
+      background-color: var(--bg-sidebar);
+      display: flex; flex-direction: column;
+    }
+    .topics-head { padding: 22px 20px 14px; }
+    .topics-head h2 {
+      font-family: var(--font-serif); font-size: 18px; font-weight: 600;
+      color: var(--text-primary); margin-bottom: 6px; letter-spacing: 0.02em;
+    }
+    .topics-head p { font-size: 13px; color: var(--text-tertiary); line-height: 1.6; }
+    .topic-list {
+      flex: 1; overflow-y: auto; padding: 6px 12px 16px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .topic-item {
+      appearance: none; width: 100%;
+      display: flex; align-items: center; gap: 10px;
+      padding: 13px 14px; border-radius: var(--radius-sm);
+      background-color: var(--bg-card); border: 1px solid var(--border);
+      color: var(--text-primary); font-size: 14px; font-family: var(--font-sans);
+      text-align: left; cursor: pointer;
+      transition: all var(--transition);
+    }
+    .topic-item:hover {
+      border-color: var(--accent); color: var(--accent);
+      background-color: var(--accent-light); transform: translateY(-1px);
+    }
+    .topic-item:focus-visible {
+      outline: 2px solid var(--accent); outline-offset: 2px;
+    }
+    .topic-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+      background-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light);
+      transition: box-shadow var(--transition);
+    }
+    .topic-item:hover .topic-dot { box-shadow: 0 0 0 3px var(--bg-card); }
+    .topics-foot {
+      padding: 14px 20px; border-top: 1px solid var(--border-light);
+      font-size: 12px; color: var(--text-tertiary);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .topics-foot .dot {
+      width: 7px; height: 7px; border-radius: 50%; background-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-light);
+    }
+
+    /* Chat main */
+    .chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
+    .chat-header {
+      height: 64px; flex-shrink: 0; padding: 0 20px;
+      display: flex; align-items: center; gap: 12px;
+      border-bottom: 1px solid var(--border-light);
+      background-color: color-mix(in srgb, var(--bg-body) 92%, transparent);
+      backdrop-filter: blur(12px);
+    }
+    .chat-avatar {
+      width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+      background-color: var(--accent); display: flex; align-items: center; justify-content: center;
+    }
+    .chat-avatar svg { width: 22px; height: 22px; }
+    .chat-title-wrap { display: flex; flex-direction: column; min-width: 0; }
+    .chat-title { font-size: 16px; font-weight: 600; color: var(--text-primary); line-height: 1.2; }
+    .chat-sub { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+    .status-pill {
+      margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--accent); background-color: var(--accent-light);
+      padding: 5px 10px; border-radius: 100px; white-space: nowrap;
+    }
+    .status-pill .dot {
+      width: 7px; height: 7px; border-radius: 50%; background-color: var(--accent);
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+    /* Messages */
+    .chat-messages {
+      flex: 1; min-height: 0; overflow-y: auto; padding: 28px 24px;
+      scrollbar-width: none; -ms-overflow-style: none;
+      scroll-behavior: smooth; overscroll-behavior: contain;
+    }
+    .chat-messages::-webkit-scrollbar { width: 0; height: 0; display: none; }
+    .messages-inner {
+      max-width: 820px; width: 100%; margin: 0 auto;
+      display: flex; flex-direction: column; gap: 18px;
+    }
+    .msg { display: flex; gap: 12px; align-items: flex-end; }
+    .msg.user { flex-direction: row-reverse; }
+    .msg-avatar {
+      width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+      background-color: var(--accent); display: flex; align-items: center; justify-content: center;
+    }
+    .msg-avatar svg { width: 18px; height: 18px; }
+    .bubble {
+      max-width: 72%; padding: 12px 16px; border-radius: 16px;
+      font-size: 15px; line-height: 1.75; white-space: pre-wrap; word-break: break-word;
+    }
+    .msg.ai .bubble {
+      background-color: var(--bg-card); border: 1px solid var(--border);
+      color: var(--text-primary); border-bottom-left-radius: 4px;
+    }
+    .msg.user .bubble {
+      background-color: var(--accent); color: #ffffff;
+      border-bottom-right-radius: 4px;
+    }
+
+    /* Typing indicator */
+    .typing { display: inline-flex; gap: 5px; align-items: center; padding: 4px 2px; }
+    .typing span {
+      width: 7px; height: 7px; border-radius: 50%;
+      background-color: var(--text-tertiary);
+      animation: typing 1.2s infinite ease-in-out;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.18s; }
+    .typing span:nth-child(3) { animation-delay: 0.36s; }
+    @keyframes typing {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-5px); opacity: 1; }
+    }
+
+    /* Welcome state */
+    .welcome { margin: auto; text-align: center; max-width: 520px; padding: 24px 16px; }
+    .welcome .welcome-avatar {
+      width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 18px;
+      background-color: var(--accent); display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 0 8px var(--accent-light);
+    }
+    .welcome .welcome-avatar svg { width: 38px; height: 38px; }
+    .welcome h2 {
+      font-family: var(--font-serif); font-size: 26px; color: var(--text-brand);
+      margin-bottom: 10px; letter-spacing: 0.02em;
+    }
+    .welcome p { color: var(--text-secondary); font-size: 15px; line-height: 1.85; margin-bottom: 24px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+    .chip {
+      padding: 9px 16px; border-radius: 100px; border: 1px solid var(--border);
+      background-color: var(--bg-card); color: var(--text-secondary);
+      font-size: 13.5px; cursor: pointer; transition: all var(--transition);
+    }
+    .chip:hover {
+      border-color: var(--accent); color: var(--accent);
+      background-color: var(--accent-light); transform: translateY(-1px);
+    }
+
+    /* Input bar */
+    .chat-input { flex-shrink: 0; padding: 16px 20px; border-top: 1px solid var(--border-light); }
+    .input-inner {
+      max-width: 820px; margin: 0 auto; display: flex; align-items: flex-end; gap: 12px;
+      background-color: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 8px 8px 8px 16px;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .input-inner:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-light);
+    }
+    .chat-textarea {
+      flex: 1; border: none; outline: none; resize: none; background: transparent;
+      font-family: var(--font-sans); font-size: 15px; line-height: 1.6;
+      color: var(--text-primary); max-height: 140px; padding: 8px 0;
+    }
+    .chat-textarea::placeholder { color: var(--text-tertiary); }
+    .send-btn {
+      width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+      background-color: var(--accent); color: #ffffff; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all var(--transition);
+    }
+    .send-btn:hover:not(:disabled) { background-color: var(--accent-hover); transform: translateY(-1px); }
+    .send-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .send-btn svg { width: 18px; height: 18px; }
+    .input-hint {
+      max-width: 820px; margin: 8px auto 0; font-size: 12px;
+      color: var(--text-tertiary); text-align: center;
+    }
+
+    /* Jump to latest (appears only when user scrolls up during new content) */
+    .jump-bottom {
+      position: absolute; right: 28px; bottom: 104px; z-index: 5;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 15px; border-radius: 100px; border: none; cursor: pointer;
+      background-color: var(--accent); color: #ffffff;
+      font-size: 13px; font-family: var(--font-sans); font-weight: 500;
+      box-shadow: var(--shadow-md);
+      opacity: 0; transform: translateY(10px); pointer-events: none;
+      transition: opacity var(--transition), transform var(--transition), background-color var(--transition);
+    }
+    .jump-bottom.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .jump-bottom:hover { background-color: var(--accent-hover); transform: translateY(-1px); }
+    .jump-bottom:focus-visible { outline: 2px solid var(--bg-card); outline-offset: 2px; }
+    .jump-bottom svg { width: 16px; height: 16px; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .jump-bottom { right: 16px; bottom: 96px; }
+      .header-inner { height: 60px; padding: 0 16px; }
+      .nav-links a { font-size: 13px; padding: 0 13px; }
+      .brand-name { font-size: 19px; }
+      .brand-mark { width: 26px; height: 26px; }
+      .bubble { max-width: 84%; }
+      .chat-messages { padding: 20px 16px; }
+      .chat-header { padding: 0 14px; }
+      .status-pill { display: none; }
+      .chat-layout { flex-direction: column; }
+      .topics-panel {
+        width: 100%; border-right: none; border-bottom: 1px solid var(--border-light);
+      }
+      .topics-head { padding: 16px 16px 10px; }
+      .topic-list {
+        flex-direction: row; overflow-x: auto; overflow-y: hidden;
+        padding: 4px 16px 14px; gap: 8px;
+      }
+      .topic-item { width: auto; flex-shrink: 0; white-space: nowrap; }
+      .topics-foot { display: none; }
+    }
+    @media (max-width: 480px) {
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="brand" aria-label="墨堆">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+  <rect width="28" height="28" rx="8" fill="#2d8264"/>
+  <circle cx="14" cy="9" r="3.2" fill="#ffffff"/>
+  <rect x="7.5" y="14.5" width="13" height="2.8" rx="1.4" fill="#ffffff"/>
+  <rect x="7.5" y="19" width="13" height="2.8" rx="1.4" fill="#ffffff"/>
+</svg>
+        </span>
+        <span class="brand-name">墨堆</span>
+      </a>
+      <nav class="nav">
+        <div class="nav-links" id="navLinks"></div>
+        <button class="theme-toggle" id="themeToggle" aria-label="切换主题">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <div class="chat-app">
+    <div class="chat-layout">
+      <!-- Topics panel (left entry points) -->
+      <aside class="topics-panel" aria-label="话题入口">
+        <div class="topics-head">
+          <h2>聊点什么</h2>
+          <p>挑一个话题，认识数字林深</p>
+        </div>
+        <div class="topic-list" id="topicList"></div>
+        <div class="topics-foot">
+          <span class="dot"></span>
+          数字生命引擎 v0.1 · 原型
+        </div>
+      </aside>
+
+      <!-- Chat main -->
+      <main class="chat-main">
+        <div class="chat-header">
+          <span class="chat-avatar" aria-hidden="true">
+            <svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="14" cy="9" r="3.2" fill="#ffffff"/>
+              <rect x="7.5" y="14.5" width="13" height="2.8" rx="1.4" fill="#ffffff"/>
+              <rect x="7.5" y="19" width="13" height="2.8" rx="1.4" fill="#ffffff"/>
+            </svg>
+          </span>
+          <div class="chat-title-wrap">
+            <span class="chat-title">数字林深</span>
+            <span class="chat-sub">由 RAG 知识库 + 提示词工程驱动</span>
+          </div>
+          <span class="status-pill"><span class="dot"></span>原型模式</span>
+        </div>
+
+        <div class="chat-messages" id="chatMessages" aria-live="polite">
+          <div class="messages-inner" id="messagesInner"></div>
+        </div>
+
+        <button class="jump-bottom" id="jumpBottom" type="button" aria-label="回到最新消息">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+          <span>新消息</span>
+        </button>
+
+        <div class="chat-input">
+          <div class="input-inner">
+            <textarea class="chat-textarea" id="chatInput" rows="1" placeholder="和「数字林深」聊聊…（回车发送）"></textarea>
+            <button class="send-btn" id="sendBtn" aria-label="发送" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </div>
+          <p class="input-hint">回车发送 · Shift+回车换行 · 当前为原型，回复为模拟数据，后续接入真实知识库</p>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // ===== Smart nav (day/night aware, sliding indicator) — shared with 墨堆 pages =====
+    const navLinksEl = document.getElementById('navLinks');
+    const navData = {
+      day: [
+        { key: 'home',    label: '首页',     href: 'index.html' },
+        { key: 'kb',      label: '知识库',   href: 'article-list.html' },
+        { key: 'resume',  label: '简历',     href: '#' },
+        { key: 'digital', label: '数字生命', href: 'digital-life.html' },
+      ],
+      night: [
+        { key: 'home',    label: '首页',     href: 'index.html' },
+        { key: 'notes',   label: '小记',     href: 'xiaoji.html' },
+        { key: 'about',   label: '关于我',   href: 'about-me.html' },
+        { key: 'digital', label: '数字生命', href: 'digital-life.html' },
+      ],
+    };
+    const activeNavKey = 'digital';
+    let navIndicator = null;
+
+    function moveIndicator(target) {
+      if (!target || !navIndicator) return;
+      navIndicator.style.width = target.offsetWidth + 'px';
+      navIndicator.style.transform = 'translateX(' + target.offsetLeft + 'px)';
+    }
+    function renderNav() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const items = isDark ? navData.night : navData.day;
+      const activeKey = items.some(i => i.key === activeNavKey) ? activeNavKey : items[0].key;
+      navLinksEl.innerHTML = '';
+      items.forEach(it => {
+        const a = document.createElement('a');
+        a.href = it.href; a.textContent = it.label; a.dataset.key = it.key;
+        if (it.key === activeKey) a.classList.add('active');
+        a.addEventListener('mouseenter', () => {
+          if (a.classList.contains('active')) return;
+          navIndicator.classList.add('preview');
+          moveIndicator(a);
+        });
+        navLinksEl.appendChild(a);
+      });
+      if (!navIndicator) {
+        navIndicator = document.createElement('span');
+        navIndicator.className = 'nav-underline';
+      }
+      navLinksEl.appendChild(navIndicator);
+      moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+    }
+    navLinksEl.addEventListener('mouseleave', () => {
+      if (!navIndicator) return;
+      navIndicator.classList.remove('preview');
+      moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+    });
+    window.addEventListener('resize', () => {
+      moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+    });
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+      });
+    }
+
+    // ===== Theme toggle =====
+    const themeToggle = document.getElementById('themeToggle');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+    renderNav();
+    themeToggle.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      renderNav();
+      const svg = themeToggle.querySelector('svg');
+      if (svg) { svg.classList.remove('spin'); void svg.offsetWidth; svg.classList.add('spin'); }
+    });
+
+    /* =========================================================
+       数字生命 · 对话逻辑（原型）
+       - 当前回复为模拟数据（generateReply）
+       - 后续接入点：用 RAG 检索「林深」知识库 + 提示词工程，
+         替换 generateReply 为真实 LLM 调用即可，UI 无需改动。
+       ========================================================= */
+    const messagesInner = document.getElementById('messagesInner');
+    const chatMessages = document.getElementById('chatMessages');
+    const inputEl = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const topicListEl = document.getElementById('topicList');
+    const jumpBtn = document.getElementById('jumpBottom');
+
+    // 单一持续会话：不暴露会话管理，用户始终在一个对话里与「数字林深」交流
+    let messages = [];
+
+    const avatarSVG = '<svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg"><circle cx="14" cy="9" r="3.2" fill="#ffffff"/><rect x="7.5" y="14.5" width="13" height="2.8" rx="1.4" fill="#ffffff"/><rect x="7.5" y="19" width="13" height="2.8" rx="1.4" fill="#ffffff"/></svg>';
+
+    // 欢迎态
+    const welcomeHTML =
+      '<div class="welcome">' +
+        '<div class="welcome-avatar" aria-hidden="true">' + avatarSVG + '</div>' +
+        '<h2>你好，我是数字林深</h2>' +
+        '<p>这是林深的「数字生命」原型 —— 由他的文字、作品与记忆提炼而成的数字化分身。' +
+        '现在和我聊聊他的经历、想法或作品吧，未来会接入真实知识库，变得更有「他」的味道。</p>' +
+        '<div class="chips">' +
+          '<button class="chip" data-q="介绍一下你自己">介绍一下你自己</button>' +
+          '<button class="chip" data-q="你做过哪些项目？">你做过哪些项目？</button>' +
+          '<button class="chip" data-q="你的设计理念是什么？">你的设计理念是什么？</button>' +
+          '<button class="chip" data-q="讲讲你的登山故事">讲讲你的登山故事</button>' +
+        '</div>' +
+      '</div>';
+
+    // 滚动策略：头部与输入栏固定，仅消息区滚动；滚动条隐藏，新内容平滑定位底部
+    function isNearBottom() {
+      return chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 96;
+    }
+    // 流式打字时即时跟随（贴近底部时直接贴底）
+    function followStream() { if (isNearBottom()) stickBottom(); else showJump(); }
+    // 离散事件（新消息到达 / 用户主动点击）平滑滚动
+    function scrollNew() { if (isNearBottom()) smoothBottom(); else showJump(); }
+    function stickBottom() { chatMessages.scrollTop = chatMessages.scrollHeight; }
+    function smoothBottom() { chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' }); }
+    function showJump() { jumpBtn.classList.add('show'); }
+    function hideJump() { jumpBtn.classList.remove('show'); }
+
+    function renderConversation() {
+      messagesInner.innerHTML = '';
+      if (!messages.length) {
+        messagesInner.innerHTML = welcomeHTML;
+        bindChips();
+        return;
+      }
+      messages.forEach(m => appendMessage(m.role, m.text, false));
+      stickBottom();
+    }
+
+    function appendMessage(role, text, animate) {
+      // 若当前是欢迎态，先清掉
+      const welcome = messagesInner.querySelector('.welcome');
+      if (welcome) welcome.remove();
+
+      const msg = document.createElement('div');
+      msg.className = 'msg ' + role;
+      if (role === 'ai') {
+        const av = document.createElement('div');
+        av.className = 'msg-avatar'; av.setAttribute('aria-hidden', 'true');
+        av.innerHTML = avatarSVG;
+        msg.appendChild(av);
+      }
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      msg.appendChild(bubble);
+      messagesInner.appendChild(msg);
+
+      if (animate) {
+        let i = 0;
+        (function step() {
+          bubble.textContent = text.slice(0, i);
+          i++;
+          if (i <= text.length) { followStream(); setTimeout(step, 16); }
+        })();
+      } else {
+        bubble.textContent = text;
+      }
+      followStream();
+      return bubble;
+    }
+
+    function showTyping() {
+      const msg = document.createElement('div');
+      msg.className = 'msg ai';
+      msg.id = 'typingMsg';
+      const av = document.createElement('div');
+      av.className = 'msg-avatar'; av.setAttribute('aria-hidden', 'true');
+      av.innerHTML = avatarSVG;
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.innerHTML = '<span class="typing"><span></span><span></span><span></span></span>';
+      msg.appendChild(av); msg.appendChild(bubble);
+      messagesInner.appendChild(msg);
+      scrollNew();
+    }
+    function hideTyping() {
+      const t = document.getElementById('typingMsg');
+      if (t) t.remove();
+    }
+
+    // 模拟回复生成（接入点：替换为 RAG + LLM）
+    function generateReply(text) {
+      if (/(你好|您好|hi|hello|哈喽|在吗|在不在)/i.test(text))
+        return '你好呀，我是数字林深 —— 林深的数字化分身。很高兴认识你，想聊点什么？关于他的经历、做过的事，或者随便聊聊都行。';
+      if (/(介绍|你是谁|关于你|你自己|怎么称呼)/.test(text))
+        return '我是「数字林深」，由林深本人的文章、笔记与作品提炼而来。我熟悉他的技术路线（AI 全栈 / 系统设计）、设计偏好，还有他那些登山的往事。把我当作一个能对话的「他」就好。';
+      if (/(项目|作品|做过|开发|产品|墨堆|openspec)/i.test(text))
+        return '他做过不少东西：从规格驱动的开源实践 openSpec，到把知识库、简历、数字生命整合在一起的「墨堆」站点。如果你感兴趣，我可以展开讲其中任何一个。';
+      if (/(设计|审美|理念|风格|配色)/.test(text))
+        return '他的设计信条很直接：黑白打底、一点森绿提神，少即是多。比起炫技，他更在意信息是否清晰、交互是否顺滑。这套站点本身就是一个例子。';
+      if (/(登山|户外|爬山|徒步|慕士塔格|雪山)/.test(text))
+        return '登山是他很重要的部分。他登过慕士塔格，也常背着相机进山。他说在海拔几千米的地方，人会重新想清楚什么重要——这些经历也影响了他做产品的耐心。';
+      if (/(技术|代码|编程|ai|rag|大模型|提示词|工程)/i.test(text))
+        return '技术上是他的舒适区：AI 全栈、系统分析与数据库都做过。他现在尤其关注用 RAG + 提示词工程，把一个人的经历变成可以对话的「数字生命」——也就是你现在面对的我和这个页面。';
+      return '嗯，我收到啦。作为数字分身，我还在原型阶段，目前基于模拟数据回应。等接入林真的知识库后，我会更懂他。你可以换个话题，比如「介绍你自己」或「讲讲登山的故事」。';
+    }
+
+    function sendMessage(text) {
+      text = (text || '').trim();
+      if (!text) return;
+
+      // 记录用户消息
+      messages.push({ role: 'user', text: text });
+      appendMessage('user', text, false);
+
+      inputEl.value = '';
+      autoGrow();
+      updateSendState();
+
+      // AI 打字 + 回复
+      showTyping();
+      const reply = generateReply(text);
+      setTimeout(() => {
+        hideTyping();
+        messages.push({ role: 'ai', text: reply });
+        appendMessage('ai', reply, true);
+      }, 900 + Math.random() * 500);
+    }
+
+    // 输入框自动增高
+    function autoGrow() {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + 'px';
+    }
+    function updateSendState() {
+      sendBtn.disabled = !inputEl.value.trim();
+    }
+
+    inputEl.addEventListener('input', () => { autoGrow(); updateSendState(); });
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage(inputEl.value);
+      }
+    });
+    sendBtn.addEventListener('click', () => sendMessage(inputEl.value));
+
+    // 回到最新消息：点击平滑定位底部
+    jumpBtn.addEventListener('click', () => { hideJump(); smoothBottom(); });
+    // 用户手动滚回底部时收起浮标
+    chatMessages.addEventListener('scroll', () => { if (isNearBottom()) hideJump(); }, { passive: true });
+
+    // 话题入口（左侧，提供给用户聊天的切入点）
+    const topics = [
+      '喜欢哪些游戏',
+      '爬过哪些山',
+      '成长痕迹是什么样的',
+      '爱人是谁',
+      '做哪些工作',
+    ];
+    function renderTopics() {
+      topicListEl.innerHTML = '';
+      topics.forEach(t => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'topic-item';
+        const dot = document.createElement('span');
+        dot.className = 'topic-dot'; dot.setAttribute('aria-hidden', 'true');
+        const txt = document.createElement('span');
+        txt.className = 'topic-text'; txt.textContent = t;
+        btn.appendChild(dot); btn.appendChild(txt);
+        btn.addEventListener('click', () => sendMessage(t));
+        topicListEl.appendChild(btn);
+      });
+    }
+
+    // 建议 chips
+    function bindChips() {
+      messagesInner.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => sendMessage(chip.dataset.q));
+      });
+    }
+
+    // 初始化
+    renderTopics();
+    renderConversation();
+    updateSendState();
+  </script>
+</body>
+</html>

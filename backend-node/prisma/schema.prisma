@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -10,4 +5,54 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== Admin ====================
+
+model AdminUser {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  role      String   @default("admin")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("admin_users")
+}
+
+// ==================== 文章 ====================
+
+model Article {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  title       String
+  summary     String?
+  content     String   @db.Text
+  coverImage  String?  @map("cover_image")
+  categoryKey String   @map("category_key")
+  tags        String[] @default([])
+  author      String
+  published   Boolean  @default(false)
+  featured    Boolean  @default(false)
+  viewCount   Int      @default(0) @map("view_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("articles")
+}
+
+// ==================== 分类 ====================
+
+model Category {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  name      String
+  parentKey String?  @map("parent_key")
+  sortOrder Int      @default(0) @map("sort_order")
+  icon      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("categories")
 }

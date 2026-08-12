@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>openSpec 入门：用规格文件驱动 AI 编码 - 墨堆</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-body: #fafafa;
+      --bg-card: #ffffff;
+      --bg-sidebar: #f5f5f5;
+      --text-primary: #1a1a1a;
+      --text-secondary: #666666;
+      --text-tertiary: #999999;
+      --border: #e8e8e8;
+      --border-light: #f0f0f0;
+      --accent: #2d8264;
+      --accent-light: #e9f4ef;
+      --accent-hover: #246f53;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --font-serif: 'Noto Serif SC', 'Source Han Serif SC', 'STSong', serif;
+      --font-sans: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+    }
+
+    [data-theme="dark"] {
+      --bg-body: #0f0f0f;
+      --bg-card: #1a1a1a;
+      --bg-sidebar: #242424;
+      --text-primary: #f5f5f5;
+      --text-secondary: #a8a8a8;
+      --text-tertiary: #737373;
+      --border: #2a2a2a;
+      --border-light: #222222;
+      --accent: #5fc59a;
+      --accent-light: #133028;
+      --accent-hover: #82d7b3;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-body);
+      color: var(--text-primary);
+      line-height: 1.8;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::selection { background-color: var(--accent-light); color: var(--accent-hover); }
+
+    /* ===== Reading progress ===== */
+    .progress {
+      position: fixed; top: 0; left: 0; height: 2px; width: 0%;
+      background-color: var(--accent); z-index: 200; transition: width 0.1s linear;
+    }
+
+    /* ===== Header ===== */
+    .header {
+      position: sticky; top: 0; z-index: 100;
+      background-color: color-mix(in srgb, var(--bg-body) 92%, transparent);
+      border-bottom: 1px solid var(--border-light);
+      backdrop-filter: blur(12px);
+    }
+    .header-inner {
+      max-width: 1320px; margin: 0 auto; padding: 0 24px; height: 68px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .brand {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-family: var(--font-serif); text-decoration: none; color: var(--text-primary);
+    }
+    .brand-mark { display: inline-flex; width: 30px; height: 30px; flex-shrink: 0; }
+    .brand-mark svg { width: 100%; height: 100%; display: block; }
+    .brand-name {
+      font-size: 22px; font-weight: 700; letter-spacing: 0.08em; line-height: 1;
+      color: var(--accent);
+    }
+    .nav { display: flex; align-items: center; gap: 28px; }
+    .nav-links {
+      position: relative; display: flex; align-items: center;
+      gap: 6px; height: 44px;
+    }
+    /* Sliding underline — smooth, minimal active/hover indicator (black-white-green) */
+    .nav-underline {
+      position: absolute; left: 0; bottom: 5px; height: 2.5px;
+      background: linear-gradient(90deg, var(--accent), #3fae86);
+      border-radius: 100px;
+      transition: transform .5s cubic-bezier(.22, 1, .36, 1),
+                  width .5s cubic-bezier(.22, 1, .36, 1),
+                  opacity .35s ease;
+      z-index: 0; pointer-events: none;
+    }
+    .nav-links a {
+      position: relative; z-index: 1;
+      display: inline-flex; align-items: center; height: 44px; padding: 0 16px;
+      font-size: 15px; font-weight: 500; color: var(--text-primary);
+      text-decoration: none; letter-spacing: 0.04em; border-radius: 10px;
+      transition: color var(--transition), background-color var(--transition);
+    }
+    .nav-links a:hover {
+      color: var(--accent);
+      background-color: var(--accent-light);
+    }
+    .nav-links a.active { color: var(--accent); font-weight: 600; }
+    .nav-underline.preview { opacity: .4; }
+    .theme-toggle {
+      width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border);
+      background: transparent; color: var(--text-secondary); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all var(--transition);
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); background-color: var(--accent-light); }
+    .theme-toggle svg { transition: transform .55s cubic-bezier(.22, 1, .36, 1); }
+    .theme-toggle svg.spin { transform: rotate(360deg); }
+
+    /* ===== Layout ===== */
+    .layout {
+      max-width: 1120px; margin: 0 auto; padding: 48px 24px 80px;
+      display: grid; grid-template-columns: minmax(0, 1fr) 280px;
+      gap: 56px; align-items: start;
+    }
+    .article { min-width: 0; }
+    @media (max-width: 1024px) {
+      .layout { grid-template-columns: 1fr; gap: 40px; }
+      .toc { display: none; }
+    }
+
+    /* ===== Breadcrumb ===== */
+    .breadcrumb { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 13px; margin-bottom: 28px; }
+    .breadcrumb a { color: var(--text-secondary); text-decoration: none; transition: color var(--transition); }
+    .breadcrumb a:hover { color: var(--accent); }
+    .breadcrumb .sep { color: var(--text-tertiary); }
+    .breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+    .back-link {
+      display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--accent);
+      text-decoration: none; margin-bottom: 20px; font-weight: 500;
+    }
+    .back-link:hover { color: var(--accent-hover); }
+
+    /* ===== Article header ===== */
+    .article-title {
+      font-family: var(--font-serif); font-size: 38px; font-weight: 700; line-height: 1.35;
+      letter-spacing: 0.01em; margin-bottom: 16px;
+    }
+    .article-lead {
+      font-size: 17px; color: var(--text-secondary); line-height: 1.8; margin-bottom: 24px;
+      font-weight: 300;
+    }
+    .article-meta {
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+      padding: 18px 0; border-top: 1px solid var(--border-light); border-bottom: 1px solid var(--border-light);
+      margin-bottom: 36px; font-size: 13.5px; color: var(--text-secondary);
+    }
+    .article-meta .author { display: flex; align-items: center; gap: 10px; }
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, #2d8264, #5fc59a); color: #fff;
+      display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px;
+    }
+    .article-meta .author-name { color: var(--text-primary); font-weight: 500; }
+    .article-meta .dot { color: var(--text-tertiary); }
+    .article-meta .meta-item { display: inline-flex; align-items: center; gap: 5px; }
+    .article-meta svg { width: 15px; height: 15px; color: var(--text-tertiary); }
+
+    /* ===== Cover ===== */
+    .cover {
+      width: 100%; aspect-ratio: 21 / 9; border-radius: var(--radius-lg); overflow: hidden;
+      margin-bottom: 40px; position: relative; box-shadow: var(--shadow-sm);
+      background:
+        radial-gradient(120% 140% at 12% 18%, #ff8a5c 0%, transparent 42%),
+        radial-gradient(120% 140% at 88% 22%, #5b8def 0%, transparent 45%),
+        radial-gradient(140% 150% at 70% 95%, #2d8264 0%, transparent 50%),
+        linear-gradient(135deg, #1a1a1a, #2b2b2b);
+    }
+    .cover-glyph {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-serif); font-size: 120px; font-weight: 700; color: rgba(255,255,255,0.92);
+      letter-spacing: 0.1em; text-shadow: 0 4px 30px rgba(0,0,0,0.35);
+    }
+
+    /* ===== Body typography ===== */
+    .content { font-size: 16px; color: var(--text-primary); }
+    .content h2 {
+      font-family: var(--font-serif); font-size: 25px; font-weight: 600; line-height: 1.4;
+      margin: 48px 0 18px; padding-left: 16px; position: relative; scroll-margin-top: 90px;
+    }
+    .content h2::before {
+      content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 4px;
+      background-color: var(--accent); border-radius: 2px;
+    }
+    .content h3 {
+      font-family: var(--font-serif); font-size: 19px; font-weight: 600; line-height: 1.4;
+      margin: 34px 0 14px; scroll-margin-top: 90px;
+    }
+    .content h4 {
+      font-family: var(--font-sans); font-size: 15.5px; font-weight: 600; color: var(--text-primary);
+      margin: 26px 0 10px; scroll-margin-top: 90px;
+    }
+    .content p { margin-bottom: 22px; color: var(--text-primary); }
+    .content a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); transition: all var(--transition); }
+    .content a:hover { color: var(--accent-hover); border-bottom-color: var(--accent-hover); }
+    .content ul, .content ol { margin: 0 0 22px; padding-left: 22px; }
+    .content li { margin-bottom: 10px; }
+    .content strong { font-weight: 600; color: var(--text-primary); }
+
+    .content blockquote {
+      margin: 28px 0; padding: 16px 22px; border-left: 3px solid var(--accent);
+      background-color: var(--accent-light); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      color: var(--text-secondary); font-style: normal;
+    }
+    .content blockquote p:last-child { margin-bottom: 0; }
+
+    code {
+      font-family: var(--font-mono); font-size: 0.88em; background-color: var(--accent-light);
+      color: var(--accent-hover); padding: 2px 6px; border-radius: 4px;
+    }
+    .code-block {
+      background-color: #161616; color: #e6e6e6; border-radius: var(--radius-md);
+      padding: 20px 22px; overflow-x: auto; margin: 0 0 26px;
+      font-family: var(--font-mono); font-size: 13.5px; line-height: 1.75;
+      border: 1px solid #000;
+    }
+    [data-theme="dark"] .code-block { background-color: #0c0c0c; border-color: #000; }
+    .code-block .c-key { color: #5fc59a; }
+    .code-block .c-str { color: #e0b27a; }
+    .code-block .c-com { color: #6b6b6b; font-style: italic; }
+    .code-block .c-num { color: #8fb3ff; }
+
+    .callout {
+      display: flex; gap: 14px; margin: 28px 0; padding: 18px 20px;
+      background-color: var(--bg-sidebar); border: 1px solid var(--border-light);
+      border-left: 3px solid var(--accent); border-radius: var(--radius-sm);
+    }
+    .callout svg { width: 22px; height: 22px; color: var(--accent); flex-shrink: 0; margin-top: 2px; }
+    .callout .c-title { font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+    .callout p { font-size: 14.5px; color: var(--text-secondary); margin: 0; }
+
+    .content figure { margin: 30px 0; }
+    .content figure .fig-img {
+      width: 100%; aspect-ratio: 16/9; border-radius: var(--radius-md); overflow: hidden;
+      background: linear-gradient(135deg, #5b8def, #2d8264 70%);
+    }
+    .content figcaption { font-size: 13px; color: var(--text-tertiary); text-align: center; margin-top: 10px; }
+
+    /* ===== Tags & author ===== */
+    .tags { display: flex; flex-wrap: wrap; gap: 10px; margin: 48px 0 36px; }
+    .tag {
+      font-size: 13px; color: var(--text-secondary); background-color: var(--bg-card);
+      border: 1px solid var(--border); padding: 6px 14px; border-radius: 100px; text-decoration: none;
+      transition: all var(--transition);
+    }
+    .tag:hover { border-color: var(--accent); color: var(--accent); background-color: var(--accent-light); }
+
+    .author-card {
+      display: flex; gap: 16px; align-items: center; padding: 24px;
+      background-color: var(--bg-card); border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg); margin-bottom: 40px;
+    }
+    .author-card .avatar { width: 52px; height: 52px; font-size: 20px; }
+    .author-card .a-name { font-family: var(--font-serif); font-size: 17px; font-weight: 600; }
+    .author-card .a-bio { font-size: 13.5px; color: var(--text-secondary); margin-top: 2px; }
+
+    /* ===== TOC sidebar (multi-level, up to 3 levels) ===== */
+    .toc {
+      position: sticky; top: 92px;
+      max-height: calc(100vh - 116px);
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .toc::-webkit-scrollbar { width: 6px; }
+    .toc::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .toc::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+    .toc-title {
+      font-size: 12px; font-weight: 600; color: var(--text-tertiary); letter-spacing: 0.12em;
+      text-transform: uppercase; margin-bottom: 16px; padding-left: 8px;
+    }
+    .toc-list, .toc-list ul { list-style: none; margin: 0; padding: 0; }
+    .toc-list { border-left: 1px solid var(--border); }
+    .toc-list ul { border-left: 1px solid var(--border); margin-left: 14px; }
+    .toc-list a {
+      display: block; padding: 7px 14px 7px 12px;
+      font-size: 14px; color: var(--text-secondary); text-decoration: none;
+      border-left: 2px solid transparent; margin-left: -1px;
+      transition: color var(--transition), border-color var(--transition), background-color var(--transition);
+      line-height: 1.5;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .toc-list ul a { padding-left: 12px; font-size: 13.5px; }
+    .toc-list ul ul a { padding-left: 12px; font-size: 13px; color: var(--text-tertiary); }
+    .toc-list a:hover { color: var(--text-primary); background-color: var(--bg-sidebar); }
+    .toc-list a.branch { color: var(--text-primary); }
+    .toc-list a.active {
+      color: var(--accent); border-left-color: var(--accent); font-weight: 500;
+      background-color: var(--accent-light);
+    }
+    .toc-list ul ul a.active { font-weight: 500; }
+
+    /* ===== Footer ===== */
+    .footer { border-top: 1px solid var(--border-light); padding: 36px 24px; text-align: center; }
+    .footer p { font-size: 13px; color: var(--text-tertiary); }
+
+    @media (max-width: 768px) {
+      .header-inner { height: 60px; padding: 0 16px; }
+      .nav-links { gap: 2px; }
+      .nav-links a { font-size: 13px; padding: 0 13px; }
+      .brand-name { font-size: 19px; }
+      .brand-mark { width: 26px; height: 26px; }
+      .layout { padding: 32px 16px 56px; }
+      .article-title { font-size: 28px; }
+      .cover { aspect-ratio: 16/9; }
+      .cover-glyph { font-size: 72px; }
+    }
+    @media (max-width: 480px) {
+      .nav-links { display: none; }
+      .article-meta { gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+
+  <header class="header">
+    <div class="header-inner">
+      <a href="#" class="brand" aria-label="墨堆">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+  <rect width="28" height="28" rx="8" fill="#2d8264"/>
+  <circle cx="14" cy="9" r="3.2" fill="#ffffff"/>
+  <rect x="7.5" y="14.5" width="13" height="2.8" rx="1.4" fill="#ffffff"/>
+  <rect x="7.5" y="19" width="13" height="2.8" rx="1.4" fill="#ffffff"/>
+</svg>
+        </span>
+        <span class="brand-name">墨堆</span>
+      </a>
+      <nav class="nav">
+        <div class="nav-links" id="navLinks"></div>
+        <button class="theme-toggle" id="themeToggle" aria-label="切换主题">
+          <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <article class="article">
+      <a href="article-list.html" class="back-link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        返回文章列表
+      </a>
+
+      <nav class="breadcrumb" aria-label="当前分类路径">
+        <a href="article-list.html">文章</a>
+        <span class="sep">/</span>
+        <a href="#">AI 工程化</a>
+        <span class="sep">/</span>
+        <a href="#">规格化开发</a>
+        <span class="sep">/</span>
+        <span class="current">openSpec</span>
+      </nav>
+
+      <h1 class="article-title">openSpec 入门：用规格文件驱动 AI 编码</h1>
+      <p class="article-lead">当 AI 编码助手开始接手真实项目，最大的问题不是"写不出代码"，而是"写出的代码你我都不认得"。openSpec 用一份人类可读的规格文件，把意图锁死在代码之前。</p>
+
+      <div class="cover"><div class="cover-glyph">spec</div></div>
+
+      <div class="content">
+        <p>过去一年，几乎所有团队都试过用 AI 写代码。它能补齐样板、生成测试用例、解释报错——效率提升是真实的。但一旦离开"玩具项目"，进入有历史包袱、有隐式约定的代码库，AI 生成的内容就开始<strong>漂移</strong>：接口字段对不上、命名风格各一、边界条件被忽略。</p>
+
+        <p>问题不在模型不够强，而在于我们从未把"这一次要做什么、做成什么样"清楚地交代给模型。openSpec 想解决的，正是这道<strong>意图断层</strong>。</p>
+
+        <h2 id="why">为什么需要规格文件</h2>
+        <p>把需求写进一段 prompt，模型只能看到你当下敲进去的那几行。它不知道项目里已经存在 <code>UserRepository</code>，不知道你们约定用 <code>snake_case</code> 还是 <code>camelCase</code>，更不知道这个改动不能破坏上个月的支付回调。</p>
+
+        <blockquote>
+          <p>规格文件不是为了"指挥"AI，而是为了给 AI 一个稳定、可复用的上下文契约——人读得懂，机器也读得懂。</p>
+        </blockquote>
+
+        <p>一份好的规格，应该能被提交进 Git、被 Code Review、被 CI 校验。它和代码一样，是第一等公民。</p>
+
+        <h2 id="concepts">openSpec 的核心概念</h2>
+        <p>openSpec 的设计极度克制，整个体系围绕三个对象展开。理解它们，就理解了 openSpec 的工作方式。</p>
+
+        <h3 id="objects">三个核心对象</h3>
+        <p>理解 openSpec，先抓住它刻意保持精简的三元组。它们各司其职，又彼此衔接：</p>
+
+        <h4 id="spec">Spec（规格）</h4>
+        <p>描述一个功能"要做什么"，是人类与模型之间的契约。它不关心语言、框架或实现细节，只回答"目标"与"边界"，是整条链路里最稳定、最该被反复推敲的一份文件。</p>
+
+        <h4 id="task">Task（任务）</h4>
+        <p>把 Spec 拆成可执行的步骤，每一步都能独立验证。Task 是规格落地的阶梯，让大模型可以小步前进、随时回滚，也让你清晰地看到"进度到哪了"。</p>
+
+        <h4 id="archive">Archive（归档）</h4>
+        <p>已完成的 Spec 不会消失，而是沉淀为项目的"决策地图"。下次有人问"当年为什么这么设计"，答案就躺在归档里，而不是散落在某次聊天的上下文窗口中。</p>
+
+        <h3 id="philosophy">设计哲学</h3>
+        <p>三个对象背后，是两条贯穿始终、且互相约束的设计原则：</p>
+
+        <h4 id="minimal">最小可用</h4>
+        <p>一份 Spec 只要能说清"问题"和"验收标准"就够了。多余的措辞只会成为模型发挥时的噪音，也更容易在 Review 时掩盖真正的关键约束。</p>
+
+        <h4 id="readable">人类可读</h4>
+        <p>规格必须人读得懂，才会有人去 Review；有人 Review，它才配得上进入版本控制。可读性是它生命力的来源，也是它区别于"又一段提示词"的根本。</p>
+
+        <div class="callout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <div>
+            <div class="c-title">小提示</div>
+            <p>不要把 Spec 写成实现细节。它回答"做什么"和"为什么"，实现留给 Task 和模型去填。</p>
+          </div>
+        </div>
+
+        <p>一份最小可用的 Spec 长这样：</p>
+
+        <pre class="code-block"><span class="c-com"># specs/add-user-rate-limit/spec.md</span>
+<span class="c-key">description</span>: 为公开 API 增加基于令牌桶的限流
+<span class="c-key">why</span>: 近期爬虫导致服务波动，需在不引入新依赖的前提下保护核心接口
+<span class="c-key">acceptance</span>:
+  - 单 IP 默认上限 <span class="c-num">100</span> 请求/分钟
+  - 超限返回 <span class="c-num">429</span> 与 Retry-After 头
+  - 限流状态可从 /health 暴露</pre>
+
+        <h2 id="start">从零开始一个规格</h2>
+        <p>初始化一个项目只需要一行命令，它会创建 <code>openspec/</code> 目录与基础结构：</p>
+
+        <h3 id="init">初始化项目</h3>
+        <p>openSpec 对环境几乎零要求，几条命令即可在任意 Node 项目里落地，无需改造现有工程结构。</p>
+
+        <h4 id="install">安装</h4>
+        <p>推荐以 <code>npx</code> 方式直接使用，避免污染全局依赖；如果团队使用频繁，也可以作为 <code>devDependency</code> 安装到项目里统一版本。</p>
+
+        <h4 id="structure">目录结构</h4>
+        <p>初始化后会在仓库根生成 <code>openspec/</code> 目录，其中 <code>specs/</code> 存放草稿与进行中的规格，<code>archive/</code> 存放已交付的规格，二者共同构成项目的决策历史。</p>
+
+        <h3 id="polish">打磨 Spec</h3>
+        <p>生成只是起点，真正决定质量的是反复打磨的过程。下面这份清单能帮你把"能跑"的草稿，变成"敢进主干"的规格。</p>
+
+        <h4 id="checklist">检查清单</h4>
+        <p>提交前，建议逐条核对以下内容，确认规格"说人话、可验证"：</p>
+
+        <pre class="code-block"><span class="c-com"># 初始化</span>
+npx openspec init
+
+<span class="c-com"># 基于自然语言需求生成一个 Spec 草稿</span>
+npx openspec propose <span class="c-str">"给公开 API 加上限流"</span></pre>
+
+        <p>生成后，建议按下面的顺序打磨它：</p>
+        <ol>
+          <li>读一遍 <code>description</code>，确认它说的是"问题"而非"方案"。</li>
+          <li>检查 <code>acceptance</code> 是否可验证——每条都应能用一句话判断通过与否。</li>
+          <li>把草稿提交到分支，发起一次普通的 Pull Request。</li>
+        </ol>
+
+        <figure>
+          <div class="fig-img"></div>
+          <figcaption>图：Spec → Task → 代码的单向流动，意图始终可追溯。</figcaption>
+        </figure>
+
+        <h2 id="ci">在 CI 中校验规格</h2>
+        <p>规格的价值在于"活着"。把它接进 CI，每次提交都校验 Spec 与代码是否偏离：</p>
+
+        <pre class="code-block"><span class="c-com"># .github/workflows/openspec.yml</span>
+<span class="c-key">name</span>: openspec
+<span class="c-key">on</span>: [pull_request]
+<span class="c-key">jobs</span>:
+  <span class="c-key">verify</span>:
+    <span class="c-key">runs-on</span>: ubuntu-latest
+    <span class="c-key">steps</span>:
+      - <span class="c-key">uses</span>: actions/checkout@v4
+      - <span class="c-key">run</span>: npx openspec validate</pre>
+
+        <p>当 CI 变红，说明有人改了代码却忘了同步 Spec——这恰恰是它最该发挥作用的时候。</p>
+
+        <h2 id="summary">小结</h2>
+        <p>openSpec 不是另一个"魔法提示词"，而是一种<strong>把上下文工程化的习惯</strong>。它把"我们到底要什么"从飘忽的对话里拽出来，钉进版本控制系统。</p>
+        <p>如果你也受够了 AI 生成的代码"看着对、跑起来错"，不妨从下一个小功能开始，先写 Spec，再写代码。</p>
+      </div>
+
+      <div class="tags">
+        <a href="#" class="tag">openSpec</a>
+        <a href="#" class="tag">AI 工程化</a>
+        <a href="#" class="tag">规格化开发</a>
+        <a href="#" class="tag">提示词工程</a>
+      </div>
+
+      <div class="author-card">
+        <span class="avatar">林</span>
+        <div>
+          <div class="a-name">林深</div>
+          <div class="a-bio">后端工程师，关注 AI 与工程实践的交界地带。</div>
+        </div>
+      </div>
+    </article>
+
+    <aside class="toc">
+      <nav aria-label="文章目录">
+        <div class="toc-title">目录</div>
+        <ul class="toc-list" id="tocList"></ul>
+      </nav>
+    </aside>
+  </div>
+
+  <footer class="footer"><p>© 2024 墨堆 · 以设计记录思考</p></footer>
+
+  <script>
+    // ===== Smart nav (day/night aware, sliding indicator) =====
+    const navLinksEl = document.getElementById('navLinks');
+    const navData = {
+      day: [
+        { key: 'home',    label: '首页',     href: 'article-list.html' },
+        { key: 'kb',      label: '知识库',   href: '#' },
+        { key: 'resume',  label: '简历',     href: '#' },
+        { key: 'digital', label: '数字生命', href: '#' },
+      ],
+      night: [
+        { key: 'home',    label: '首页',     href: 'article-list.html' },
+        { key: 'notes',   label: '小记',     href: 'xiaoji.html' },
+        { key: 'about',   label: '关于我',   href: 'about-me.html' },
+        { key: 'digital', label: '数字生命', href: '#' },
+      ],
+    };
+    const activeNavKey = 'kb';
+    let navIndicator = null;
+
+    function moveIndicator(target) {
+      if (!target || !navIndicator) return;
+      navIndicator.style.width = target.offsetWidth + 'px';
+      navIndicator.style.transform = 'translateX(' + target.offsetLeft + 'px)';
+    }
+    function renderNav() {
+      const isDark = root.getAttribute('data-theme') === 'dark';
+      const items = isDark ? navData.night : navData.day;
+      const activeKey = items.some(i => i.key === activeNavKey) ? activeNavKey : items[0].key;
+      navLinksEl.innerHTML = '';
+      items.forEach(it => {
+        const a = document.createElement('a');
+        a.href = it.href; a.textContent = it.label; a.dataset.key = it.key;
+        if (it.key === activeKey) a.classList.add('active');
+        a.addEventListener('mouseenter', () => {
+          if (a.classList.contains('active')) return;
+          navIndicator.classList.add('preview');
+          moveIndicator(a);
+        });
+        navLinksEl.appendChild(a);
+      });
+      if (!navIndicator) {
+        navIndicator = document.createElement('span');
+        navIndicator.className = 'nav-underline';
+      }
+      navLinksEl.appendChild(navIndicator);
+      moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+    }
+    navLinksEl.addEventListener('mouseleave', () => {
+      if (!navIndicator) return;
+      navIndicator.classList.remove('preview');
+      moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+    });
+    window.addEventListener('resize', () => {
+      moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+    });
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+      });
+    }
+
+    // ===== Theme toggle =====
+    const root = document.documentElement;
+    const toggle = document.getElementById('themeToggle');
+    const icon = document.getElementById('themeIcon');
+    const moonIcon = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+    const sunIcon = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
+    function setTheme(t) {
+      root.setAttribute('data-theme', t);
+      icon.innerHTML = t === 'dark' ? sunIcon : moonIcon;
+      try { localStorage.setItem('theme', t); } catch (e) {}
+      renderNav();
+    }
+    const saved = (function(){ try { return localStorage.getItem('theme'); } catch(e){ return null; } })();
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (saved) setTheme(saved);
+    else if (prefersDark) setTheme('dark');
+    else renderNav();
+    toggle.addEventListener('click', () => {
+      setTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+      const svg = toggle.querySelector('svg');
+      if (svg) { svg.classList.remove('spin'); void svg.offsetWidth; svg.classList.add('spin'); }
+    });
+
+    // ===== Reading progress =====
+    const progress = document.getElementById('progress');
+    window.addEventListener('scroll', () => {
+      const h = document.documentElement;
+      const scrolled = h.scrollTop / (h.scrollHeight - h.clientHeight);
+      progress.style.width = (scrolled * 100) + '%';
+    }, { passive: true });
+
+    // ===== TOC: build multi-level (up to 3) + scroll-spy =====
+    const tocRoot = document.getElementById('tocList');
+    const contentEl = document.querySelector('.content');
+    const headingEls = Array.from(contentEl.querySelectorAll('h2, h3, h4'));
+
+    // Ensure every heading has an id, and record its parent chain (h2 -> h3 -> h4)
+    const parentOf = {};
+    let lastH2 = null, lastH3 = null;
+    headingEls.forEach(h => {
+      if (!h.id) h.id = 'h-' + Math.random().toString(36).slice(2, 9);
+      if (h.tagName === 'H2') { lastH2 = h.id; lastH3 = null; parentOf[h.id] = null; }
+      else if (h.tagName === 'H3') { parentOf[h.id] = lastH2; lastH3 = h.id; }
+      else if (h.tagName === 'H4') { parentOf[h.id] = lastH3; }
+    });
+
+    // Build nested <ul>/<li> tree from heading order
+    tocRoot.innerHTML = '';
+    const tocNodes = {};
+    headingEls.forEach(h => {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = '#' + h.id;
+      a.textContent = h.textContent;
+      li.appendChild(a);
+      tocNodes[h.id] = li;
+    });
+    headingEls.forEach(h => {
+      const li = tocNodes[h.id];
+      const parentId = parentOf[h.id];
+      if (parentId && tocNodes[parentId]) {
+        let ul = tocNodes[parentId].querySelector(':scope > ul');
+        if (!ul) { ul = document.createElement('ul'); tocNodes[parentId].appendChild(ul); }
+        ul.appendChild(li);
+      } else {
+        tocRoot.appendChild(li);
+      }
+    });
+
+    // Scroll-spy: highlight current section + its ancestor branch
+    const tocLinks = Array.from(tocRoot.querySelectorAll('a'));
+    const linkMap = new Map();
+    tocLinks.forEach(a => linkMap.set(a.getAttribute('href').slice(1), a));
+    function ancestorIds(id) {
+      const chain = [];
+      let cur = parentOf[id];
+      while (cur) { chain.push(cur); cur = parentOf[cur]; }
+      return chain;
+    }
+    const tocObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          tocLinks.forEach(l => l.classList.remove('active', 'branch'));
+          const a = linkMap.get(id);
+          if (a) a.classList.add('active');
+          ancestorIds(id).forEach(pid => {
+            const pa = linkMap.get(pid);
+            if (pa) pa.classList.add('branch');
+          });
+        }
+      });
+    }, { rootMargin: '-80px 0px -65% 0px', threshold: 0 });
+    headingEls.forEach(h => tocObserver.observe(h));
+  </script>
+</body>
+</html>

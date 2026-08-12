@@ -1,0 +1,80 @@
+/**
+ * 设计令牌 — 完全取自 prototypes/*.html 中的 :root / [data-theme="dark"]
+ * 数值一律与原型保持一致，禁止随意修改。
+ */
+:root {
+  /* 背景 */
+  --bg-body: #fafafa;
+  --bg-card: #ffffff;
+  --bg-soft: #f7f9f7;
+  --bg-sidebar: #f5f5f5;
+  --bg-green-soft: #eef6f1;
+  --bg-tree: #fafafa;
+
+  /* 文字 */
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+  --text-brand: #2d8264;
+
+  /* 描边 */
+  --border: #e8e8e8;
+  --border-light: #f0f0f0;
+
+  /* 强调色 */
+  --accent: #2d8264;
+  --accent-light: #e9f4ef;
+  --accent-hover: #246f53;
+
+  /* 阴影 */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.10);
+
+  /* 圆角 / 过渡 */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* 字体 */
+  --font-serif: 'Noto Serif SC', 'Source Han Serif SC', 'STSong', serif;
+  --font-sans: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+
+  /* 热力图阶梯（知识库列表页贡献图） */
+  --hm-1: #bfe3d0;
+  --hm-2: #7cc6a3;
+  --hm-3: #2d8264;
+  --hm-4: #18583f;
+}
+
+[data-theme='dark'] {
+  --bg-body: #0f0f0f;
+  --bg-card: #1a1a1a;
+  --bg-soft: #1d201e;
+  --bg-sidebar: #242424;
+  --bg-green-soft: #182b23;
+  --bg-tree: #0f0f0f;
+
+  --text-primary: #f5f5f5;
+  --text-secondary: #a8a8a8;
+  --text-tertiary: #737373;
+  --text-brand: #5fc59a;
+
+  --border: #2a2a2a;
+  --border-light: #222222;
+
+  --accent: #5fc59a;
+  --accent-light: #133028;
+  --accent-hover: #82d7b3;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4);
+
+  --hm-1: #114530;
+  --hm-2: #1a6b4d;
+  --hm-3: #2d8264;
+  --hm-4: #5fc59a;
+}

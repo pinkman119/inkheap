@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小记 · 生活杂谈 · 墨堆</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-body: #fafafa;
+      --bg-card: #ffffff;
+      --bg-soft: #f7f9f7;
+      --bg-sidebar: #f5f5f5;
+      --bg-green-soft: #eef6f1;
+      --text-primary: #1a1a1a;
+      --text-secondary: #666666;
+      --text-tertiary: #999999;
+      --border: #e8e8e8;
+      --border-light: #f0f0f0;
+      --accent: #2d8264;
+      --accent-light: #e9f4ef;
+      --accent-hover: #246f53;
+      --text-brand: #2d8264;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.10);
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --font-serif: 'Noto Serif SC', 'Source Han Serif SC', 'STSong', serif;
+      --font-sans: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+    }
+
+    [data-theme="dark"] {
+      --bg-body: #0f0f0f;
+      --bg-card: #1a1a1a;
+      --bg-soft: #1d201e;
+      --bg-sidebar: #242424;
+      --bg-green-soft: #182b23;
+      --text-primary: #f5f5f5;
+      --text-secondary: #a8a8a8;
+      --text-tertiary: #737373;
+      --border: #2a2a2a;
+      --border-light: #222222;
+      --accent: #5fc59a;
+      --accent-light: #133028;
+      --accent-hover: #82d7b3;
+      --text-brand: #5fc59a;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-body);
+      color: var(--text-primary);
+      line-height: 1.8;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ===== Header (shared) ===== */
+    .header {
+      position: sticky; top: 0; z-index: 100;
+      background-color: color-mix(in srgb, var(--bg-body) 92%, transparent);
+      border-bottom: 1px solid var(--border-light);
+      backdrop-filter: blur(12px);
+    }
+    .header-inner {
+      max-width: 1320px; margin: 0 auto; padding: 0 24px; height: 68px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .brand {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-family: var(--font-serif); text-decoration: none; color: var(--text-primary);
+    }
+    .brand-mark { display: inline-flex; width: 30px; height: 30px; flex-shrink: 0; }
+    .brand-mark svg { width: 100%; height: 100%; display: block; }
+    .brand-name { font-size: 22px; font-weight: 700; letter-spacing: 0.08em; line-height: 1; color: var(--accent); }
+    .nav { display: flex; align-items: center; gap: 28px; }
+    .nav-links {
+      position: relative; display: flex; align-items: center; gap: 6px; height: 44px;
+    }
+    .nav-underline {
+      position: absolute; left: 0; bottom: 5px; height: 2.5px;
+      background: linear-gradient(90deg, var(--accent), #3fae86);
+      border-radius: 100px;
+      transition: transform .5s cubic-bezier(.22, 1, .36, 1),
+                  width .5s cubic-bezier(.22, 1, .36, 1),
+                  opacity .35s ease;
+      z-index: 0; pointer-events: none;
+    }
+    .nav-links a {
+      position: relative; z-index: 1;
+      display: inline-flex; align-items: center; height: 44px; padding: 0 16px;
+      font-size: 15px; font-weight: 500; color: var(--text-primary);
+      text-decoration: none; letter-spacing: 0.04em; border-radius: 10px;
+      transition: color var(--transition), background-color var(--transition);
+    }
+    .nav-links a:hover { color: var(--accent); background-color: var(--accent-light); }
+    .nav-links a.active { color: var(--accent); font-weight: 600; }
+    .nav-underline.preview { opacity: .4; }
+    .theme-toggle {
+      width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border);
+      background: transparent; color: var(--text-secondary); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all var(--transition);
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); background-color: var(--accent-light); }
+    .theme-toggle svg { transition: transform .55s cubic-bezier(.22, 1, .36, 1); }
+    .theme-toggle svg.spin { transform: rotate(360deg); }
+
+    /* ===== Page layout ===== */
+    .page { flex: 1; }
+    .container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+    /* Page hero */
+    .page-hero {
+      position: relative; overflow: hidden;
+      padding: 64px 24px 40px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .hero-glow {
+      position: absolute; top: -80px; right: -60px;
+      width: 440px; height: 440px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(45, 130, 100, 0.14), transparent 65%);
+      filter: blur(48px); pointer-events: none;
+    }
+    [data-theme="dark"] .hero-glow { background: radial-gradient(circle, rgba(95, 197, 154, 0.13), transparent 65%); }
+    .page-hero-inner { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; }
+    .kicker {
+      display: inline-block; font-family: var(--font-mono); font-size: 12.5px; font-weight: 500;
+      letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent);
+      padding: 4px 12px; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+      border-radius: 100px; background-color: var(--accent-light); margin-bottom: 16px;
+    }
+    .page-hero h1 {
+      font-family: var(--font-serif); font-size: 40px; font-weight: 700;
+      color: var(--text-primary); letter-spacing: 0.02em; margin-bottom: 12px;
+    }
+    .page-hero .lede { font-size: 16px; color: var(--text-secondary); max-width: 600px; }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 28px 0 8px;
+    }
+    .filter-btn {
+      font-family: var(--font-sans); font-size: 14px; font-weight: 500;
+      padding: 7px 16px; border-radius: 100px; cursor: pointer;
+      border: 1px solid var(--border); background-color: var(--bg-card);
+      color: var(--text-secondary); transition: all var(--transition);
+    }
+    .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .filter-btn.active {
+      background-color: var(--accent); border-color: var(--accent); color: #ffffff;
+    }
+    [data-theme="dark"] .filter-btn.active { color: #0f0f0f; }
+    .filter-count { font-size: 13px; color: var(--text-tertiary); margin-left: auto; font-family: var(--font-mono); }
+
+    /* Note grid */
+    .note-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px;
+      padding: 24px 0 64px;
+    }
+    .note-card {
+      display: flex; flex-direction: column;
+      border: 1px solid var(--border); border-radius: var(--radius-md);
+      background-color: var(--bg-card); overflow: hidden;
+      transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+      animation: fadeUp .45s cubic-bezier(.22, 1, .36, 1) both;
+    }
+    .note-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+    .note-cover {
+      position: relative; height: 132px; display: flex; align-items: flex-end; justify-content: space-between;
+      padding: 14px 16px; color: #ffffff;
+      background: radial-gradient(circle at 80% 20%, rgba(255,255,255,0.16), transparent 50%),
+                  linear-gradient(135deg, #2d8264, #143f30);
+    }
+    [data-theme="dark"] .note-cover { background: radial-gradient(circle at 80% 20%, rgba(255,255,255,0.13), transparent 50%), linear-gradient(135deg, #2f6b54, #0e2a20); }
+    .note-cover .glyph { font-family: var(--font-mono); font-size: 30px; opacity: 0.92; }
+    .note-cover .cover-tag {
+      font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.08em;
+      padding: 3px 10px; border-radius: 100px;
+      background-color: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.28);
+    }
+    .note-body { padding: 18px 18px 20px; display: flex; flex-direction: column; flex: 1; }
+    .note-meta { font-family: var(--font-mono); font-size: 12.5px; color: var(--accent); margin-bottom: 8px; }
+    .note-title { font-size: 18px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+    .note-excerpt { font-size: 14px; color: var(--text-secondary); flex: 1; margin-bottom: 16px; }
+    .note-link {
+      display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+      font-size: 14px; font-weight: 500; color: var(--accent); text-decoration: none;
+      transition: gap var(--transition);
+    }
+    .note-link:hover { gap: 10px; }
+    .note-link svg { width: 15px; height: 15px; }
+
+    /* Footer */
+    .footer {
+      border-top: 1px solid var(--border-light);
+      padding: 28px 24px; text-align: center;
+      color: var(--text-tertiary); font-size: 13px;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .note-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .header-inner { height: 60px; padding: 0 16px; }
+      .nav-links a { font-size: 13px; padding: 0 13px; }
+      .brand-name { font-size: 19px; }
+      .page-hero { padding: 40px 16px 32px; }
+      .page-hero h1 { font-size: 32px; }
+      .note-grid { grid-template-columns: 1fr; padding: 20px 0 48px; }
+    }
+    @media (max-width: 480px) {
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="brand" aria-label="墨堆">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+  <rect width="28" height="28" rx="8" fill="#2d8264"/>
+  <circle cx="14" cy="9" r="3.2" fill="#ffffff"/>
+  <rect x="7.5" y="14.5" width="13" height="2.8" rx="1.4" fill="#ffffff"/>
+  <rect x="7.5" y="19" width="13" height="2.8" rx="1.4" fill="#ffffff"/>
+</svg>
+        </span>
+        <span class="brand-name">墨堆</span>
+      </a>
+      <nav class="nav">
+        <div class="nav-links" id="navLinks"></div>
+        <button class="theme-toggle" id="themeToggle" aria-label="切换主题">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page">
+    <!-- Hero -->
+    <section class="page-hero">
+      <div class="hero-glow"></div>
+      <div class="page-hero-inner">
+        <span class="kicker">Xiaoji · Notes</span>
+        <h1>小记</h1>
+        <p class="lede">生活里那些不值得发朋友圈、却舍不得忘的碎片。酿酒、摄影、BTC，以及一切杂谈——记录下来，就是抵抗遗忘的方式。</p>
+      </div>
+    </section>
+
+    <div class="container">
+      <!-- Filter -->
+      <div class="filter-bar" id="filterBar" role="tablist" aria-label="文章分类">
+        <button class="filter-btn active" data-tag="all">全部</button>
+        <button class="filter-btn" data-tag="brew">酿酒</button>
+        <button class="filter-btn" data-tag="photo">摄影</button>
+        <button class="filter-btn" data-tag="btc">BTC</button>
+        <button class="filter-btn" data-tag="misc">杂谈</button>
+        <span class="filter-count" id="filterCount"></span>
+      </div>
+
+      <!-- Notes -->
+      <div class="note-grid" id="noteGrid">
+        <article class="note-card" data-tag="brew">
+          <div class="note-cover"><span class="glyph">🍶</span><span class="cover-tag">酿酒</span></div>
+          <div class="note-body">
+            <div class="note-meta">2024-03-18 · 约 6 分钟</div>
+            <h3 class="note-title">第一次酿梅子酒</h3>
+            <p class="note-excerpt">青梅、冰糖、白酒的比例，以及等待的浪漫。封坛那天我在纸上写：半年后再见。</p>
+            <a class="note-link" href="#">阅读 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
+          </div>
+        </article>
+
+        <article class="note-card" data-tag="photo">
+          <div class="note-cover"><span class="glyph">📷</span><span class="cover-tag">摄影</span></div>
+          <div class="note-body">
+            <div class="note-meta">2024-02-09 · 约 5 分钟</div>
+            <h3 class="note-title">雪夜里的长曝光</h3>
+            <p class="note-excerpt">三脚架、ND 滤镜，和一杯等不到凉透的热咖啡。三十秒的快门，记下了一整条街的流动。</p>
+            <a class="note-link" href="#">阅读 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
+          </div>
+        </article>
+
+        <article class="note-card" data-tag="btc">
+          <div class="note-cover"><span class="glyph">₿</span><span class="cover-tag">BTC</span></div>
+          <div class="note-body">
+            <div class="note-meta">2024-01-22 · 约 8 分钟</div>
+            <h3 class="note-title">囤币三年的一些碎想</h3>
+            <p class="note-excerpt">不是投资建议，只是我和时间的一场博弈。最难的从来不是买，而是什么都不做地拿着。</p>
+            <a class="note-link" href="#">阅读 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
+          </div>
+        </article>
+
+        <article class="note-card" data-tag="misc">
+          <div class="note-cover"><span class="glyph">✎</span><span class="cover-tag">杂谈</span></div>
+          <div class="note-body">
+            <div class="note-meta">2023-12-30 · 约 4 分钟</div>
+            <h3 class="note-title">为什么我坚持写小记</h3>
+            <p class="note-excerpt">记录本身就是一种抵抗——抵抗遗忘，也抵抗被算法替我们记住。手写不出的，就写在这里。</p>
+            <a class="note-link" href="#">阅读 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
+          </div>
+        </article>
+
+        <article class="note-card" data-tag="brew">
+          <div class="note-cover"><span class="glyph">🍺</span><span class="cover-tag">酿酒</span></div>
+          <div class="note-body">
+            <div class="note-meta">2023-11-11 · 约 7 分钟</div>
+            <h3 class="note-title">自酿艾尔的一次翻车</h3>
+            <p class="note-excerpt">温控没做好，得到一桶酸掉的家伙。失败也是配方的一部分，下次我把发酵桶搬进了衣柜。</p>
+            <a class="note-link" href="#">阅读 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
+          </div>
+        </article>
+
+        <article class="note-card" data-tag="photo">
+          <div class="note-cover"><span class="glyph">🏙</span><span class="cover-tag">摄影</span></div>
+          <div class="note-body">
+            <div class="note-meta">2023-10-05 · 约 6 分钟</div>
+            <h3 class="note-title">扫街时被拒绝的十二次</h3>
+            <p class="note-excerpt">关于边界、尊重与勇气。第十二次，对方笑着点了头——原来拒绝的不是镜头，是贸然。</p>
+            <a class="note-link" href="#">阅读 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
+          </div>
+        </article>
+
+        <article class="note-card" data-tag="btc">
+          <div class="note-cover"><span class="glyph">🔑</span><span class="cover-tag">BTC</span></div>
+          <div class="note-body">
+            <div class="note-meta">2023-09-14 · 约 5 分钟</div>
+            <h3 class="note-title">冷钱包与健忘症</h3>
+            <p class="note-excerpt">把私钥写进纸质备份的那天，我才真正理解"掌握在自己手里"的分量，也理解了备份的焦虑。</p>
+            <a class="note-link" href="#">阅读 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
+          </div>
+        </article>
+
+        <article class="note-card" data-tag="misc">
+          <div class="note-cover"><span class="glyph">⛰</span><span class="cover-tag">杂谈</span></div>
+          <div class="note-body">
+            <div class="note-meta">2023-08-02 · 约 5 分钟</div>
+            <h3 class="note-title">山里的信号与城市的焦虑</h3>
+            <p class="note-excerpt">断网一周后，世界并没有塌。回到城市的第一天，手机震个不停，焦虑却准时上岗。</p>
+            <a class="note-link" href="#">阅读 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
+          </div>
+        </article>
+
+        <article class="note-card" data-tag="photo">
+          <div class="note-cover"><span class="glyph">🌌</span><span class="cover-tag">摄影</span></div>
+          <div class="note-body">
+            <div class="note-meta">2023-07-19 · 约 6 分钟</div>
+            <h3 class="note-title">拍下银河的那晚</h3>
+            <p class="note-excerpt">高海拔、零光污染、和三脚架较劲两小时。当银河在屏幕上亮起来的瞬间，一切都值了。</p>
+            <a class="note-link" href="#">阅读 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a>
+          </div>
+        </article>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer"><p>© 2024 墨堆 · 以设计记录思考</p></footer>
+
+  <script>
+    // ===== Smart nav (day/night aware, sliding indicator) =====
+    const navLinksEl = document.getElementById('navLinks');
+    const navData = {
+      day: [
+        { key: 'home',    label: '首页',     href: 'index.html' },
+        { key: 'kb',      label: '知识库',   href: 'article-list.html' },
+        { key: 'resume',  label: '简历',     href: '#' },
+        { key: 'digital', label: '数字生命', href: 'digital-life.html' },
+      ],
+      night: [
+        { key: 'home',    label: '首页',     href: 'index.html' },
+        { key: 'notes',   label: '小记',     href: 'xiaoji.html' },
+        { key: 'about',   label: '关于我',   href: 'about-me.html' },
+        { key: 'digital', label: '数字生命', href: 'digital-life.html' },
+      ],
+    };
+    const activeNavKey = 'notes';
+    let navIndicator = null;
+
+    function moveIndicator(target) {
+      if (!target || !navIndicator) return;
+      navIndicator.style.width = target.offsetWidth + 'px';
+      navIndicator.style.transform = 'translateX(' + target.offsetLeft + 'px)';
+    }
+    function renderNav() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const items = isDark ? navData.night : navData.day;
+      const activeKey = items.some(i => i.key === activeNavKey) ? activeNavKey : items[0].key;
+      navLinksEl.innerHTML = '';
+      items.forEach(it => {
+        const a = document.createElement('a');
+        a.href = it.href; a.textContent = it.label; a.dataset.key = it.key;
+        if (it.key === activeKey) a.classList.add('active');
+        a.addEventListener('mouseenter', () => {
+          if (a.classList.contains('active')) return;
+          navIndicator.classList.add('preview');
+          moveIndicator(a);
+        });
+        navLinksEl.appendChild(a);
+      });
+      if (!navIndicator) {
+        navIndicator = document.createElement('span');
+        navIndicator.className = 'nav-underline';
+      }
+      navLinksEl.appendChild(navIndicator);
+      moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+    }
+    navLinksEl.addEventListener('mouseleave', () => {
+      if (!navIndicator) return;
+      navIndicator.classList.remove('preview');
+      moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+    });
+    window.addEventListener('resize', () => {
+      moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+    });
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        moveIndicator(navLinksEl.querySelector('a.active') || navLinksEl.querySelector('a'));
+      });
+    }
+
+    // ===== Theme toggle =====
+    const themeToggle = document.getElementById('themeToggle');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+    renderNav();
+    themeToggle.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      renderNav();
+      const svg = themeToggle.querySelector('svg');
+      if (svg) { svg.classList.remove('spin'); void svg.offsetWidth; svg.classList.add('spin'); }
+    });
+
+    // ===== Tag filter (smooth) =====
+    const filterBar = document.getElementById('filterBar');
+    const cards = Array.from(document.querySelectorAll('.note-card'));
+    const countEl = document.getElementById('filterCount');
+
+    function updateCount(visible) { countEl.textContent = visible + ' / ' + cards.length + ' 篇'; }
+
+    filterBar.addEventListener('click', (e) => {
+      const btn = e.target.closest('.filter-btn');
+      if (!btn) return;
+      filterBar.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const tag = btn.dataset.tag;
+      let visible = 0;
+      cards.forEach(c => {
+        const show = tag === 'all' || c.dataset.tag === tag;
+        if (show) {
+          c.style.display = '';
+          // replay fade-up animation
+          c.style.animation = 'none'; void c.offsetWidth; c.style.animation = '';
+          visible++;
+        } else {
+          c.style.display = 'none';
+        }
+      });
+      updateCount(visible);
+    });
+    updateCount(cards.length);
+  </script>
+</body>
+</html>

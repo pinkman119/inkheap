@@ -1,193 +1,129 @@
-import { createRouter, createWebHistory } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
+import { createRouter, createWebHashHistory } from 'vue-router'
+
+/**
+ * 路由表：一个原型页面 ↔ 一个 view。
+ * meta.layout 还原原型里写在 <body> 上的布局差异；
+ * meta.navKey 对应原型脚本里的 activeNavKey。
+ */
 const routes = [
-    // ===== 前台路由（无需认证）=====
-    {
-        path: '/',
-        name: 'public-home',
-        component: () => import('../views/public/PublicProfile.vue'),
-        meta: {
-            title: '个人主页',
-            layout: 'public'
-        }
+  {
+    path: '/',
+    name: 'home',
+    component: () => import('@/views/HomeView.vue'),
+    meta: { title: '王五 - 产品经理 / 设计师 · 墨堆', layout: 'layout-column', navKey: 'home' },
+  },
+  {
+    path: '/articles',
+    name: 'articles',
+    component: () => import('@/views/ArticleListView.vue'),
+    meta: { title: '文章 - 墨堆', layout: 'layout-flow', navKey: 'kb' },
+  },
+  {
+    path: '/articles/:slug',
+    name: 'article-detail',
+    component: () => import('@/views/ArticleDetailView.vue'),
+    meta: {
+      title: 'openSpec 入门：用规格文件驱动 AI 编码 - 墨堆',
+      layout: 'layout-flow',
+      navKey: 'kb',
     },
-    {
-        path: '/docs',
-        name: 'public-docs',
-        component: () => import('../views/public/PublicDocs.vue'),
-        meta: {
-            title: '文档',
-            layout: 'public'
-        }
-    },
-    {
-        path: '/notes',
-        name: 'public-notes',
-        component: () => import('../views/public/PublicNotes.vue'),
-        meta: {
-            title: '小记',
-            layout: 'public'
-        }
-    },
-    {
-        path: '/resume',
-        name: 'public-resume',
-        component: () => import('../views/public/PublicResume.vue'),
-        meta: {
-            title: '简历',
-            layout: 'public'
-        }
-    },
-    {
-        path: '/life',
-        name: 'public-life',
-        component: () => import('../views/public/PublicLife.vue'),
-        meta: {
-            title: '生活',
-            layout: 'public'
-        }
-    },
-    {
-        path: '/articles',
-        name: 'public-articles',
-        component: () => import('../views/public/PublicArticles.vue'),
-        meta: {
-            title: '文章列表',
-            layout: 'public'
-        }
-    },
-    {
-        path: '/articles/:id',
-        name: 'public-article-detail',
-        component: () => import('../views/public/PublicArticleDetail.vue'),
-        meta: {
-            title: '文章详情',
-            layout: 'public'
-        }
-    },
-    {
-        path: '/stats',
-        name: 'public-stats',
-        component: () => import('../views/public/PublicStats.vue'),
-        meta: {
-            title: '蒸馏',
-            layout: 'public'
-        }
-    },
-    {
-        path: '/dark-stats',
-        name: 'public-dark-stats',
-        component: () => import('../views/public/PublicDarkStats.vue'),
-        meta: {
-            title: '蒸馏',
-            layout: 'public'
-        }
-    },
-    // ===== 后台路由（需要认证）=====
-    {
-        path: '/admin',
-        redirect: '/admin/dashboard'
-    },
-    {
-        path: '/admin/dashboard',
-        name: 'admin-dashboard',
-        component: () => import('../views/admin/HomeOverview.vue'),
-        meta: {
-            title: '工作台总览',
-            layout: 'admin',
-            requiresAuth: true
-        }
-    },
-    {
-        path: '/admin/articles',
-        name: 'admin-articles',
-        component: () => import('../views/admin/ArticleBoard.vue'),
-        meta: {
-            title: '文章管理',
-            layout: 'admin',
-            requiresAuth: true
-        }
-    },
-    {
-        path: '/admin/diary',
-        name: 'admin-diary',
-        component: () => import('../views/admin/DiaryCalendar.vue'),
-        meta: {
-            title: '日记管理',
-            layout: 'admin',
-            requiresAuth: true
-        }
-    },
-    {
-        path: '/admin/profile',
-        name: 'admin-profile',
-        component: () => import('../views/admin/ProfileWorkspace.vue'),
-        meta: {
-            title: '个人档案',
-            layout: 'admin',
-            requiresAuth: true
-        }
-    },
-    {
-        path: '/admin/login',
-        name: 'admin-login',
-        component: () => import('../views/admin/LoginPortal.vue'),
-        meta: {
-            title: '登录',
-            layout: 'auth',
-            guestOnly: true
-        }
-    },
-    // ===== 兼容旧路由（可选，后续可删除）=====
-    {
-        path: '/profile',
-        redirect: '/admin/profile'
-    },
-    {
-        path: '/diary',
-        redirect: '/admin/diary'
-    },
-    // ===== 404 重定向 =====
-    {
-        path: '/:pathMatch(.*)*',
-        redirect: '/'
-    }
-];
+  },
+  {
+    path: '/resume',
+    name: 'resume',
+    component: () => import('@/views/ResumeView.vue'),
+    meta: { title: '简历 - 墨堆', layout: 'layout-flow', navKey: 'resume' },
+  },
+  {
+    path: '/digital-life',
+    name: 'digital-life',
+    component: () => import('@/views/DigitalLifeView.vue'),
+    meta: { title: '数字生命 · 墨堆', layout: 'layout-fixed', navKey: 'digital' },
+  },
+  {
+    path: '/about',
+    name: 'about',
+    component: () => import('@/views/AboutMeView.vue'),
+    meta: { title: '关于我 · 慕士塔格猫 · 墨堆', layout: 'layout-column', navKey: 'about' },
+  },
+  {
+    path: '/xiaoji',
+    name: 'xiaoji',
+    component: () => import('@/views/XiaojiView.vue'),
+    meta: { title: '小记 · 生活杂谈 · 墨堆', layout: 'layout-column', navKey: 'notes' },
+  },
+  {
+    path: '/xiaoji/:id',
+    name: 'note-detail',
+    component: () => import('@/views/NoteDetailView.vue'),
+    meta: { title: '小记详情 - 墨堆', layout: 'layout-flow', navKey: 'notes' },
+  },
+  { path: '/:pathMatch(.*)*', redirect: '/' },
+]
+
+// ===================== Admin 路由 =====================
+
+const adminRoutes = [
+  {
+    path: '/admin/login',
+    name: 'admin-login',
+    component: () => import('@/views/admin/LoginView.vue'),
+    meta: { title: '登录 · 墨堆 Admin', layout: 'layout-admin', auth: false },
+  },
+  {
+    path: '/admin',
+    redirect: '/admin/dashboard',
+  },
+  {
+    path: '/admin/dashboard',
+    name: 'admin-dashboard',
+    component: () => import('@/views/admin/DashboardView.vue'),
+    meta: { title: '仪表盘 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/articles',
+    name: 'admin-articles',
+    component: () => import('@/views/admin/ArticleListView.vue'),
+    meta: { title: '文章管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/articles/new',
+    name: 'admin-article-new',
+    component: () => import('@/views/admin/ArticleEditView.vue'),
+    meta: { title: '新建文章 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/articles/:id/edit',
+    name: 'admin-article-edit',
+    component: () => import('@/views/admin/ArticleEditView.vue'),
+    meta: { title: '编辑文章 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+]
+
 const router = createRouter({
-    history: createWebHistory(),
-    routes,
-    scrollBehavior() {
-        return { top: 0 };
+  history: createWebHashHistory(import.meta.env.BASE_URL),
+  routes: [...routes, ...adminRoutes],
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.hash) return { el: to.hash, behavior: 'smooth', top: 90 }
+    return { top: 0 }
+  },
+})
+
+// ===================== Admin 路由守卫 =====================
+
+router.beforeEach((to, from, next) => {
+  if (to.meta?.auth) {
+    const token = localStorage.getItem('admin_token')
+    if (!token) {
+      return next({ name: 'admin-login', query: { redirect: to.fullPath } })
     }
-});
-router.beforeEach((to, _from, next) => {
-    const authStore = useAuthStore();
-    if (!authStore.ready) {
-        authStore.initialize();
-    }
-    // 前台路由：无需认证
-    if (to.meta.layout === 'public') {
-        next();
-        return;
-    }
-    // 登录页特殊处理
-    if (to.meta.guestOnly && authStore.isAuthenticated) {
-        const redirectTarget = to.query.redirect || '/admin/dashboard';
-        next(redirectTarget);
-        return;
-    }
-    // 后台路由：需要认证
-    const requiresAuth = to.meta.requiresAuth !== false;
-    if (requiresAuth && !authStore.isAuthenticated && to.name !== 'admin-login') {
-        next({ name: 'admin-login', query: { redirect: to.fullPath } });
-        return;
-    }
-    next();
-});
+  }
+  next()
+})
+
 router.afterEach((to) => {
-    if (to.meta?.title) {
-        const suffix = to.meta.layout === 'public' ? ' · PersonaFlow' : ' · PersonaFlow Admin';
-        document.title = `${to.meta.title}${suffix}`;
-    }
-});
-export default router;
+  if (to.meta?.title) document.title = to.meta.title
+})
+
+export default router

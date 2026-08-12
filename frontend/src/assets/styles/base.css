@@ -1,0 +1,84 @@
+/**
+ * 全局基础样式 — 与原型 HTML 的 reset / html / body 规则逐条对齐。
+ * 页面级布局差异通过 #app 上的 layout-* 类还原（原型里写在 body 上）。
+ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  /* 始终为竖向滚动条预留槽位：避免长短页面互相切换时，滚动条出现/消失
+     导致视口宽度突变，使顶栏（及其居中内容）产生左右跳动 */
+  scrollbar-gutter: stable;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-body);
+  color: var(--text-primary);
+  line-height: 1.8;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 常规文档流页面：知识库列表 / 文章详情 / 简历 */
+#app.layout-flow {
+  display: block;
+}
+
+/* 首页 / 关于我 / 小记：body { min-height:100vh; display:flex; flex-direction:column } */
+#app.layout-column {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 数字生命：html{height:100%} body{height:100vh;overflow:hidden;display:flex;flex-direction:column} */
+html.layout-fixed,
+html.layout-fixed body {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 该页禁用了滚动，若不继续保留槽位，宽度会比其他页多出一条滚动条的距离，
+   顶栏依然会跳。用透明 overlay 滚动条把槽位占住，视觉上仍然没有滚动条。 */
+html.layout-fixed {
+  scrollbar-gutter: stable;
+}
+
+#app.layout-fixed {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 移动端地址栏收放时的真实视口高度（原型 digital-life 的 @supports 规则） */
+@supports (height: 100dvh) {
+  #app.layout-fixed {
+    height: 100dvh;
+  }
+}
+
+/* 文本选中色（原型 article-detail / resume 中的 ::selection，全站统一） */
+::selection {
+  background-color: var(--accent-light);
+  color: var(--accent-hover);
+}
+
+/* 无障碍：尊重系统「减少动态效果」偏好 */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
