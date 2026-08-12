@@ -14,4 +14,8 @@ export class UpdateHomePageDto {
   @IsOptional()
   @IsString()
   codeContent?: string;
+
+  @IsOptional()
+  @IsString()
+  avatar?: string;
 }

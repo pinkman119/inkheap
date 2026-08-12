@@ -48,10 +48,26 @@ model HomePage {
   siteName    String   @default("INKHEAP") @map("site_name") // 首页名称
   personTitle String   @default("Digital Gardener & Lifelong Learner") @map("person_title") // 首页人物 title
   codeContent String   @default("") @map("code_content") // 首页代码框内容
+  avatar      String?  @map("avatar") // 首页头像 URL 路径（如 /files/2026-08-12/uuid.png）
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("home_page")
+}
+
+// ==================== 上传文件 ====================
+
+model File {
+  id           String   @id @default(uuid())
+  filename     String   @map("filename") // 磁盘文件名（如 uuid.png）
+  originalName String?  @map("original_name") // 上传时的原始文件名
+  url          String   @unique @map("url") // 可访问路径（如 /files/2026-08-12/uuid.png）
+  mimeType     String?  @map("mime_type")
+  size         Int
+  relativePath String   @map("relative_path") // 磁盘相对路径（如 2026-08-12/uuid.png）
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("files")
 }
 
 // ==================== 分类 ====================

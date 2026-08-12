@@ -7,8 +7,10 @@ import { useApi } from '@/composables/useApi'
 
 const api = useApi()
 
+const DEFAULT_AVATAR = 'https://picsum.photos/seed/cat/400/400'
+
 const profile = ref({
-  avatar: 'https://picsum.photos/seed/cat/400/400',
+  avatar: DEFAULT_AVATAR,
   name: 'INKHEAP', // 首页名称（后台配置）
   role: '', // 人物 title（后台配置）
 })
@@ -30,6 +32,8 @@ async function loadHomeConfig() {
     if (data.siteName) profile.value.name = data.siteName
     if (data.personTitle) profile.value.role = data.personTitle
     if (data.codeContent) codeContent.value = data.codeContent
+    // 优先使用后台配置的头像，缺失时回退默认占位图
+    profile.value.avatar = api.assetUrl(data.avatar) || DEFAULT_AVATAR
     runTypewriter()
   } catch (e) {
     // 拉取失败时使用默认值，保证页面可用
@@ -110,7 +114,13 @@ onBeforeUnmount(() => {
       <!-- 左：个人名片 -->
       <section class="profile" aria-label="个人名片">
         <div class="avatar">
-          <img :src="profile.avatar" :alt="`${profile.name}的头像`" width="176" height="176" />
+          <img
+            :src="profile.avatar"
+            :alt="`${profile.name}的头像`"
+            width="176"
+            height="176"
+            @error="profile.avatar = DEFAULT_AVATAR"
+          />
         </div>
         <h1 class="name">{{ profile.name }}</h1>
         <p class="role">{{ profile.role }}</p>
@@ -397,7 +407,8 @@ onBeforeUnmount(() => {
 }
 
 .terminal-body {
-  min-height: 120px;
+  height: 420px;
+  overflow-y: auto;
   padding: 14px 16px;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 13px;
@@ -473,7 +484,7 @@ onBeforeUnmount(() => {
   }
 
   .terminal-body {
-    min-height: 160px;
+    height: 400px;
     padding: 12px 14px;
   }
 }
@@ -494,7 +505,7 @@ onBeforeUnmount(() => {
   }
 
   .terminal-body {
-    min-height: 140px;
+    height: 360px;
     padding: 10px 12px;
     font-size: 12px;
   }

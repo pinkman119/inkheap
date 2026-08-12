@@ -13,13 +13,19 @@ const form = ref({
   siteName: '',
   personTitle: '',
   codeContent: '',
+  avatar: '',
 })
+
+// 上传后服务端返回的文件记录 id（用于移除时删除）
+const uploadedFileId = ref('')
+const uploading = ref(false)
 
 // 实时预览用的派生值
 const preview = ref({
   siteName: '',
   personTitle: '',
   codeContent: '',
+  avatar: '',
 })
 
 async function load() {
@@ -30,7 +36,9 @@ async function load() {
       siteName: data.siteName ?? '',
       personTitle: data.personTitle ?? '',
       codeContent: data.codeContent ?? '',
+      avatar: data.avatar ?? '',
     }
+    uploadedFileId.value = ''
     syncPreview()
   } catch (e) {
     showToast('加载失败: ' + e.message, 'error')
@@ -40,7 +48,43 @@ async function load() {
 }
 
 function syncPreview() {
-  preview.value = { ...form.value }
+  preview.value = { ...form.value, avatar: api.assetUrl(form.value.avatar) }
+}
+
+// ===== 头像上传 =====
+async function onAvatarChange(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  uploading.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await api.upload('/admin/upload', fd)
+    form.value.avatar = res.url
+    uploadedFileId.value = res.id
+    syncPreview()
+    showToast('头像上传成功', 'success')
+  } catch (err) {
+    showToast('上传失败: ' + err.message, 'error')
+  } finally {
+    uploading.value = false
+    e.target.value = ''
+  }
+}
+
+// 移除头像：先删服务端文件（磁盘 + files 表），再清空字段
+async function removeAvatar() {
+  try {
+    if (uploadedFileId.value) {
+      await api.delete(`/admin/upload/${uploadedFileId.value}`)
+    }
+    form.value.avatar = ''
+    uploadedFileId.value = ''
+    syncPreview()
+    showToast('头像已移除', 'success')
+  } catch (err) {
+    showToast('移除失败: ' + err.message, 'error')
+  }
 }
 
 async function save() {
@@ -50,6 +94,7 @@ async function save() {
       siteName: form.value.siteName.trim(),
       personTitle: form.value.personTitle.trim(),
       codeContent: form.value.codeContent,
+      avatar: form.value.avatar || null,
     }
     await api.put('/admin/home-page', payload)
     syncPreview()
@@ -133,6 +178,37 @@ onMounted(load)
             <button class="btn-ghost" @click="resetCode">还原</button>
           </div>
         </div>
+
+        <div class="form-field">
+          <label>首页头像</label>
+          <div class="avatar-upload">
+            <div class="avatar-preview">
+              <img v-if="form.avatar" :src="api.assetUrl(form.avatar)" alt="头像预览" />
+              <div v-else class="avatar-empty">👤</div>
+            </div>
+            <div class="avatar-actions">
+              <label class="btn-ghost file-btn">
+                {{ uploading ? '上传中…' : '选择图片' }}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  :disabled="uploading"
+                  @change="onAvatarChange"
+                  hidden
+                />
+              </label>
+              <button
+                v-if="form.avatar"
+                class="btn-ghost danger"
+                :disabled="uploading"
+                @click="removeAvatar"
+              >
+                移除头像
+              </button>
+            </div>
+          </div>
+          <small class="hint">支持 png/jpeg/gif/webp，最大 5MB；保存后回显到前台首页</small>
+        </div>
       </section>
 
       <!-- 实时预览 -->
@@ -141,7 +217,10 @@ onMounted(load)
         <div class="preview-card">
           <div class="preview-site">{{ preview.siteName || 'INKHEAP' }}</div>
           <div class="preview-person">
-            <div class="avatar">👤</div>
+            <div class="avatar">
+              <img v-if="preview.avatar" :src="preview.avatar" alt="头像预览" />
+              <span v-else>👤</span>
+            </div>
             <div class="preview-title">{{ preview.personTitle || '人物 Title' }}</div>
           </div>
           <div class="preview-terminal">
@@ -231,6 +310,24 @@ onMounted(load)
   cursor: pointer;
 }
 .btn-ghost:hover { color: var(--accent); border-color: var(--accent); }
+.btn-ghost.danger:hover { color: #e03131; border-color: #e03131; }
+
+/* ===== Avatar Upload ===== */
+.avatar-upload { display: flex; align-items: center; gap: 16px; }
+.avatar-preview {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-empty { font-size: 30px; }
+.avatar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.file-btn { cursor: pointer; display: inline-flex; align-items: center; }
+.file-btn input { display: none; }
 
 /* ===== Preview ===== */
 .preview-head { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 14px; }
@@ -243,13 +340,16 @@ onMounted(load)
 .preview-site { font-size: 24px; font-weight: 800; letter-spacing: 2px; color: var(--text-primary); margin-bottom: 18px; }
 .preview-person { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
 .avatar {
-  width: 44px; height: 44px;
+  width: 40px; height: 40px;
   border-radius: 50%;
   background: var(--bg-soft);
   display: flex; align-items: center; justify-content: center;
-  font-size: 22px;
+  font-size: 20px;
   border: 1px solid var(--border);
+  overflow: hidden;
+  flex-shrink: 0;
 }
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .preview-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
 .preview-terminal {
   border-radius: var(--radius-sm);

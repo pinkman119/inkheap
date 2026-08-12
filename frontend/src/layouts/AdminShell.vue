@@ -32,12 +32,21 @@
       <aside class="admin-sidebar" :class="{ collapsed: sidebarCollapsed }">
         <nav class="sidebar-nav">
           <div class="nav-section">
-            <div class="section-label">概览</div>
+            <div class="section-label">工作台</div>
             <router-link to="/admin/dashboard" class="nav-item" active-class="active">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>
               </svg>
               <span>仪表盘</span>
+            </router-link>
+          </div>
+          <div class="nav-section">
+            <div class="section-label">首页</div>
+            <router-link to="/admin/home-page" class="nav-item" active-class="active">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10"/><path d="M9 21v-6h6v6"/>
+              </svg>
+              <span>首页管理</span>
             </router-link>
           </div>
           <div class="nav-section">
@@ -53,15 +62,6 @@
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
               </svg>
               <span>文章管理</span>
-            </router-link>
-          </div>
-          <div class="nav-section">
-            <div class="section-label">站点</div>
-            <router-link to="/admin/home-page" class="nav-item" active-class="active">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10"/><path d="M9 21v-6h6v6"/>
-              </svg>
-              <span>首页管理</span>
             </router-link>
           </div>
         </nav>

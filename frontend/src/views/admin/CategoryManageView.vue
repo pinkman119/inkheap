@@ -432,6 +432,8 @@ function showToast(msg, type = 'success') {
 .form-field { margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
 .form-field label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
 .form-field input, .form-field select {
+  width: 100%;
+  box-sizing: border-box;
   padding: 9px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -442,7 +444,7 @@ function showToast(msg, type = 'success') {
 }
 .form-field input:disabled { background: var(--bg-soft); color: var(--text-tertiary); }
 .form-row { display: flex; gap: 12px; }
-.form-row .form-field { flex: 1; }
+.form-row .form-field { flex: 1; min-width: 0; }
 .hint { font-size: 12px; color: var(--text-tertiary); }
 
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }

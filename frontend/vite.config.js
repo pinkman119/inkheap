@@ -13,6 +13,13 @@ export default defineConfig({
   server: {
     port: 5173,
     open: false,
+    proxy: {
+      // 代理上传的静态资源到后端，开发环境前端(5173)可直接通过 /files 访问
+      '/files': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     target: 'es2018',
