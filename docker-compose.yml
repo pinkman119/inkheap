@@ -1,0 +1,54 @@
+# INKHEAP 外部依赖一键启动
+#
+# 当前说明：
+#   项目默认使用 SQLite（DATABASE_URL="file:./dev.db"）。本 compose 用于一键
+#   启动外部依赖 PostgreSQL（以及可选的 pgAdmin 管理界面）。
+#
+# 若要后端真正接入 PostgreSQL，需额外两步（破坏性，请先备份）：
+#   1) backend-node/prisma/schema.prisma 中 datasource 的 provider 由 "sqlite" 改为 "postgresql"；
+#   2) backend-node/.env 的 DATABASE_URL 改为下方连接串，然后执行：
+#        cd backend-node && npx prisma generate && npx prisma db push
+#
+# 连接串示例（对应下方 postgres 服务）：
+#   postgresql://postgres:postgres@localhost:5432/personal_profile?schema=public
+#
+# 启动：docker compose up -d
+# 停止：docker compose down      （加 -v 可同时删除数据卷）
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: inkheap-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: personal_profile
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d personal_profile"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: inkheap-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@inkheap.local
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+
+volumes:
+  pgdata:
+  pgadmin-data:
