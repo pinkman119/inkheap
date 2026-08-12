@@ -30,8 +30,9 @@ export const articleTitles = {
  * 文章正文内容（Markdown 源），按 slug 索引。
  *
  * 设计说明：
- * - 标题使用独立的 articleTitles 字段，md 中不应包含 # 一级标题。
- * - markdown 中 h2 / h3 / h4 会自动被 TOC 扫描并生成目录（最多三级）。
+ * - 标题使用独立的 articleTitles 字段作为页面顶部大标题。
+ * - markdown 中的 # h1 会作为文章根标题出现在 TOC 目录中，
+ *   h2/h3/h4 自动被 TOC 扫描并生成四级嵌套目录。
  * - 未来接入后端时，只需把这里的对象替换成接口返回即可，
  *   ArticleDetailView 通过 slug 取正文，渲染逻辑无需改动。
  */

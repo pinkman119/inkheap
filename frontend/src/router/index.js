@@ -68,7 +68,7 @@ const adminRoutes = [
     path: '/admin/login',
     name: 'admin-login',
     component: () => import('@/views/admin/LoginView.vue'),
-    meta: { title: '登录 · 墨堆 Admin', layout: 'layout-admin', auth: false },
+    meta: { title: '登录 · 墨堆 Admin', layout: 'layout-login', auth: false },
   },
   {
     path: '/admin',
@@ -79,6 +79,12 @@ const adminRoutes = [
     name: 'admin-dashboard',
     component: () => import('@/views/admin/DashboardView.vue'),
     meta: { title: '仪表盘 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/categories',
+    name: 'admin-categories',
+    component: () => import('@/views/admin/CategoryManageView.vue'),
+    meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
   },
   {
     path: '/admin/articles',
@@ -97,6 +103,12 @@ const adminRoutes = [
     name: 'admin-article-edit',
     component: () => import('@/views/admin/ArticleEditView.vue'),
     meta: { title: '编辑文章 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/home-page',
+    name: 'admin-home-page',
+    component: () => import('@/views/admin/HomePageManageView.vue'),
+    meta: { title: '首页管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
   },
 ]
 

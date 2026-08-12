@@ -14,7 +14,7 @@ export function getConfig(): AppConfig {
     return {
         ...baseConfig,
         ...prodConfig,
-    };
+    } as AppConfig;
 }
 
 /**

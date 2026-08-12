@@ -11,7 +11,16 @@ export class CategoryService {
     const categories = await this.prisma.category.findMany({
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
-    return categories;
+    const counts = await this.prisma.article.groupBy({
+      by: ['categoryKey'],
+      _count: { _all: true },
+    });
+    const countMap = new Map<string, number>();
+    counts.forEach((c) => countMap.set(c.categoryKey, c._count._all));
+    return categories.map((cat) => ({
+      ...cat,
+      articleCount: countMap.get(cat.key) ?? 0,
+    }));
   }
 
   async findTree() {

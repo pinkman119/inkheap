@@ -12,9 +12,7 @@ const route = useRoute()
 const slug = computed(() => route.params.slug)
 const articleTitle = computed(() => articleTitles[slug.value] || '')
 const articleMd = computed(() => {
-  const md = articleContent[slug.value] || ''
-  // 剥离 markdown 中可能遗留的 # 一级标题（标题统一使用 articleTitles 字段）
-  return md.replace(/^# .*\n\n?/, '')
+  return articleContent[slug.value] || ''
 })
 const articleHtml = computed(() => renderMarkdown(articleMd.value))
 
@@ -26,12 +24,12 @@ function onScroll() {
   progress.value = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100
 }
 
-/* ===== 目录：扫描正文 h2/h3/h4，构建三级嵌套树 ===== */
+/* ===== 目录：扫描正文 h1/h2/h3/h4，构建四级嵌套树（h1 为根节点） ===== */
 const contentEl = ref(null)
 const tocTree = ref([])
 const activeId = ref('')
 
-/** id -> 上级 id（h2 为 null，h3 挂最近的 h2，h4 挂最近的 h3），构建后不再变化 */
+/** id -> 上级 id（h1 为 null，h2 挂最近的 h1，h3 挂最近的 h2，h4 挂最近的 h3），构建后不再变化 */
 let parentOf = new Map()
 /** id -> 标题 DOM，供点击目录跳转使用 */
 let headingById = new Map()
@@ -39,17 +37,28 @@ let observer = null
 
 function buildToc() {
   if (!contentEl.value) return []
-  const headings = Array.from(contentEl.value.querySelectorAll('h2, h3, h4'))
+  // 限定在 .markdown-body 内扫描，避免把页面顶部独立的 .article-title h1 也扫进目录
+  const headings = Array.from(
+    contentEl.value.querySelectorAll(
+      '.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4',
+    ),
+  )
   const parents = new Map()
   const elements = new Map()
   const nodes = new Map()
   const tree = []
+  let lastH1 = null
   let lastH2 = null
   let lastH3 = null
 
   headings.forEach((h) => {
     let parentId = null
-    if (h.tagName === 'H2') {
+    if (h.tagName === 'H1') {
+      lastH1 = h.id
+      lastH2 = null
+      lastH3 = null
+    } else if (h.tagName === 'H2') {
+      parentId = lastH1
       lastH2 = h.id
       lastH3 = null
     } else if (h.tagName === 'H3') {
@@ -228,6 +237,18 @@ onBeforeUnmount(() => {
                     >
                       {{ lv3.text }}
                     </a>
+                    <ul v-if="lv3.children.length">
+                      <li v-for="lv4 in lv3.children" :key="lv4.id">
+                        <a
+                          :href="`#${lv4.id}`"
+                          :class="linkClass(lv4.id)"
+                          :aria-current="lv4.id === activeId ? 'location' : undefined"
+                          @click.prevent="scrollToHeading(lv4.id)"
+                        >
+                          {{ lv4.text }}
+                        </a>
+                      </li>
+                    </ul>
                   </li>
                 </ul>
               </li>
@@ -583,6 +604,12 @@ onBeforeUnmount(() => {
   color: var(--text-tertiary);
 }
 
+.toc-list ul ul ul a {
+  padding-left: 12px;
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+}
+
 .toc-list a:hover {
   color: var(--text-primary);
   background-color: var(--bg-sidebar);
@@ -599,7 +626,8 @@ onBeforeUnmount(() => {
   background-color: var(--accent-light);
 }
 
-.toc-list ul ul a.active {
+.toc-list ul ul a.active,
+.toc-list ul ul ul a.active {
   font-weight: 500;
 }
 

@@ -16,9 +16,9 @@ export class ArticleService {
 
     if (search) {
       where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { summary: { contains: search, mode: 'insensitive' } },
-        { tags: { has: search } },
+        { title: { contains: search } },
+        { summary: { contains: search } },
+        { tags: { contains: search } },
       ];
     }
 
@@ -43,7 +43,7 @@ export class ArticleService {
     ]);
 
     return {
-      items,
+      items: items.map(this.transformArticle),
       total,
       page,
       pageSize,
@@ -54,20 +54,21 @@ export class ArticleService {
   async findOne(id: string) {
     const article = await this.prisma.article.findUnique({ where: { id } });
     if (!article) throw new NotFoundException('文章不存在');
-    return article;
+    return this.transformArticle(article);
   }
 
   async create(dto: CreateArticleDto) {
     const slug = dto.slug || this.generateSlug(dto.title);
-    return this.prisma.article.create({
+    const article = await this.prisma.article.create({
       data: {
         ...dto,
         slug,
-        tags: dto.tags || [],
+        tags: JSON.stringify(dto.tags || []),
         published: dto.published ?? false,
         featured: dto.featured ?? false,
-      },
+      } as any,
     });
+    return this.transformArticle(article);
   }
 
   async update(id: string, dto: UpdateArticleDto) {
@@ -76,13 +77,24 @@ export class ArticleService {
     if (dto.title && !dto.slug) {
       data.slug = this.generateSlug(dto.title);
     }
-    return this.prisma.article.update({ where: { id }, data });
+    if (dto.tags) {
+      data.tags = JSON.stringify(dto.tags);
+    }
+    const article = await this.prisma.article.update({ where: { id }, data });
+    return this.transformArticle(article);
   }
 
   async remove(id: string) {
     await this.findOne(id);
     await this.prisma.article.delete({ where: { id } });
     return { message: '删除成功' };
+  }
+
+  private transformArticle(article: any) {
+    return {
+      ...article,
+      tags: typeof article.tags === 'string' ? JSON.parse(article.tags) : article.tags,
+    };
   }
 
   private generateSlug(title: string): string {

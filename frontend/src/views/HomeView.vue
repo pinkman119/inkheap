@@ -3,12 +3,15 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import { useTheme } from '@/composables/useTheme'
+import { useApi } from '@/composables/useApi'
 
-const profile = {
+const api = useApi()
+
+const profile = ref({
   avatar: 'https://picsum.photos/seed/cat/400/400',
-  name: '慕士塔格猫',
-  role: 'AI 全栈工程师 / 系统分析师 / 数据库系统工程师 / 党员 / 救护员 / 摄影师 / 登山者',
-}
+  name: 'INKHEAP', // 首页名称（后台配置）
+  role: '', // 人物 title（后台配置）
+})
 
 const socialLinks = [
   { label: 'yuque', href: 'https://www.yuque.com', icon: 'doc' },
@@ -18,23 +21,32 @@ const socialLinks = [
 /* ===== 模式感知 ===== */
 const { isDark } = useTheme()
 
+/* ===== 首页配置（来自后台） ===== */
+const codeContent = ref('Hello, World. Welcome to My Page!\nme show you about me!\n这里只能定义一部分的我，\n这里不能定义我的全部！')
+
+async function loadHomeConfig() {
+  try {
+    const data = await api.get('/public/home-page')
+    if (data.siteName) profile.value.name = data.siteName
+    if (data.personTitle) profile.value.role = data.personTitle
+    if (data.codeContent) codeContent.value = data.codeContent
+    runTypewriter()
+  } catch (e) {
+    // 拉取失败时使用默认值，保证页面可用
+    runTypewriter()
+  }
+}
+
 /* ===== 终端打字机 ===== */
-const terminalLinesWork = [
-  { prompt: '', text: 'Hello, World. Welcome to My Page!' },
-  { prompt: '$ ', text: 'me show you about me!' },
-  { prompt: '', text: '这里只能定义一部分的我，' },
-  { prompt: '', text: '这里不能定义我的全部！' },
-]
+const terminalLines = computed(() =>
+  codeContent.value
+    .split('\n')
+    .filter((l) => l.length > 0)
+    .map((text) => ({ prompt: '', text })),
+)
 
-const terminalLinesLife = [
-  { prompt: '$ ', text: 'Do not go gentle into that good night!' },
-  { prompt: '', text: '不要温和的踏入那良夜！' },
-]
-
-const terminalLines = computed(() => (isDark.value ? terminalLinesLife : terminalLinesWork))
-
-const typeSpeed = 45
-const lineDelay = 360
+const typeSpeed = 11
+const lineDelay = 80
 
 const rendered = reactive([])
 const showCursor = ref(false)
@@ -79,6 +91,7 @@ watch(isDark, () => {
 })
 
 onMounted(async () => {
+  await loadHomeConfig()
   await wait(400)
   if (!cancelled) runTypewriter()
 })
@@ -174,13 +187,22 @@ onBeforeUnmount(() => {
 <style scoped>
 /* Hero */
 .hero {
-  flex: 1;
+  flex: 1 1 auto;
+  /* 占满首屏（视口 - 顶栏），不预留页脚空间，使页脚落在首屏之外 */
+  min-height: calc(100vh - 68px);
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 48px 24px 80px;
-  overflow: hidden;
+  overflow: auto;
+}
+
+/* 移动端顶栏降为 60px，重新核算首屏高度 */
+@media (max-width: 768px) {
+  .hero {
+    min-height: calc(100dvh - 60px);
+  }
 }
 
 .hero-glow {
@@ -325,7 +347,7 @@ onBeforeUnmount(() => {
 
 .terminal {
   background-color: #0f0f0f;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   border: 1px solid rgba(45, 130, 100, 0.35);
   box-shadow:
@@ -336,7 +358,7 @@ onBeforeUnmount(() => {
 
 .terminal-header {
   background-color: #1a1a1a;
-  padding: 14px 18px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -346,12 +368,12 @@ onBeforeUnmount(() => {
 .terminal-dots {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .term-dot {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
 }
 
@@ -375,17 +397,17 @@ onBeforeUnmount(() => {
 }
 
 .terminal-body {
-  min-height: 320px;
-  padding: 36px 38px;
-  font-family: var(--font-mono);
-  font-size: 15.5px;
-  line-height: 1.95;
+  min-height: 120px;
+  padding: 14px 16px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.7;
   color: var(--text-brand);
 }
 
 .terminal-line {
   white-space: pre-wrap;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
 }
 
 .terminal-line:last-child {
@@ -451,8 +473,8 @@ onBeforeUnmount(() => {
   }
 
   .terminal-body {
-    min-height: 240px;
-    padding: 26px 28px;
+    min-height: 160px;
+    padding: 12px 14px;
   }
 }
 
@@ -472,9 +494,9 @@ onBeforeUnmount(() => {
   }
 
   .terminal-body {
-    min-height: 220px;
-    padding: 22px 24px;
-    font-size: 14px;
+    min-height: 140px;
+    padding: 10px 12px;
+    font-size: 12px;
   }
 }
 

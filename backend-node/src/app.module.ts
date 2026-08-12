@@ -5,6 +5,7 @@ import { PrismaModule } from './modules/prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ArticleModule } from './modules/article/article.module';
 import { CategoryModule } from './modules/category/category.module';
+import { HomePageModule } from './modules/homepage/homepage.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { CategoryModule } from './modules/category/category.module';
     AuthModule,
     ArticleModule,
     CategoryModule,
+    HomePageModule,
   ],
   controllers: [],
   providers: [],

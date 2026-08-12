@@ -5,7 +5,8 @@ import AdminShell from '@/layouts/AdminShell.vue'
 
 const route = useRoute()
 
-const isAdmin = computed(() => route.path.startsWith('/admin'))
+const isAdmin = computed(() => route.path.startsWith('/admin') && route.meta.layout !== 'layout-login')
+const isLogin = computed(() => route.meta.layout === 'layout-login')
 
 /**
  * 原型把布局差异写在 <body> 上（首页/关于我/小记是 flex 列，数字生命是满屏不滚动）。
@@ -16,7 +17,7 @@ watch(
   (layout) => {
     const app = document.getElementById('app')
     if (!app) return
-    if (layout === 'layout-admin') {
+    if (layout === 'layout-admin' || layout === 'layout-login') {
       app.className = ''
       document.documentElement.classList.remove('layout-fixed')
     } else {
@@ -29,8 +30,13 @@ watch(
 </script>
 
 <template>
+  <!-- 登录页：独立全屏布局，不套 Admin 外壳 -->
+  <RouterView v-if="isLogin" v-slot="{ Component }">
+    <component :is="Component" />
+  </RouterView>
+
   <!-- Admin 路由：使用 Admin 布局外壳 -->
-  <AdminShell v-if="isAdmin">
+  <AdminShell v-else-if="isAdmin">
     <RouterView v-slot="{ Component }">
       <component :is="Component" />
     </RouterView>

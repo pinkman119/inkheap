@@ -1,26 +1,106 @@
 <script setup>
-import { computed, onBeforeUnmount, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
-import { articles, categoryTree, feedItems } from '@/data/articles'
+import CategoryTreeNode from '@/components/CategoryTreeNode.vue'
+import { feedItems } from '@/data/articles'
+import { useApi } from '@/composables/useApi'
+
+const api = useApi()
+
+/* ===== 真实数据（来自后端公开接口） ===== */
+const categoryTree = ref([])
+const articleList = ref([])
+const loading = ref(true)
+
+// 后端文章字段 → 模板字段映射
+function mapArticle(a) {
+  return {
+    key: a.slug || a.id,
+    slug: a.slug,
+    title: a.title,
+    excerpt: a.summary || '',
+    thumbnail: a.coverImage || '',
+    categoryKey: a.categoryKey,
+    category: categoryNameMap.value[a.categoryKey] || a.categoryKey,
+    author: a.author || '墨堆',
+    date: a.createdAt ? a.createdAt.slice(0, 10) : '',
+    reads: (a.views ?? 0).toLocaleString(),
+    tagList: Array.isArray(a.tags) ? a.tags : [],
+    plainAuthorIcon: false,
+  }
+}
+
+// 分类 key -> name 映射
+const categoryNameMap = computed(() => {
+  const m = {}
+  const walk = (ns) => ns.forEach((n) => { m[n.key] = n.name; if (n.children) walk(n.children) })
+  walk(categoryTree.value)
+  return m
+})
+
+async function loadAll() {
+  loading.value = true
+  try {
+    const [tree, res] = await Promise.all([
+      api.get('/categories/tree'),
+      api.get('/articles?pageSize=200'),
+    ])
+    categoryTree.value = tree || []
+    const items = (res && res.items) ? res.items : (Array.isArray(res) ? res : [])
+    articleList.value = items.map(mapArticle)
+  } catch (e) {
+    console.error('加载知识库数据失败', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadAll)
 
 /* ===== 分类筛选 + 文本搜索 ===== */
 const currentKey = ref(null)
 const searchTerm = ref('')
 const searchInput = ref(null)
 
-// 原型里搜索的是卡片的 textContent（分类 + 标题 + 摘要 + 作者 + 日期 + 阅读数），这里等价预拼一份
-const searchIndex = articles.map((a) =>
-  [a.category, a.title, a.excerpt, a.author, a.date, a.reads].join(' ').toLowerCase(),
+// 收集某分类 key 及其所有子孙 key（前端按含子孙过滤）
+function descendantKeys(key) {
+  const find = (ns) => {
+    for (const n of ns) {
+      if (n.key === key) return n
+      if (n.children) {
+        const f = find(n.children)
+        if (f) return f
+      }
+    }
+    return null
+  }
+  const node = find(categoryTree.value)
+  const set = new Set()
+  if (node) {
+    const walk = (n) => { set.add(n.key); if (n.children) n.children.forEach(walk) }
+    walk(node)
+  } else {
+    set.add(key)
+  }
+  return set
+}
+
+// 预拼搜索索引
+const searchIndex = computed(() =>
+  articleList.value.map((a) =>
+    [a.category, a.title, a.excerpt, a.author, a.date, a.reads].join(' ').toLowerCase(),
+  ),
 )
 
-/** 分类前缀匹配 + 关键词匹配，两者取交集（与原型 applyFilters 一致） */
+/** 分类（含子孙）匹配 + 关键词匹配，两者取交集 */
 const hiddenFlags = computed(() => {
   const term = searchTerm.value.trim().toLowerCase()
   const key = currentKey.value
-  return articles.map((a, i) => {
-    const matchCat = !key || a.key.startsWith(key)
-    const matchText = !term || searchIndex[i].includes(term)
+  const allowed = key ? descendantKeys(key) : null
+  return articleList.value.map((a, i) => {
+    const matchCat = !allowed || allowed.has(a.categoryKey)
+    const matchText = !term || searchIndex.value[i].includes(term)
     return !(matchCat && matchText)
   })
 })
@@ -35,13 +115,10 @@ function clearFilter() {
 /* ===== 分类树 ===== */
 const hasChildren = (node) => Array.isArray(node.children) && node.children.length > 0
 
-// 每个节点右侧的计数：统计 key 以该节点 key 为前缀的文章数（原型 countUnder）
-const countCache = new Map()
+// 每个节点右侧的计数：含子孙的文章数
 function countUnder(key) {
-  if (!countCache.has(key)) {
-    countCache.set(key, articles.filter((a) => a.key.startsWith(key)).length)
-  }
-  return countCache.get(key)
+  const allowed = descendantKeys(key)
+  return articleList.value.filter((a) => allowed.has(a.categoryKey)).length
 }
 
 // 折叠状态：默认全部展开，收进集合的才是折叠的
@@ -79,8 +156,18 @@ function onItemKeydown(event, node) {
   }
 }
 
+// 通过 provide 把交互函数注入递归子组件（支持任意层级）
+// 注意：必须在所有被引用的函数/const 声明完成后再调用，避免 TDZ
+provide('catHasChildren', hasChildren)
+provide('catCountUnder', countUnder)
+provide('catIsCollapsed', isCollapsed)
+provide('catToggleNode', toggleNode)
+provide('catSelectCategory', selectCategory)
+provide('catOnItemKeydown', onItemKeydown)
+provide('catCurrentKey', currentKey)
+
 /* ===== 面包屑 ===== */
-function findPath(key, nodes = categoryTree, path = []) {
+function findPath(key, nodes = categoryTree.value, path = []) {
   for (const node of nodes) {
     const next = [...path, node]
     if (node.key === key) return next
@@ -151,108 +238,14 @@ onBeforeUnmount(() => {
         <button class="tree-reset" type="button" @click="resetCategory">清空</button>
       </div>
 
-      <!-- 分类树最多三层，逐层 v-for；不拆子组件是为了让 `.tree ul` 这类后代选择器在 scoped 下仍然命中 -->
+      <!-- 分类树递归渲染，支持任意层级嵌套 -->
       <nav class="tree" aria-label="文章分类">
         <ul class="tree">
-          <li v-for="l1 in categoryTree" :key="l1.key">
-            <div
-              class="tree-item"
-              :class="{ active: currentKey === l1.key }"
-              role="button"
-              tabindex="0"
-              :aria-pressed="currentKey === l1.key"
-              :aria-expanded="hasChildren(l1) ? String(!isCollapsed(l1.key)) : undefined"
-              @click="selectCategory(l1)"
-              @keydown="onItemKeydown($event, l1)"
-            >
-              <span
-                class="tree-toggle"
-                :class="{ collapsed: isCollapsed(l1.key), leaf: !hasChildren(l1) }"
-                aria-hidden="true"
-                @click.stop="toggleNode(l1)"
-              >
-                <svg
-                  v-if="hasChildren(l1)"
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </span>
-              <span class="tree-label">{{ l1.name }}</span>
-              <span class="tree-count">{{ countUnder(l1.key) }}</span>
-            </div>
-
-            <div v-if="hasChildren(l1)" v-show="!isCollapsed(l1.key)" class="tree-children">
-              <ul>
-                <li v-for="l2 in l1.children" :key="l2.key">
-                  <div
-                    class="tree-item"
-                    :class="{ active: currentKey === l2.key }"
-                    role="button"
-                    tabindex="0"
-                    :aria-pressed="currentKey === l2.key"
-                    :aria-expanded="hasChildren(l2) ? String(!isCollapsed(l2.key)) : undefined"
-                    @click="selectCategory(l2)"
-                    @keydown="onItemKeydown($event, l2)"
-                  >
-                    <span
-                      class="tree-toggle"
-                      :class="{ collapsed: isCollapsed(l2.key), leaf: !hasChildren(l2) }"
-                      aria-hidden="true"
-                      @click.stop="toggleNode(l2)"
-                    >
-                      <svg
-                        v-if="hasChildren(l2)"
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.5"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
-                    </span>
-                    <span class="tree-label">{{ l2.name }}</span>
-                    <span class="tree-count">{{ countUnder(l2.key) }}</span>
-                  </div>
-
-                  <div
-                    v-if="hasChildren(l2)"
-                    v-show="!isCollapsed(l2.key)"
-                    class="tree-children"
-                  >
-                    <ul>
-                      <li v-for="l3 in l2.children" :key="l3.key">
-                        <div
-                          class="tree-item"
-                          :class="{ active: currentKey === l3.key }"
-                          role="button"
-                          tabindex="0"
-                          :aria-pressed="currentKey === l3.key"
-                          @click="selectCategory(l3)"
-                          @keydown="onItemKeydown($event, l3)"
-                        >
-                          <span class="tree-toggle leaf" aria-hidden="true" />
-                          <span class="tree-label">{{ l3.name }}</span>
-                          <span class="tree-count">{{ countUnder(l3.key) }}</span>
-                        </div>
-                      </li>
-                    </ul>
-                  </div>
-                </li>
-              </ul>
-            </div>
-          </li>
+          <category-tree-node
+            v-for="node in categoryTree"
+            :key="node.key"
+            :node="node"
+          />
         </ul>
       </nav>
     </aside>
@@ -305,7 +298,7 @@ onBeforeUnmount(() => {
 
       <div class="article-list">
         <RouterLink
-          v-for="(article, index) in articles"
+          v-for="(article, index) in articleList"
           :key="article.key"
           class="article-card"
           :class="{ hidden: hiddenFlags[index] }"
@@ -500,93 +493,6 @@ onBeforeUnmount(() => {
 .tree,
 .tree ul {
   list-style: none;
-}
-
-.tree ul {
-  margin-left: 14px;
-  border-left: 1px solid var(--border);
-  padding-left: 6px;
-}
-
-.tree li {
-  margin: 2px 0;
-}
-
-.tree-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 10px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  color: var(--text-secondary);
-  font-size: 14px;
-  transition: all var(--transition);
-  user-select: none;
-  position: relative;
-}
-
-.tree-item:hover {
-  background-color: var(--bg-card);
-  color: var(--text-primary);
-}
-
-.tree-item.active {
-  background-color: var(--accent);
-  color: var(--bg-card);
-  font-weight: 600;
-}
-
-.tree-item.active::before {
-  content: '';
-  position: absolute;
-  left: -7px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 18px;
-  background-color: var(--bg-card);
-  border-radius: 2px;
-}
-
-.tree-toggle {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform var(--transition);
-  color: var(--text-tertiary);
-}
-
-.tree-toggle.collapsed {
-  transform: rotate(-90deg);
-}
-
-.tree-toggle.leaf {
-  visibility: hidden;
-}
-
-.tree-count {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--text-tertiary);
-  background-color: var(--bg-card);
-  padding: 1px 7px;
-  border-radius: 100px;
-}
-
-.tree-item.active .tree-count {
-  background-color: var(--bg-card);
-  color: var(--accent);
-}
-
-.tree-label {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ============ Main content (center) ============ */

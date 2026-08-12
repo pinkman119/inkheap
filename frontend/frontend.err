@@ -1,0 +1,513 @@
+[2m19:49:48[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Failed to resolve import "@/views/admin/CategoryManageView.vue" from "src/router/index.js". Does the file exist?
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/router/index.js[39m:86:29
+[33m  84 |      path: '/admin/categories',
+  85 |      name: 'admin-categories',
+  86 |      component: () => import('@/views/admin/CategoryManageView.vue'),
+     |                              ^
+  87 |      meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  88 |    },[39m
+[2m19:49:48[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@/views/admin/CategoryManageView.vue" from "src/router/index.js". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/router/index.js[39m:86:29
+[33m  84 |      path: '/admin/categories',
+  85 |      name: 'admin-categories',
+  86 |      component: () => import('@/views/admin/CategoryManageView.vue'),
+     |                              ^
+  87 |      meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  88 |    },[39m
+      at TransformPluginContext._formatLog (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42658:41)
+      at TransformPluginContext.error (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42655:16)
+      at normalizeUrl (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40634:23)
+      at async file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40753:37
+      at async Promise.all (index 11)
+      at async TransformPluginContext.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40680:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42453:18)
+      at async loadAndTransform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:35845:27)
+      at async viteTransformMiddleware (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:37369:24)
+[2m19:49:49[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@/views/admin/CategoryManageView.vue" from "src/router/index.js". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/router/index.js[39m:86:29
+[33m  84 |      path: '/admin/categories',
+  85 |      name: 'admin-categories',
+  86 |      component: () => import('@/views/admin/CategoryManageView.vue'),
+     |                              ^
+  87 |      meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  88 |    },[39m
+      at TransformPluginContext._formatLog (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42658:41)
+      at TransformPluginContext.error (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42655:16)
+      at normalizeUrl (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40634:23)
+      at async file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40753:37
+      at async Promise.all (index 11)
+      at async TransformPluginContext.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40680:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42453:18)
+      at async loadAndTransform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:35845:27)
+      at async viteTransformMiddleware (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:37369:24)
+[2m19:49:49[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@/views/admin/CategoryManageView.vue" from "src/router/index.js". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/router/index.js[39m:86:29
+[33m  84 |      path: '/admin/categories',
+  85 |      name: 'admin-categories',
+  86 |      component: () => import('@/views/admin/CategoryManageView.vue'),
+     |                              ^
+  87 |      meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  88 |    },[39m
+      at TransformPluginContext._formatLog (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42658:41)
+      at TransformPluginContext.error (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42655:16)
+      at normalizeUrl (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40634:23)
+      at async file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40753:37
+      at async Promise.all (index 11)
+      at async TransformPluginContext.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40680:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42453:18)
+      at async loadAndTransform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:35845:27)
+      at async viteTransformMiddleware (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:37369:24)
+[2m19:49:49[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@/views/admin/CategoryManageView.vue" from "src/router/index.js". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/router/index.js[39m:86:29
+[33m  84 |      path: '/admin/categories',
+  85 |      name: 'admin-categories',
+  86 |      component: () => import('@/views/admin/CategoryManageView.vue'),
+     |                              ^
+  87 |      meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  88 |    },[39m
+      at TransformPluginContext._formatLog (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42658:41)
+      at TransformPluginContext.error (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42655:16)
+      at normalizeUrl (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40634:23)
+      at async file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40753:37
+      at async Promise.all (index 11)
+      at async TransformPluginContext.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40680:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42453:18)
+      at async loadAndTransform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:35845:27)
+      at async viteTransformMiddleware (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:37369:24)
+[2m19:49:49[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@/views/admin/CategoryManageView.vue" from "src/router/index.js". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/router/index.js[39m:86:29
+[33m  84 |      path: '/admin/categories',
+  85 |      name: 'admin-categories',
+  86 |      component: () => import('@/views/admin/CategoryManageView.vue'),
+     |                              ^
+  87 |      meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  88 |    },[39m
+      at TransformPluginContext._formatLog (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42658:41)
+      at TransformPluginContext.error (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42655:16)
+      at normalizeUrl (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40634:23)
+      at async file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40753:37
+      at async Promise.all (index 11)
+      at async TransformPluginContext.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40680:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42453:18)
+      at async loadAndTransform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:35845:27)
+      at async viteTransformMiddleware (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:37369:24)
+[2m19:50:02[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Failed to resolve import "@/views/admin/CategoryManageView.vue" from "src/router/index.js". Does the file exist?
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/router/index.js[39m:86:29
+[33m  84 |      path: '/admin/categories',
+  85 |      name: 'admin-categories',
+  86 |      component: () => import('@/views/admin/CategoryManageView.vue'),
+     |                              ^
+  87 |      meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  88 |    },[39m
+[2m19:50:02[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@/views/admin/CategoryManageView.vue" from "src/router/index.js". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/router/index.js[39m:86:29
+[33m  84 |      path: '/admin/categories',
+  85 |      name: 'admin-categories',
+  86 |      component: () => import('@/views/admin/CategoryManageView.vue'),
+     |                              ^
+  87 |      meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  88 |    },[39m
+      at TransformPluginContext._formatLog (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42658:41)
+      at TransformPluginContext.error (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42655:16)
+      at normalizeUrl (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40634:23)
+      at async file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40753:37
+      at async Promise.all (index 11)
+      at async TransformPluginContext.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40680:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42453:18)
+      at async loadAndTransform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:35845:27)
+      at async viteTransformMiddleware (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:37369:24)
+[2m19:50:02[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@/views/admin/CategoryManageView.vue" from "src/router/index.js". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/router/index.js[39m:86:29
+[33m  84 |      path: '/admin/categories',
+  85 |      name: 'admin-categories',
+  86 |      component: () => import('@/views/admin/CategoryManageView.vue'),
+     |                              ^
+  87 |      meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  88 |    },[39m
+      at TransformPluginContext._formatLog (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42658:41)
+      at TransformPluginContext.error (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42655:16)
+      at normalizeUrl (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40634:23)
+      at async file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40753:37
+      at async Promise.all (index 11)
+      at async TransformPluginContext.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40680:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42453:18)
+      at async loadAndTransform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:35845:27)
+      at async viteTransformMiddleware (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:37369:24)
+[2m19:50:21[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Failed to resolve import "@/views/admin/CategoryManageView.vue" from "src/router/index.js". Does the file exist?
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/router/index.js[39m:86:29
+[33m  84 |      path: '/admin/categories',
+  85 |      name: 'admin-categories',
+  86 |      component: () => import('@/views/admin/CategoryManageView.vue'),
+     |                              ^
+  87 |      meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  88 |    },[39m
+[2m19:50:21[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@/views/admin/CategoryManageView.vue" from "src/router/index.js". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/router/index.js[39m:86:29
+[33m  84 |      path: '/admin/categories',
+  85 |      name: 'admin-categories',
+  86 |      component: () => import('@/views/admin/CategoryManageView.vue'),
+     |                              ^
+  87 |      meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  88 |    },[39m
+      at TransformPluginContext._formatLog (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42658:41)
+      at TransformPluginContext.error (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42655:16)
+      at normalizeUrl (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40634:23)
+      at async file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40753:37
+      at async Promise.all (index 11)
+      at async TransformPluginContext.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40680:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42453:18)
+      at async loadAndTransform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:35845:27)
+      at async viteTransformMiddleware (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:37369:24)
+[2m19:50:21[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@/views/admin/CategoryManageView.vue" from "src/router/index.js". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/router/index.js[39m:86:29
+[33m  84 |      path: '/admin/categories',
+  85 |      name: 'admin-categories',
+  86 |      component: () => import('@/views/admin/CategoryManageView.vue'),
+     |                              ^
+  87 |      meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  88 |    },[39m
+      at TransformPluginContext._formatLog (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42658:41)
+      at TransformPluginContext.error (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42655:16)
+      at normalizeUrl (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40634:23)
+      at async file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40753:37
+      at async Promise.all (index 11)
+      at async TransformPluginContext.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40680:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42453:18)
+      at async loadAndTransform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:35845:27)
+      at async viteTransformMiddleware (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:37369:24)
+[2m19:50:21[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@/views/admin/CategoryManageView.vue" from "src/router/index.js". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/router/index.js[39m:86:29
+[33m  84 |      path: '/admin/categories',
+  85 |      name: 'admin-categories',
+  86 |      component: () => import('@/views/admin/CategoryManageView.vue'),
+     |                              ^
+  87 |      meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  88 |    },[39m
+      at TransformPluginContext._formatLog (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42658:41)
+      at TransformPluginContext.error (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42655:16)
+      at normalizeUrl (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40634:23)
+      at async file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40753:37
+      at async Promise.all (index 11)
+      at async TransformPluginContext.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40680:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42453:18)
+      at async loadAndTransform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:35845:27)
+      at async viteTransformMiddleware (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:37369:24)
+[2m19:50:21[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@/views/admin/CategoryManageView.vue" from "src/router/index.js". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/router/index.js[39m:86:29
+[33m  84 |      path: '/admin/categories',
+  85 |      name: 'admin-categories',
+  86 |      component: () => import('@/views/admin/CategoryManageView.vue'),
+     |                              ^
+  87 |      meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  88 |    },[39m
+      at TransformPluginContext._formatLog (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42658:41)
+      at TransformPluginContext.error (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42655:16)
+      at normalizeUrl (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40634:23)
+      at async file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40753:37
+      at async Promise.all (index 11)
+      at async TransformPluginContext.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40680:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42453:18)
+      at async loadAndTransform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:35845:27)
+      at async viteTransformMiddleware (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:37369:24)
+[2m19:50:21[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "@/views/admin/CategoryManageView.vue" from "src/router/index.js". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/router/index.js[39m:86:29
+[33m  84 |      path: '/admin/categories',
+  85 |      name: 'admin-categories',
+  86 |      component: () => import('@/views/admin/CategoryManageView.vue'),
+     |                              ^
+  87 |      meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  88 |    },[39m
+      at TransformPluginContext._formatLog (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42658:41)
+      at TransformPluginContext.error (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42655:16)
+      at normalizeUrl (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40634:23)
+      at async file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40753:37
+      at async Promise.all (index 11)
+      at async TransformPluginContext.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:40680:7)
+      at async EnvironmentPluginContainer.transform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:42453:18)
+      at async loadAndTransform (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:35845:27)
+      at async viteTransformMiddleware (file:///C:/Users/admin/Desktop/inkheap/frontend/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:37369:24)
+[2m20:03:24[22m [31m[1m[vite][22m[39m [31mInternal server error: [vue/compiler-sfc] Identifier 'onBeforeUnmount' has already been declared. (6:19)
+
+C:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue
+4  |  import AppFooter from '@/components/AppFooter.vue'
+5  |  import FootprintMap from '@/components/FootprintMap.vue'
+6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+   |                     ^
+7  |  import AppHeader from '@/components/AppHeader.vue'
+8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+  Plugin: [35mvite:vue[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue[39m:6:19
+[33m  4  |  import AppFooter from '@/components/AppFooter.vue'
+  5  |  import FootprintMap from '@/components/FootprintMap.vue'
+  6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+     |       ^
+  7  |  import AppHeader from '@/components/AppHeader.vue'
+  8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+      at constructor (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:369:19)
+      at Parser.raise (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:6620:19)
+      at ScopeHandler.checkRedeclarationInScope (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1623:19)
+      at ScopeHandler.declareName (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1589:12)
+      at Parser.declareNameFromIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7588:16)
+      at Parser.checkIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7584:12)
+      at Parser.checkLVal (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7521:12)
+      at Parser.finishImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14295:10)
+      at Parser.parseImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14448:17)
+      at Parser.parseNamedImportSpecifiers (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14427:36)
+[2m20:03:24[22m [31m[1m[vite][22m[39m [31mInternal server error: [vue/compiler-sfc] Identifier 'onBeforeUnmount' has already been declared. (6:19)
+
+C:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue
+4  |  import AppFooter from '@/components/AppFooter.vue'
+5  |  import FootprintMap from '@/components/FootprintMap.vue'
+6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+   |                     ^
+7  |  import AppHeader from '@/components/AppHeader.vue'
+8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+  Plugin: [35mvite:vue[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue[39m:6:19
+[33m  4  |  import AppFooter from '@/components/AppFooter.vue'
+  5  |  import FootprintMap from '@/components/FootprintMap.vue'
+  6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+     |       ^
+  7  |  import AppHeader from '@/components/AppHeader.vue'
+  8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+      at constructor (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:369:19)
+      at Parser.raise (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:6620:19)
+      at ScopeHandler.checkRedeclarationInScope (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1623:19)
+      at ScopeHandler.declareName (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1589:12)
+      at Parser.declareNameFromIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7588:16)
+      at Parser.checkIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7584:12)
+      at Parser.checkLVal (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7521:12)
+      at Parser.finishImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14295:10)
+      at Parser.parseImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14448:17)
+      at Parser.parseNamedImportSpecifiers (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14427:36)
+[2m20:03:25[22m [31m[1m[vite][22m[39m [31mInternal server error: [vue/compiler-sfc] Identifier 'onBeforeUnmount' has already been declared. (6:19)
+
+C:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue
+4  |  import AppFooter from '@/components/AppFooter.vue'
+5  |  import FootprintMap from '@/components/FootprintMap.vue'
+6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+   |                     ^
+7  |  import AppHeader from '@/components/AppHeader.vue'
+8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+  Plugin: [35mvite:vue[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue[39m:6:19
+[33m  4  |  import AppFooter from '@/components/AppFooter.vue'
+  5  |  import FootprintMap from '@/components/FootprintMap.vue'
+  6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+     |       ^
+  7  |  import AppHeader from '@/components/AppHeader.vue'
+  8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+      at constructor (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:369:19)
+      at Parser.raise (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:6620:19)
+      at ScopeHandler.checkRedeclarationInScope (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1623:19)
+      at ScopeHandler.declareName (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1589:12)
+      at Parser.declareNameFromIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7588:16)
+      at Parser.checkIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7584:12)
+      at Parser.checkLVal (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7521:12)
+      at Parser.finishImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14295:10)
+      at Parser.parseImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14448:17)
+      at Parser.parseNamedImportSpecifiers (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14427:36)
+[2m20:03:25[22m [31m[1m[vite][22m[39m [31mInternal server error: [vue/compiler-sfc] Identifier 'onBeforeUnmount' has already been declared. (6:19)
+
+C:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue
+4  |  import AppFooter from '@/components/AppFooter.vue'
+5  |  import FootprintMap from '@/components/FootprintMap.vue'
+6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+   |                     ^
+7  |  import AppHeader from '@/components/AppHeader.vue'
+8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+  Plugin: [35mvite:vue[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue[39m:6:19
+[33m  4  |  import AppFooter from '@/components/AppFooter.vue'
+  5  |  import FootprintMap from '@/components/FootprintMap.vue'
+  6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+     |       ^
+  7  |  import AppHeader from '@/components/AppHeader.vue'
+  8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+      at constructor (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:369:19)
+      at Parser.raise (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:6620:19)
+      at ScopeHandler.checkRedeclarationInScope (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1623:19)
+      at ScopeHandler.declareName (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1589:12)
+      at Parser.declareNameFromIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7588:16)
+      at Parser.checkIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7584:12)
+      at Parser.checkLVal (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7521:12)
+      at Parser.finishImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14295:10)
+      at Parser.parseImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14448:17)
+      at Parser.parseNamedImportSpecifiers (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14427:36)
+[2m20:03:36[22m [31m[1m[vite][22m[39m [31mInternal server error: [vue/compiler-sfc] Identifier 'onBeforeUnmount' has already been declared. (6:19)
+
+C:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue
+4  |  import AppFooter from '@/components/AppFooter.vue'
+5  |  import FootprintMap from '@/components/FootprintMap.vue'
+6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+   |                     ^
+7  |  import AppHeader from '@/components/AppHeader.vue'
+8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+  Plugin: [35mvite:vue[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue[39m:6:19
+[33m  4  |  import AppFooter from '@/components/AppFooter.vue'
+  5  |  import FootprintMap from '@/components/FootprintMap.vue'
+  6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+     |       ^
+  7  |  import AppHeader from '@/components/AppHeader.vue'
+  8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+      at constructor (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:369:19)
+      at Parser.raise (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:6620:19)
+      at ScopeHandler.checkRedeclarationInScope (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1623:19)
+      at ScopeHandler.declareName (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1589:12)
+      at Parser.declareNameFromIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7588:16)
+      at Parser.checkIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7584:12)
+      at Parser.checkLVal (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7521:12)
+      at Parser.finishImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14295:10)
+      at Parser.parseImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14448:17)
+      at Parser.parseNamedImportSpecifiers (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14427:36)
+[2m20:04:04[22m [31m[1m[vite][22m[39m [31mInternal server error: [vue/compiler-sfc] Identifier 'onBeforeUnmount' has already been declared. (6:19)
+
+C:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue
+4  |  import AppFooter from '@/components/AppFooter.vue'
+5  |  import FootprintMap from '@/components/FootprintMap.vue'
+6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+   |                     ^
+7  |  import AppHeader from '@/components/AppHeader.vue'
+8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+  Plugin: [35mvite:vue[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue[39m:6:19
+[33m  4  |  import AppFooter from '@/components/AppFooter.vue'
+  5  |  import FootprintMap from '@/components/FootprintMap.vue'
+  6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+     |       ^
+  7  |  import AppHeader from '@/components/AppHeader.vue'
+  8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+      at constructor (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:369:19)
+      at Parser.raise (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:6620:19)
+      at ScopeHandler.checkRedeclarationInScope (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1623:19)
+      at ScopeHandler.declareName (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1589:12)
+      at Parser.declareNameFromIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7588:16)
+      at Parser.checkIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7584:12)
+      at Parser.checkLVal (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7521:12)
+      at Parser.finishImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14295:10)
+      at Parser.parseImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14448:17)
+      at Parser.parseNamedImportSpecifiers (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14427:36)
+[2m20:04:30[22m [31m[1m[vite][22m[39m [31mInternal server error: [vue/compiler-sfc] Identifier 'onBeforeUnmount' has already been declared. (6:19)
+
+C:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue
+4  |  import AppFooter from '@/components/AppFooter.vue'
+5  |  import FootprintMap from '@/components/FootprintMap.vue'
+6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+   |                     ^
+7  |  import AppHeader from '@/components/AppHeader.vue'
+8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+  Plugin: [35mvite:vue[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue[39m:6:19
+[33m  4  |  import AppFooter from '@/components/AppFooter.vue'
+  5  |  import FootprintMap from '@/components/FootprintMap.vue'
+  6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+     |       ^
+  7  |  import AppHeader from '@/components/AppHeader.vue'
+  8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+      at constructor (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:369:19)
+      at Parser.raise (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:6620:19)
+      at ScopeHandler.checkRedeclarationInScope (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1623:19)
+      at ScopeHandler.declareName (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1589:12)
+      at Parser.declareNameFromIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7588:16)
+      at Parser.checkIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7584:12)
+      at Parser.checkLVal (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7521:12)
+      at Parser.finishImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14295:10)
+      at Parser.parseImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14448:17)
+      at Parser.parseNamedImportSpecifiers (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14427:36)
+[2m20:04:33[22m [31m[1m[vite][22m[39m [31mInternal server error: [vue/compiler-sfc] Identifier 'onBeforeUnmount' has already been declared. (6:19)
+
+C:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue
+4  |  import AppFooter from '@/components/AppFooter.vue'
+5  |  import FootprintMap from '@/components/FootprintMap.vue'
+6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+   |                     ^
+7  |  import AppHeader from '@/components/AppHeader.vue'
+8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+  Plugin: [35mvite:vue[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue[39m:6:19
+[33m  4  |  import AppFooter from '@/components/AppFooter.vue'
+  5  |  import FootprintMap from '@/components/FootprintMap.vue'
+  6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+     |       ^
+  7  |  import AppHeader from '@/components/AppHeader.vue'
+  8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+      at constructor (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:369:19)
+      at Parser.raise (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:6620:19)
+      at ScopeHandler.checkRedeclarationInScope (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1623:19)
+      at ScopeHandler.declareName (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1589:12)
+      at Parser.declareNameFromIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7588:16)
+      at Parser.checkIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7584:12)
+      at Parser.checkLVal (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7521:12)
+      at Parser.finishImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14295:10)
+      at Parser.parseImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14448:17)
+      at Parser.parseNamedImportSpecifiers (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14427:36)
+[2m20:04:45[22m [31m[1m[vite][22m[39m [31mInternal server error: [vue/compiler-sfc] Identifier 'onBeforeUnmount' has already been declared. (6:19)
+
+C:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue
+4  |  import AppFooter from '@/components/AppFooter.vue'
+5  |  import FootprintMap from '@/components/FootprintMap.vue'
+6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+   |                     ^
+7  |  import AppHeader from '@/components/AppHeader.vue'
+8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+  Plugin: [35mvite:vue[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue[39m:6:19
+[33m  4  |  import AppFooter from '@/components/AppFooter.vue'
+  5  |  import FootprintMap from '@/components/FootprintMap.vue'
+  6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+     |       ^
+  7  |  import AppHeader from '@/components/AppHeader.vue'
+  8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+      at constructor (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:369:19)
+      at Parser.raise (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:6620:19)
+      at ScopeHandler.checkRedeclarationInScope (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1623:19)
+      at ScopeHandler.declareName (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1589:12)
+      at Parser.declareNameFromIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7588:16)
+      at Parser.checkIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7584:12)
+      at Parser.checkLVal (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7521:12)
+      at Parser.finishImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14295:10)
+      at Parser.parseImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14448:17)
+      at Parser.parseNamedImportSpecifiers (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14427:36)
+[2m20:04:48[22m [31m[1m[vite][22m[39m [31mInternal server error: [vue/compiler-sfc] Identifier 'onBeforeUnmount' has already been declared. (6:19)
+
+C:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue
+4  |  import AppFooter from '@/components/AppFooter.vue'
+5  |  import FootprintMap from '@/components/FootprintMap.vue'
+6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+   |                     ^
+7  |  import AppHeader from '@/components/AppHeader.vue'
+8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+  Plugin: [35mvite:vue[39m
+  File: [36mC:/Users/admin/Desktop/inkheap/frontend/src/views/AboutMeView.vue[39m:6:19
+[33m  4  |  import AppFooter from '@/components/AppFooter.vue'
+  5  |  import FootprintMap from '@/components/FootprintMap.vue'
+  6  |  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+     |       ^
+  7  |  import AppHeader from '@/components/AppHeader.vue'
+  8  |  import AppFooter from '@/components/AppFooter.vue'[39m
+      at constructor (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:369:19)
+      at Parser.raise (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:6620:19)
+      at ScopeHandler.checkRedeclarationInScope (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1623:19)
+      at ScopeHandler.declareName (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:1589:12)
+      at Parser.declareNameFromIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7588:16)
+      at Parser.checkIdentifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7584:12)
+      at Parser.checkLVal (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:7521:12)
+      at Parser.finishImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14295:10)
+      at Parser.parseImportSpecifier (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14448:17)
+      at Parser.parseNamedImportSpecifiers (C:\Users\admin\Desktop\inkheap\frontend\node_modules\@babel\parser\lib\index.js:14427:36)
