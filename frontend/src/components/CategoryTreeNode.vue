@@ -6,7 +6,7 @@ defineProps({
 })
 
 const hasChildren = inject('catHasChildren')
-const countUnder = inject('catCountUnder')
+const countInfo = inject('catCountInfo')
 const isCollapsed = inject('catIsCollapsed')
 const toggleNode = inject('catToggleNode')
 const selectCategory = inject('catSelectCategory')
@@ -47,7 +47,7 @@ const currentKey = inject('catCurrentKey')
         </svg>
       </span>
       <span class="tree-label">{{ node.name }}</span>
-      <span class="tree-count">{{ countUnder(node.key) }}</span>
+      <span class="tree-count" :title="`直接 ${countInfo(node.key).direct} / 含子分类 ${countInfo(node.key).withChildren}`">{{ countInfo(node.key).direct }} / {{ countInfo(node.key).withChildren }}</span>
     </div>
 
     <ul v-if="hasChildren(node)" v-show="!isCollapsed(node.key)" class="tree">
@@ -100,18 +100,6 @@ const currentKey = inject('catCurrentKey')
   color: var(--bg-card);
 }
 
-.tree-item.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 60%;
-  border-radius: 2px;
-  background-color: var(--bg-card);
-}
-
 .tree-toggle {
   width: 16px;
   height: 16px;
@@ -137,6 +125,11 @@ const currentKey = inject('catCurrentKey')
   border-radius: 10px;
   background-color: var(--bg-soft);
   color: var(--text-tertiary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: max-content;
+  line-height: 1;
+  display: inline-block;
 }
 
 .tree-item.active .tree-count {
@@ -145,7 +138,8 @@ const currentKey = inject('catCurrentKey')
 }
 
 .tree-label {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

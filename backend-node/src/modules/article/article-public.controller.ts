@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ArticleService } from './article.service';
 import { QueryArticleDto } from './dto/query-article.dto';
 
@@ -14,5 +14,17 @@ export class PublicArticleController {
       ...query,
       status: 'published',
     });
+  }
+
+  // 按 slug 获取知识库文章详情（仅已发布且 type=article）
+  @Get('slug/:slug')
+  detailBySlug(@Param('slug') slug: string) {
+    return this.articleService.findOneBySlug(slug);
+  }
+
+  // 按更新时间倒序返回文章列表，用于首页右侧"动态"栏目
+  @Get('feed')
+  feed(@Query() query: QueryArticleDto) {
+    return this.articleService.findLatestUpdated(query);
   }
 }

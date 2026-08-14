@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, provide, reactive, ref, watch } f
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import CategoryTreeNode from '@/components/CategoryTreeNode.vue'
-import { feedItems } from '@/data/articles'
+import ArticleCover from '@/components/ArticleCover.vue'
 import { useApi } from '@/composables/useApi'
 
 const api = useApi()
@@ -11,7 +11,19 @@ const api = useApi()
 /* ===== 真实数据（来自后端公开接口） ===== */
 const categoryTree = ref([])
 const articleList = ref([])
+const allCount = ref(null) // 全部已发布文章总数（单一数字，用于"全部"节点计数）
 const loading = ref(true)
+const backToTopHidden = ref(true)
+
+/* ===== 文章列表分页（首页先渲染 20 篇，滚动触底再追加 20 篇） ===== */
+const PAGE_SIZE = 20
+const articlePage = ref(1)
+const articleTotal = ref(0)
+const articleLoadingMore = ref(false)
+// 当前筛选条件：选中分类的「含子孙 key 集合」与搜索关键词，用于重新拉取与翻页追加
+const activeCategoryKeys = ref(null) // null 表示全部；否则为逗号分隔的 key 串
+const activeSearch = ref('')
+const articleListEnded = computed(() => articleList.value.length >= articleTotal.value && articleTotal.value > 0)
 
 // 后端文章字段 → 模板字段映射
 function mapArticle(a) {
@@ -39,24 +51,92 @@ const categoryNameMap = computed(() => {
   return m
 })
 
-async function loadAll() {
-  loading.value = true
+// 组装文章列表请求地址：始终携带当前分类（含子孙）与搜索条件
+function buildArticleQuery(page) {
+  const usp = new URLSearchParams()
+  usp.set('page', page)
+  usp.set('pageSize', PAGE_SIZE)
+  if (activeCategoryKeys.value) usp.set('categoryKey', activeCategoryKeys.value)
+  if (activeSearch.value.trim()) usp.set('search', activeSearch.value.trim())
+  return `/articles?${usp.toString()}`
+}
+
+// 拉取文章列表：reset=true 时重新加载第一页（首屏 / 切换分类 / 搜索），否则追加下一页
+async function loadArticles(reset = true) {
+  if (reset) {
+    articlePage.value = 1
+    loading.value = true
+  } else {
+    if (articleLoadingMore.value || articleListEnded.value) return
+    articleLoadingMore.value = true
+  }
   try {
-    const [tree, res] = await Promise.all([
-      api.get('/categories/tree'),
-      api.get('/articles?pageSize=200'),
-    ])
-    categoryTree.value = tree || []
+    const res = await api.get(buildArticleQuery(articlePage.value))
     const items = (res && res.items) ? res.items : (Array.isArray(res) ? res : [])
-    articleList.value = items.map(mapArticle)
+    articleList.value = reset ? items.map(mapArticle) : articleList.value.concat(items.map(mapArticle))
+    if (typeof res.total === 'number') {
+      articleTotal.value = res.total
+      if (reset && activeCategoryKeys.value === null) allCount.value = res.total
+    }
+    if (typeof res.page === 'number') articlePage.value = res.page
   } catch (e) {
-    console.error('加载知识库数据失败', e)
+    console.error('加载文章失败', e)
   } finally {
     loading.value = false
+    articleLoadingMore.value = false
   }
 }
 
-onMounted(loadAll)
+async function loadAll() {
+  loading.value = true
+  try {
+    const tree = await api.get('/categories/tree')
+    categoryTree.value = tree || []
+  } catch (e) {
+    console.error('加载分类树失败', e)
+  } finally {
+    loading.value = false
+  }
+  // 文章列表由 loadArticles 按当前筛选条件加载（首屏为「全部」）
+  await loadArticles(true)
+}
+
+// 滚动触底再加载下一页（每页 20 篇，沿用当前筛选条件）
+async function loadMoreArticles() {
+  if (articleLoadingMore.value || articleListEnded.value || loading.value) return
+  articleLoadingMore.value = true
+  const nextPage = articlePage.value + 1
+  try {
+    const res = await api.get(buildArticleQuery(nextPage))
+    const items = (res && res.items) ? res.items : (Array.isArray(res) ? res : [])
+    articleList.value = articleList.value.concat(items.map(mapArticle))
+    if (typeof res.total === 'number') articleTotal.value = res.total
+    if (typeof res.page === 'number') articlePage.value = res.page
+  } catch (e) {
+    console.error('加载更多文章失败', e)
+  } finally {
+    articleLoadingMore.value = false
+  }
+}
+
+onMounted(() => {
+  loadAll()
+  loadFeed()
+  window.addEventListener('scroll', onWindowScroll, { passive: true })
+  onWindowScroll()
+})
+
+// 页面滚动：滚动一定距离后显示"回到顶部" + 触底追加文章
+function onWindowScroll() {
+  const y = window.scrollY || window.pageYOffset || 0
+  backToTopHidden.value = y < 240
+  if (y + window.innerHeight >= document.documentElement.scrollHeight - 240) {
+    loadMoreArticles()
+  }
+}
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 /* ===== 分类筛选 + 文本搜索 ===== */
 const currentKey = ref(null)
@@ -86,44 +166,75 @@ function descendantKeys(key) {
   return set
 }
 
-// 预拼搜索索引
-const searchIndex = computed(() =>
-  articleList.value.map((a) =>
-    [a.category, a.title, a.excerpt, a.author, a.date, a.reads].join(' ').toLowerCase(),
-  ),
-)
+// 当前筛选条件下的文章条数（来自后端 total），用于「显示 N 篇文章」文案
+const showingCount = computed(() => articleTotal.value)
 
-/** 分类（含子孙）匹配 + 关键词匹配，两者取交集 */
-const hiddenFlags = computed(() => {
-  const term = searchTerm.value.trim().toLowerCase()
-  const key = currentKey.value
-  const allowed = key ? descendantKeys(key) : null
-  return articleList.value.map((a, i) => {
-    const matchCat = !allowed || allowed.has(a.categoryKey)
-    const matchText = !term || searchIndex.value[i].includes(term)
-    return !(matchCat && matchText)
-  })
-})
-
-const isEmpty = computed(() => hiddenFlags.value.every(Boolean))
+const isEmpty = computed(() => !loading.value && articleList.value.length === 0)
 
 function clearFilter() {
   searchTerm.value = ''
+  activeSearch.value = ''
   searchInput.value?.focus()
+  loadArticles(true)
+}
+
+// 搜索：输入即按关键词向后端重新拉取（防抖 250ms）
+let searchTimer = null
+function onSearchInput() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    activeSearch.value = searchTerm.value
+    loadArticles(true)
+  }, 250)
 }
 
 /* ===== 分类树 ===== */
 const hasChildren = (node) => Array.isArray(node.children) && node.children.length > 0
 
-// 每个节点右侧的计数：含子孙的文章数
-function countUnder(key) {
-  const allowed = descendantKeys(key)
-  return articleList.value.filter((a) => allowed.has(a.categoryKey)).length
+// 每个节点右侧的计数：直接数 / 含子孙数（均来自后端分类数据）
+function countInfo(key) {
+  const find = (ns) => {
+    for (const n of ns) {
+      if (n.key === key) return n
+      if (n.children) {
+        const f = find(n.children)
+        if (f) return f
+      }
+    }
+    return null
+  }
+  const node = find(categoryTree.value)
+  if (!node) return { direct: 0, withChildren: 0 }
+  return {
+    direct: typeof node.articleCount === 'number' ? node.articleCount : 0,
+    withChildren: typeof node.articleCountWithChildren === 'number'
+      ? node.articleCountWithChildren
+      : (typeof node.articleCount === 'number' ? node.articleCount : 0),
+  }
 }
 
 // 折叠状态：默认全部展开，收进集合的才是折叠的
 const collapsedKeys = reactive(new Set())
 const isCollapsed = (key) => collapsedKeys.has(key)
+
+// 全局展开/收起：展开时清空折叠集合，收起时折叠所有含子节点的分类
+const allExpanded = ref(true)
+function toggleExpandAll() {
+  if (allExpanded.value) {
+    collapsedKeys.clear()
+    const walk = (ns) => ns.forEach((n) => {
+      if (hasChildren(n)) {
+        collapsedKeys.add(n.key)
+        if (n.children) walk(n.children)
+      }
+    })
+    walk(categoryTree.value)
+    allExpanded.value = false
+  } else {
+    collapsedKeys.clear()
+    allExpanded.value = true
+  }
+}
 
 function toggleNode(node) {
   if (!hasChildren(node)) return
@@ -133,10 +244,15 @@ function toggleNode(node) {
 
 function selectCategory(node) {
   currentKey.value = node ? node.key : null
+  // 选中分类（含子孙）后，按当前筛选条件向后端重新拉取文章列表
+  activeCategoryKeys.value = node ? Array.from(descendantKeys(node.key)).join(',') : null
+  loadArticles(true)
 }
 
 function resetCategory() {
   currentKey.value = null
+  activeCategoryKeys.value = null
+  loadArticles(true)
 }
 
 // 树节点在原型里是 div + click，这里补上键盘可达：Enter/Space 选中，左右方向键展开收起
@@ -159,7 +275,7 @@ function onItemKeydown(event, node) {
 // 通过 provide 把交互函数注入递归子组件（支持任意层级）
 // 注意：必须在所有被引用的函数/const 声明完成后再调用，避免 TDZ
 provide('catHasChildren', hasChildren)
-provide('catCountUnder', countUnder)
+provide('catCountInfo', countInfo)
 provide('catIsCollapsed', isCollapsed)
 provide('catToggleNode', toggleNode)
 provide('catSelectCategory', selectCategory)
@@ -186,17 +302,64 @@ const breadcrumbPath = computed(() =>
 /* ===== 移动端分类树折叠（≤1024px 生效） ===== */
 const treeCollapsed = ref(false)
 
-/* ===== 右侧「动态」栏：折叠 + 刷新重排 ===== */
-const feedExpanded = ref(true)
+/* ===== 右侧「动态」栏：按更新时间倒序加载（支持滚动触底追加下一页） ===== */
 const refreshing = ref(false)
-const feedList = ref([...feedItems])
+const feedList = ref([])
+const FEED_PAGE_SIZE = 20
+const feedPage = ref(1)
+const feedTotal = ref(0)
+const feedLoadingMore = ref(false)
+const feedTimelineRef = ref(null)
 let refreshTimer = null
+
+const feedListEnded = computed(() => feedList.value.length >= feedTotal.value && feedTotal.value > 0)
+
+function mapFeedItem(a) {
+  return {
+    slug: a.slug,
+    title: a.title,
+    date: a.updatedAt ? a.updatedAt.slice(0, 10) : '',
+  }
+}
+
+// 拉取动态列表：后端已按 updatedAt 倒序返回（相同时间戳越大越靠前）
+// reset=true 时重新加载第一页（首屏 / 刷新），否则追加下一页
+async function loadFeed(reset = true) {
+  try {
+    const nextPage = reset ? 1 : feedPage.value + 1
+    const res = await api.get(`/articles/feed?page=${nextPage}&pageSize=${FEED_PAGE_SIZE}`)
+    const items = (res && res.items) ? res.items : (Array.isArray(res) ? res : [])
+    feedList.value = reset
+      ? items.map(mapFeedItem)
+      : feedList.value.concat(items.map(mapFeedItem))
+    if (typeof res.total === 'number') feedTotal.value = res.total
+    feedPage.value = nextPage
+  } catch (e) {
+    console.error('加载动态列表失败', e)
+  }
+}
+
+// 触底追加下一页动态（已加载完 / 正在加载时忽略）
+function loadMoreFeed() {
+  if (feedLoadingMore.value || feedListEnded.value) return
+  feedLoadingMore.value = true
+  loadFeed(false).finally(() => { feedLoadingMore.value = false })
+}
+
+// 监听动态栏滚动容器，触底（留 24px 余量）时追加
+function onFeedScroll() {
+  const el = feedTimelineRef.value
+  if (!el) return
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 24) {
+    loadMoreFeed()
+  }
+}
 
 function refreshFeed() {
   if (refreshing.value) return
   refreshing.value = true // 图标旋转 360° + 列表淡出
-  refreshTimer = setTimeout(() => {
-    feedList.value = [...feedList.value].sort((a, b) => b.date.localeCompare(a.date))
+  refreshTimer = setTimeout(async () => {
+    await loadFeed()
     refreshing.value = false // 列表淡入
     refreshTimer = null
   }, 600)
@@ -204,6 +367,7 @@ function refreshFeed() {
 
 onBeforeUnmount(() => {
   if (refreshTimer) clearTimeout(refreshTimer)
+  window.removeEventListener('scroll', onWindowScroll)
 })
 </script>
 
@@ -235,12 +399,30 @@ onBeforeUnmount(() => {
             <polyline points="6 9 12 15 18 9" />
           </svg>
         </button>
+        <button class="tree-expand-all" type="button" @click="toggleExpandAll">
+          {{ allExpanded ? '收起' : '展开' }}
+        </button>
         <button class="tree-reset" type="button" @click="resetCategory">清空</button>
       </div>
 
       <!-- 分类树递归渲染，支持任意层级嵌套 -->
       <nav class="tree" aria-label="文章分类">
         <ul class="tree">
+          <li class="tree-item--all">
+            <div
+              class="tree-row tree-row--all"
+              :class="{ 'tree-row--active': currentKey === null }"
+              role="treeitem"
+              :aria-selected="String(currentKey === null)"
+              tabindex="0"
+              @click="selectCategory(null)"
+              @keydown.enter.prevent="selectCategory(null)"
+              @keydown.space.prevent="selectCategory(null)"
+            >
+              <span class="tree-label">全部</span>
+              <span v-if="allCount !== null" class="tree-count">{{ allCount }}</span>
+            </div>
+          </li>
           <category-tree-node
             v-for="node in categoryTree"
             :key="node.key"
@@ -283,6 +465,7 @@ onBeforeUnmount(() => {
             class="filter-input"
             placeholder="搜索文章…"
             aria-label="按标题或内容筛选文章"
+            @input="onSearchInput"
           />
           <button
             type="button"
@@ -301,10 +484,14 @@ onBeforeUnmount(() => {
           v-for="(article, index) in articleList"
           :key="article.key"
           class="article-card"
-          :class="{ hidden: hiddenFlags[index] }"
           :to="`/articles/${article.slug}`"
         >
-          <img :src="article.thumbnail" alt="" class="article-thumbnail" />
+          <ArticleCover
+            :title="article.title"
+            :cover-image="article.thumbnail"
+            ratio="4/3"
+            class="article-thumbnail"
+          />
           <div class="article-content">
             <span class="article-category">{{ article.category }}</span>
             <h2 class="article-title">{{ article.title }}</h2>
@@ -373,6 +560,11 @@ onBeforeUnmount(() => {
         </RouterLink>
       </div>
 
+      <div class="list-more" v-if="!loading && articleList.length">
+        <span v-if="articleLoadingMore" class="list-more-loading">加载中…</span>
+        <span v-else-if="articleListEnded">已加载全部文章</span>
+      </div>
+
       <div class="empty-state" :class="{ active: isEmpty }" role="status">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -382,6 +574,10 @@ onBeforeUnmount(() => {
         </svg>
         <p>该分类下暂无文章</p>
       </div>
+
+      <button type="button" class="back-to-top" :class="{ hidden: backToTopHidden }" @click="scrollToTop">
+        回到顶部
+      </button>
     </section>
 
     <!-- RIGHT: 侧栏 -->
@@ -391,9 +587,7 @@ onBeforeUnmount(() => {
           <button
             class="feed-title"
             type="button"
-            :aria-expanded="String(feedExpanded)"
             aria-controls="feedTimeline"
-            @click="feedExpanded = !feedExpanded"
           >
             动态
           </button>
@@ -422,8 +616,10 @@ onBeforeUnmount(() => {
         </div>
         <ul
           id="feedTimeline"
+          ref="feedTimelineRef"
           class="timeline"
-          :style="{ display: feedExpanded ? 'block' : 'none', opacity: refreshing ? '0.35' : '1' }"
+          :style="{ opacity: refreshing ? '0.35' : '1' }"
+          @scroll="onFeedScroll"
         >
           <li v-for="item in feedList" :key="item.slug" class="timeline-item">
             <div class="timeline-date">{{ item.date }}</div>
@@ -431,6 +627,8 @@ onBeforeUnmount(() => {
               {{ item.title }}
             </RouterLink>
           </li>
+          <li v-if="feedLoadingMore" class="feed-more">加载中…</li>
+          <li v-else-if="feedListEnded" class="feed-more feed-more--end">已加载全部动态</li>
         </ul>
       </div>
     </aside>
@@ -446,7 +644,7 @@ onBeforeUnmount(() => {
   margin: 0 auto;
   padding: 24px 24px 80px;
   display: grid;
-  grid-template-columns: 268px minmax(0, 1fr) 300px;
+  grid-template-columns: 298px minmax(0, 1fr) 300px;
   gap: 52px;
   align-items: start;
 }
@@ -486,6 +684,22 @@ onBeforeUnmount(() => {
   margin-left: auto;
 }
 
+.tree-expand-all {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 500;
+  background: none;
+  border: none;
+  font-family: var(--font-sans);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.tree-expand-all:hover { color: var(--accent); background: var(--bg-soft); }
+.tree-expand-all + .tree-reset { margin-left: 4px; }
+
 .tree-reset:hover {
   color: var(--accent-hover);
 }
@@ -493,6 +707,65 @@ onBeforeUnmount(() => {
 .tree,
 .tree ul {
   list-style: none;
+}
+
+/* 分类树顶部"全部"节点 */
+.tree-item--all {
+  list-style: none;
+}
+.tree-row--all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  user-select: none;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  transition: background-color var(--transition), color var(--transition);
+}
+.tree-row--all:hover {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+.tree-row--all.tree-row--active {
+  background-color: var(--accent);
+  color: var(--bg-card);
+}
+.tree-row--all:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* "全部"节点计数（单数字），与递归组件中 .tree-count 外观一致 */
+.tree-count {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background-color: var(--bg-soft);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: max-content;
+  line-height: 1;
+  display: inline-block;
+}
+.tree-row--all.tree-row--active .tree-count {
+  background-color: var(--bg-card);
+  color: var(--accent);
+}
+.tree-row--all .tree-label {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ============ Main content (center) ============ */
@@ -732,6 +1005,41 @@ onBeforeUnmount(() => {
   font-size: 15px;
 }
 
+/* 回到顶部 */
+.back-to-top {
+  display: block;
+  width: fit-content;
+  margin: 16px auto 0;
+  padding: 10px 22px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.back-to-top:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+  background-color: var(--bg-hover);
+}
+.back-to-top.hidden {
+  display: none;
+}
+
+.list-more {
+  margin: 24px 0 8px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.list-more-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* ============ Sidebar (right) ============ */
 .sidebar {
   display: flex;
@@ -865,16 +1173,6 @@ onBeforeUnmount(() => {
   background: transparent;
 }
 
-.timeline::before {
-  content: '';
-  position: absolute;
-  left: 4px;
-  top: 6px;
-  bottom: 6px;
-  width: 2px;
-  background: linear-gradient(rgba(45, 130, 100, 0.35), rgba(45, 130, 100, 0.12));
-}
-
 .timeline-item {
   position: relative;
   padding-bottom: 16px;
@@ -882,6 +1180,18 @@ onBeforeUnmount(() => {
 
 .timeline-item:last-child {
   padding-bottom: 0;
+}
+
+.feed-more {
+  list-style: none;
+  padding: 8px 0 2px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.feed-more--end {
+  opacity: 0.7;
 }
 
 .timeline-item::before {
@@ -895,6 +1205,18 @@ onBeforeUnmount(() => {
   background: var(--bg-green-soft);
   border: 2px solid var(--accent);
   box-shadow: 0 0 0 3px var(--bg-green-soft);
+  z-index: 1;
+}
+
+/* 连接线：从本节点圆点下方一直连到下一个节点圆点，保证所有节点完全串接 */
+.timeline-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: -13.5px;
+  top: 14px;
+  width: 2px;
+  height: calc(100% - 9px);
+  background: linear-gradient(rgba(45, 130, 100, 0.35), rgba(45, 130, 100, 0.12));
 }
 
 .timeline-date {

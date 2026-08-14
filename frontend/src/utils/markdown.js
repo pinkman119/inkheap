@@ -64,15 +64,35 @@ marked.use(gfmHeadingId())
 marked.use({
   gfm: true,
   breaks: false,
-  // 代码块交给 highlight.js
-  highlight(code, lang) {
-    const language = lang && hljs.getLanguage(lang) ? lang : ''
-    const highlighted = language
-      ? hljs.highlight(code, { language }).value
-      : hljs.highlightAuto(code).value
-    return `<pre class="code-block"><code class="hljs language-${language}">${highlighted}</code></pre>`
-  },
   extensions: [calloutExtension()],
+})
+
+// marked v5+ 已移除 highlight 选项，这里通过 renderer.code 手动接入 highlight.js，
+// 生成 .code-block 容器与 hljs 高亮 token，以匹配详情页原型样式。
+// 注意：marked v18 的 code renderer 接收的是 token 对象（fn.length 需 ≥ 1），
+// 不要使用解构参数写法（function ({ text, lang }) 在 v18 下不生效）。
+marked.use({
+  renderer: {
+    code(token) {
+      const text = token.text
+      const lang = token.lang
+      const language = lang && hljs.getLanguage(lang) ? lang : ''
+      const highlighted = language
+        ? hljs.highlight(text, { language }).value
+        : hljs.highlightAuto(text).value
+      const langClass = language ? ` lang-${language}` : ''
+      const langLabel = language || 'text'
+      return (
+        `<div class="code-block-wrap${langClass}">` +
+        `<div class="code-block-header">` +
+        `<span class="code-lang">${langLabel}</span>` +
+        `<button type="button" class="code-copy" aria-label="复制代码">复制</button>` +
+        `</div>` +
+        `<pre class="code-block"><code class="hljs ${language}">${highlighted}</code></pre>` +
+        `</div>\n`
+      )
+    },
+  },
 })
 
 /** 把 markdown 源渲染为净化后的 HTML 字符串 */

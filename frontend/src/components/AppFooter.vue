@@ -50,6 +50,16 @@ function scrollTop() {
 <template>
   <footer class="footer" :style="{ '--footer-py': paddingY, '--footer-mt': marginTop }">
     <div class="footer-inner">
+      <!-- 回到顶部：置于最上方，方便点击 -->
+      <div class="footer-top">
+        <button class="back-top" type="button" aria-label="返回顶部" @click="scrollTop">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="18 15 12 9 6 15" />
+          </svg>
+          回到顶部
+        </button>
+      </div>
+
       <!-- 上：三栏 -->
       <div class="footer-cols">
         <!-- 品牌 -->
@@ -133,12 +143,6 @@ function scrollTop() {
           <slot>{{ copyright }} {{ brand }} · {{ slogan || '以设计记录思考' }}</slot>
         </p>
         <p v-if="icp" class="icp">{{ icp }}</p>
-        <button class="back-top" type="button" aria-label="返回顶部" @click="scrollTop">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="18 15 12 9 6 15" />
-          </svg>
-          回到顶部
-        </button>
       </div>
     </div>
   </footer>
@@ -155,6 +159,13 @@ function scrollTop() {
 .footer-inner {
   max-width: 1040px;
   margin: 0 auto;
+}
+
+/* 回到顶部：置于最上方 */
+.footer-top {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 24px;
 }
 
 /* 三栏 */

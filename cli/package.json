@@ -1,0 +1,17 @@
+{
+  "name": "inkheap-cli",
+  "version": "0.1.0",
+  "description": "INKHEAP 后端接口命令行工具（零依赖，直接调用后端接口）",
+  "type": "module",
+  "bin": {
+    "inkheap": "./index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}

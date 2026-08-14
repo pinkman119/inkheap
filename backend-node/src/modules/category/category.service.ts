@@ -13,13 +13,39 @@ export class CategoryService {
     });
     const counts = await this.prisma.article.groupBy({
       by: ['categoryKey'],
+      where: { published: true, type: 'article' },
       _count: { _all: true },
     });
     const countMap = new Map<string, number>();
     counts.forEach((c) => countMap.set(c.categoryKey, c._count._all));
+
+    // 构造父->子关系，计算每个分类「含所有子孙」的文章总数
+    const directMap = new Map<string, number>();
+    categories.forEach((cat) => directMap.set(cat.key, countMap.get(cat.key) ?? 0));
+
+    const childrenMap = new Map<string, string[]>();
+    categories.forEach((cat) => {
+      if (cat.parentKey && categories.some((c) => c.key === cat.parentKey)) {
+        if (!childrenMap.has(cat.parentKey)) childrenMap.set(cat.parentKey, []);
+        childrenMap.get(cat.parentKey)!.push(cat.key);
+      }
+    });
+
+    // 含子孙计数：直接数 + 所有后代直接数之和
+    const withChildrenMap = new Map<string, number>();
+    const sumWithChildren = (key: string): number => {
+      if (withChildrenMap.has(key)) return withChildrenMap.get(key)!;
+      let sum = directMap.get(key) ?? 0;
+      const kids = childrenMap.get(key) || [];
+      for (const k of kids) sum += sumWithChildren(k);
+      withChildrenMap.set(key, sum);
+      return sum;
+    };
+
     return categories.map((cat) => ({
       ...cat,
-      articleCount: countMap.get(cat.key) ?? 0,
+      articleCount: directMap.get(cat.key) ?? 0, // 直接挂载到本分类的文章数
+      articleCountWithChildren: sumWithChildren(cat.key), // 本分类 + 所有子分类文章总数
     }));
   }
 

@@ -5,7 +5,7 @@
   <div class="admin-shell">
     <header class="admin-header">
       <div class="header-left">
-        <button class="menu-toggle" @click="$emit('toggleSidebar')" title="菜单">
+        <button class="menu-toggle" @click="toggleSidebar" title="菜单">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="3" y1="6" x2="21" y2="6"/>
             <line x1="3" y1="12" x2="21" y2="12"/>
@@ -81,6 +81,10 @@ import { useAdminAuth } from '@/composables/useAdminAuth'
 const router = useRouter()
 const { user, clearAuth } = useAdminAuth()
 const sidebarCollapsed = ref(false)
+
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+}
 
 function handleLogout() {
   clearAuth()
@@ -190,7 +194,7 @@ function handleLogout() {
 
 /* ===== Sidebar ===== */
 .admin-sidebar {
-  width: 240px;
+  width: 210px;
   background: var(--bg-card);
   border-right: 1px solid var(--border);
   overflow-y: auto;
@@ -200,6 +204,29 @@ function handleLogout() {
 
 .admin-sidebar.collapsed {
   width: 64px;
+}
+
+.admin-sidebar.collapsed .section-label {
+  opacity: 0;
+  height: 0;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.admin-sidebar.collapsed .sidebar-nav {
+  padding: 16px 8px;
+  align-items: center;
+}
+
+.admin-sidebar.collapsed .nav-item {
+  justify-content: center;
+  gap: 0;
+  padding: 10px 0;
+}
+
+.admin-sidebar.collapsed .nav-item span {
+  display: none;
 }
 
 .sidebar-nav {

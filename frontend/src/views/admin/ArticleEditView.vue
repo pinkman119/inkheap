@@ -206,12 +206,16 @@ function goBack() {
         </div>
 
         <div class="field">
-          <label>正文 <span class="req">*</span></label>
+          <label class="editor-label">
+            <span>正文 <span class="req">*</span></span>
+            <span class="md-badge">Markdown</span>
+          </label>
           <textarea
             v-model="form.content"
             class="content-editor"
             rows="18"
-            placeholder="Markdown 内容..."
+            spellcheck="false"
+            placeholder="在此用 Markdown 撰写正文，支持 ``` 代码块 ..."
           ></textarea>
         </div>
 
@@ -348,11 +352,84 @@ function goBack() {
 .field-row { display: flex; gap: 16px; }
 .flex-1 { flex: 1; }
 
+/* 正文编辑器标签：标题 + Markdown 徽标 同行右对齐 */
+.editor-label {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.md-badge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--accent);
+  background: var(--accent-light);
+  border: 1px solid var(--accent);
+  border-radius: 100px;
+  padding: 1px 8px;
+}
+
+/* ===== Markdown 编辑器：深色代码主体 ===== */
 .content-editor {
   font-family: var(--font-mono) !important;
   font-size: 13px !important;
   line-height: 1.7;
   min-height: 420px;
+  tab-size: 2;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+
+  /* 深色主体 —— One Dark Pro（!important 覆盖 .field textarea 的基础背景/边框） */
+  color: #abb2bf !important;
+  background-color: #282c34 !important;
+  border: 1px solid #181a1f !important;
+  border-radius: var(--radius-md);
+  caret-color: #61afef;
+}
+:root[data-theme='dark'] .content-editor {
+  background-color: #282c34 !important;
+  border-color: #181a1f !important;
+  color: #abb2bf !important;
+}
+
+/* 聚焦：保持深色，边框/光晕改用 One Dark 蓝，不再套浅色阴影 */
+.content-editor:focus {
+  border-color: #61afef;
+  box-shadow: 0 0 0 3px rgba(97, 175, 239, 0.18);
+}
+
+/* 占位符 */
+.content-editor::placeholder {
+  color: #5c6370;
+  opacity: 1;
+}
+
+/* 选区 */
+.content-editor::selection {
+  background-color: rgba(97, 175, 239, 0.32);
+  color: #ffffff;
+}
+
+/* 自定义滚动条（One Dark Pro） */
+.content-editor::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.content-editor::-webkit-scrollbar-track {
+  background: transparent;
+}
+.content-editor::-webkit-scrollbar-thumb {
+  background: #3a3f4b;
+  border-radius: 100px;
+  border: 2px solid #282c34;
+}
+.content-editor::-webkit-scrollbar-thumb:hover {
+  background: #4b5263;
+}
+.content-editor {
+  scrollbar-color: #3a3f4b #282c34;
+  scrollbar-width: thin;
 }
 
 /* Tags */

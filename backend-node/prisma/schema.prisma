@@ -35,6 +35,8 @@ model Article {
   published   Boolean  @default(false)
   featured    Boolean  @default(false)
   viewCount   Int      @default(0) @map("view_count")
+  // 内容类型：article = 知识库文章，note = 小记（为后续小记接入预留，本次仅使用 article）
+  type        String   @default("article") @map("type")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 

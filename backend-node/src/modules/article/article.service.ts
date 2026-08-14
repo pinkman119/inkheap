@@ -23,13 +23,25 @@ export class ArticleService {
     }
 
     if (categoryKey) {
-      where.categoryKey = categoryKey;
+      // 分类为层级结构，文章的 categoryKey 通常落在叶子分类上。
+      // 选中父分类时应同时匹配其所有后代分类，因此展开为「自身 + 全部后代」的 key 集合。
+      const keys = categoryKey.split(',').map((k) => k.trim()).filter(Boolean);
+      const resolved: string[] = [];
+      for (const k of keys) {
+        resolved.push(...(await this.collectDescendantKeys(k)));
+      }
+      const unique = Array.from(new Set(resolved));
+      where.categoryKey = { in: unique };
     }
 
-    if (status === 'published') {
-      where.published = true;
-    } else if (status === 'draft') {
+    // 公开接口仅返回知识库文章（type=article）；小记（type=note）不进入知识库列表
+    where.type = 'article';
+
+    // 公开接口仅允许查询已发布文章；即便传入 status=draft 也强制已发布，防止越权读取草稿
+    if (status === 'draft') {
       where.published = false;
+    } else {
+      where.published = true;
     }
 
     const [items, total] = await Promise.all([
@@ -51,9 +63,39 @@ export class ArticleService {
     };
   }
 
+  // 收集某个分类自身及其所有后代分类的 key（基于 parentKey 自关联递归），
+  // 用于文章列表按「父分类 + 子孙分类」匹配文章的 categoryKey。
+  private async collectDescendantKeys(rootKey: string): Promise<string[]> {
+    const keys: string[] = [rootKey];
+    let frontier = [rootKey];
+    // 防环：最多递归 20 层（分类层级极浅，远超实际需求）
+    for (let depth = 0; depth < 20 && frontier.length; depth++) {
+      const children = await this.prisma.category.findMany({
+        where: { parentKey: { in: frontier } },
+        select: { key: true },
+      });
+      const next = children.map((c) => c.key).filter((k) => !keys.includes(k));
+      if (!next.length) break;
+      keys.push(...next);
+      frontier = next;
+    }
+    return keys;
+  }
+
   async findOne(id: string) {
     const article = await this.prisma.article.findUnique({ where: { id } });
     if (!article) throw new NotFoundException('文章不存在');
+    return this.transformArticle(article);
+  }
+
+  // 按 slug 获取单篇已发布知识库文章详情（前台详情页使用）
+  async findOneBySlug(slug: string) {
+    const article = await this.prisma.article.findUnique({
+      where: { slug, type: 'article' },
+    });
+    if (!article || !article.published) {
+      throw new NotFoundException('文章不存在或未发布');
+    }
     return this.transformArticle(article);
   }
 
@@ -88,6 +130,36 @@ export class ArticleService {
     await this.findOne(id);
     await this.prisma.article.delete({ where: { id } });
     return { message: '删除成功' };
+  }
+
+  // 按更新时间倒序返回文章列表，用于首页右侧"动态"栏目。
+  // 排序规则：updatedAt 越大越靠前；相同时间戳按毫秒级精确比较（SQLite 已存完整时间戳）。
+  async findLatestUpdated(query: QueryArticleDto) {
+    const { page = 1, pageSize = 20 } = query;
+    const skip = (page - 1) * pageSize;
+
+    const where: any = {
+      published: true,
+      type: 'article',
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.article.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { updatedAt: 'desc' },
+      }),
+      this.prisma.article.count({ where }),
+    ]);
+
+    return {
+      items: items.map(this.transformArticle),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   private transformArticle(article: any) {

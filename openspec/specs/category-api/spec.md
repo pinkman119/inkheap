@@ -1,5 +1,8 @@
-## MODIFIED Requirements
+# category-api Specification
 
+## Purpose
+TBD - created by archiving change category-management-page. Update Purpose after archive.
+## Requirements
 ### Requirement: 分类列表返回文章数
 `GET /admin/categories` 接口 SHALL 在返回的每个分类对象中附带 `articleCount` 字段，表示该分类下直接归属的文章数量（不含子孙分类的文章）。
 
@@ -10,3 +13,4 @@
 #### Scenario: 向后兼容
 - **WHEN** 现有调用方（如无需文章数的场景）请求该接口
 - **THEN** 接口原有字段与行为不变，仅新增 `articleCount` 附加字段，不破坏现有 `/tree` 与文章列表页逻辑
+

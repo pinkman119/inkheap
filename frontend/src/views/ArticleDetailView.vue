@@ -3,17 +3,70 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
+import ArticleCover from '@/components/ArticleCover.vue'
 import { articleContent, articleTitles } from '@/data/articleContent'
 import { renderMarkdown } from '@/utils/markdown'
+import { useApi } from '@/composables/useApi'
 
 const route = useRoute()
+const api = useApi()
 
 /* ===== 当前文章 ===== */
 const slug = computed(() => route.params.slug)
-const articleTitle = computed(() => articleTitles[slug.value] || '')
-const articleMd = computed(() => {
-  return articleContent[slug.value] || ''
+
+// 从后端按 slug 拉取知识库文章详情；字段缺失/失败时降级到静态数据
+const loading = ref(true)
+const notFound = ref(false)
+const article = ref({
+  title: '',
+  summary: '',
+  content: '',
+  coverImage: '',
+  author: '',
+  tags: [],
+  categoryKey: '',
+  createdAt: '',
+  viewCount: 0,
 })
+
+async function loadArticle() {
+  loading.value = true
+  notFound.value = false
+  try {
+    const data = await api.get(`/articles/slug/${encodeURIComponent(slug.value)}`)
+    article.value = {
+      title: data.title || '',
+      summary: data.summary || '',
+      content: data.content || '',
+      coverImage: data.coverImage || '',
+      author: data.author || '',
+      tags: Array.isArray(data.tags) ? data.tags : [],
+      categoryKey: data.categoryKey || '',
+      createdAt: data.createdAt || '',
+      viewCount: data.viewCount || 0,
+    }
+  } catch (e) {
+    // 降级：使用前端静态 mock 内容，保证页面不空白
+    const md = articleContent[slug.value] || ''
+    article.value = {
+      title: articleTitles[slug.value] || slug.value,
+      summary: '',
+      content: md,
+      coverImage: '',
+      author: '林深',
+      tags: [],
+      categoryKey: '',
+      createdAt: '',
+      viewCount: 0,
+    }
+    if (e && e.message === '文章不存在或未发布') notFound.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+const articleTitle = computed(() => article.value.title)
+const articleMd = computed(() => article.value.content)
 const articleHtml = computed(() => renderMarkdown(articleMd.value))
 
 /* ===== 阅读进度条 ===== */
@@ -123,14 +176,59 @@ function scrollToHeading(id) {
   if (target) target.scrollIntoView()
 }
 
+/* ===== 代码块一键复制（事件委托，挂在正文容器上） ===== */
+function onContentClick(e) {
+  const btn = e.target.closest('.code-copy')
+  if (!btn) return
+  const wrap = btn.closest('.code-block-wrap')
+  const codeEl = wrap && wrap.querySelector('pre.code-block code')
+  if (!codeEl) return
+  const text = codeEl.textContent || ''
+  const done = () => {
+    const old = btn.textContent
+    btn.textContent = '已复制'
+    btn.classList.add('copied')
+    setTimeout(() => {
+      btn.textContent = old
+      btn.classList.remove('copied')
+    }, 1500)
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(fallbackCopy)
+  } else {
+    fallbackCopy()
+  }
+  function fallbackCopy() {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    try {
+      document.execCommand('copy')
+      done()
+    } catch (_) {
+      /* ignore */
+    }
+    document.body.removeChild(ta)
+  }
+}
+
 onMounted(() => {
-  setupContentObservers()
+  loadArticle()
 
   window.addEventListener('scroll', onScroll, { passive: true })
   onScroll()
+  if (contentEl.value) contentEl.value.addEventListener('click', onContentClick)
 })
 
-/* slug 变化时（同组件内路由切换）重新渲染 TOC */
+/* slug 变化时（同组件内路由切换）重新加载文章并重建 TOC */
+watch(slug, () => {
+  loadArticle()
+})
+
+// 正文渲染完成后重建 TOC 与滚动监听
 watch(articleHtml, () => {
   // 等待 v-html 把新 DOM 写入后再扫描
   requestAnimationFrame(setupContentObservers)
@@ -140,6 +238,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('scroll', onScroll)
   if (observer) observer.disconnect()
   observer = null
+  if (contentEl.value) contentEl.value.removeEventListener('click', onContentClick)
 })
 </script>
 
@@ -167,41 +266,43 @@ onBeforeUnmount(() => {
         返回文章列表
       </RouterLink>
 
+      <p v-if="loading" class="empty-hint">文章加载中…</p>
+      <p v-else-if="notFound" class="empty-hint">找不到该文章，或文章尚未发布。</p>
+      <template v-else>
       <nav class="breadcrumb" aria-label="当前分类路径">
         <RouterLink to="/articles">文章</RouterLink>
         <span class="sep">/</span>
-        <a href="#">AI 工程化</a>
+        <a href="#">{{ article.categoryKey || '知识库' }}</a>
         <span class="sep">/</span>
-        <a href="#">规格化开发</a>
-        <span class="sep">/</span>
-        <span class="current">openSpec</span>
+        <span class="current">{{ articleTitle }}</span>
       </nav>
 
       <h1 class="article-title">{{ articleTitle }}</h1>
-      <p class="article-lead">
-        当 AI 编码助手开始接手真实项目，最大的问题不是"写不出代码"，而是"写出的代码你我都不认得"。openSpec
-        用一份人类可读的规格文件，把意图锁死在代码之前。
-      </p>
+      <p v-if="article.summary" class="article-lead">{{ article.summary }}</p>
 
-      <div class="cover"><div class="cover-glyph">spec</div></div>
+      <ArticleCover
+        :title="articleTitle"
+        :cover-image="article.coverImage"
+        ratio="16/9"
+        :max-lines="3"
+        class="cover"
+      />
 
       <div class="content markdown-body" v-html="articleHtml" />
       <p v-if="!articleHtml" class="empty-hint">该文章暂无正文内容。</p>
 
-      <div class="tags">
-        <a href="#" class="tag">openSpec</a>
-        <a href="#" class="tag">AI 工程化</a>
-        <a href="#" class="tag">规格化开发</a>
-        <a href="#" class="tag">提示词工程</a>
+      <div v-if="article.tags.length" class="tags">
+        <a v-for="t in article.tags" :key="t" href="#" class="tag">{{ t }}</a>
       </div>
 
       <div class="author-card">
-        <span class="avatar">林</span>
+        <span class="avatar">{{ (article.author || '作')[0] }}</span>
         <div>
-          <div class="a-name">林深</div>
-          <div class="a-bio">后端工程师，关注 AI 与工程实践的交界地带。</div>
+          <div class="a-name">{{ article.author || '匿名作者' }}</div>
+          <div class="a-bio">知识库作者</div>
         </div>
       </div>
+      </template>
     </article>
 
     <aside class="toc">
@@ -433,7 +534,7 @@ onBeforeUnmount(() => {
 /* ===== Cover ===== */
 .cover {
   width: 100%;
-  aspect-ratio: 21 / 9;
+  aspect-ratio: 16 / 9;
   border-radius: var(--radius-lg);
   overflow: hidden;
   margin-bottom: 40px;
@@ -458,6 +559,13 @@ onBeforeUnmount(() => {
   color: rgba(255,255,255,0.92);
   letter-spacing: 0.1em;
   text-shadow: 0 4px 30px rgba(0, 0, 0, 0.35);
+}
+
+.cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 /* ===== Content container ===== */
@@ -786,17 +894,66 @@ onBeforeUnmount(() => {
 }
 
 /* ===== Code block（marked + highlight.js 输出） ===== */
-.content.markdown-body .code-block {
-  background-color: #161616;
-  color: #e6e6e6;
-  border-radius: var(--radius-md);
-  padding: 20px 22px;
-  overflow-x: auto;
+/* ===== One Dark Pro 主题 ===== */
+.content.markdown-body .code-block-wrap {
   margin: 0 0 26px;
+  border: 1px solid #181a1f;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: #282c34;
+}
+
+.content.markdown-body .code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background-color: #21252b;
+  border-bottom: 1px solid #181a1f;
+}
+
+.content.markdown-body .code-lang {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #abb2bf;
+}
+
+.content.markdown-body .code-copy {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  color: #abb2bf;
+  background: transparent;
+  border: 1px solid #3a3f4b;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.content.markdown-body .code-copy:hover {
+  color: #ffffff;
+  border-color: #61afef;
+}
+
+.content.markdown-body .code-copy.copied {
+  color: #98c379;
+  border-color: #98c379;
+}
+
+.content.markdown-body .code-block {
+  background-color: #282c34;
+  color: #abb2bf;
+  border-radius: 0;
+  border: none;
+  padding: 18px 22px;
+  overflow-x: auto;
+  margin: 0;
   font-family: var(--font-mono);
   font-size: 13.5px;
   line-height: 1.75;
-  border: 1px solid #000;
 }
 
 .content.markdown-body .code-block code.hljs {
@@ -809,10 +966,10 @@ onBeforeUnmount(() => {
   color: inherit;
 }
 
-/* highlight.js token 配色（accent 绿 / 暖橙 / 冷蓝） */
+/* highlight.js token 配色 —— One Dark Pro 主题 */
 .content.markdown-body .hljs-comment,
 .content.markdown-body .hljs-quote {
-  color: #6b6b6b;
+  color: #5c6370;
   font-style: italic;
 }
 
@@ -820,37 +977,55 @@ onBeforeUnmount(() => {
 .content.markdown-body .hljs-selector-tag,
 .content.markdown-body .hljs-literal,
 .content.markdown-body .hljs-section,
-.content.markdown-body .hljs-name {
-  color: #5fc59a;
+.content.markdown-body .hljs-doctag {
+  color: #c678dd;
 }
 
 .content.markdown-body .hljs-string,
-.content.markdown-body .hljs-attr,
 .content.markdown-body .hljs-template-tag,
-.content.markdown-body .hljs-addition {
-  color: #e0b27a;
+.content.markdown-body .hljs-addition,
+.content.markdown-body .hljs-regexp {
+  color: #98c379;
+}
+
+.content.markdown-body .hljs-attr,
+.content.markdown-body .hljs-attribute {
+  color: #d19a66;
 }
 
 .content.markdown-body .hljs-number,
 .content.markdown-body .hljs-type,
 .content.markdown-body .hljs-built_in,
-.content.markdown-body .hljs-class .hljs-title {
-  color: #8fb3ff;
+.content.markdown-body .hljs-class .hljs-title,
+.content.markdown-body .hljs-symbol,
+.content.markdown-body .hljs-meta {
+  color: #d19a66;
 }
 
-.content.markdown-body .hljs-attribute,
 .content.markdown-body .hljs-variable,
-.content.markdown-body .hljs-property {
-  color: #d3c6a5;
+.content.markdown-body .hljs-property,
+.content.markdown-body .hljs-params,
+.content.markdown-body .hljs-tag {
+  color: #e06c75;
 }
 
 .content.markdown-body .hljs-title,
-.content.markdown-body .hljs-function .hljs-title {
-  color: #c5e1a5;
+.content.markdown-body .hljs-function .hljs-title,
+.content.markdown-body .hljs-name {
+  color: #61afef;
 }
 
-.content.markdown-body .hljs-meta {
-  color: #8a8a8a;
+.content.markdown-body .hljs-meta .hljs-keyword {
+  color: #56b6c2;
+}
+
+.content.markdown-body .hljs-deletion {
+  color: #e06c75;
+}
+
+.content.markdown-body .hljs-link {
+  color: #61afef;
+  text-decoration: underline;
 }
 
 .content.markdown-body .hljs-emphasis {
@@ -859,11 +1034,7 @@ onBeforeUnmount(() => {
 
 .content.markdown-body .hljs-strong {
   font-weight: 600;
-}
-
-:root[data-theme='dark'] .content.markdown-body .code-block {
-  background-color: #0c0c0c;
-  border-color: #000;
+  color: #ffffff;
 }
 
 /* ===== :::callout 提示框（复用原型 .callout 外观） ===== */
