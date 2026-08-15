@@ -57,7 +57,7 @@ function onScroll() {
 
   <ResumeContent :content="resume" />
 
-  <AppFooter padding-y="36px" margin-top="64px" />
+  <AppFooter margin-top="64px" />
 </template>
 
 <style scoped>

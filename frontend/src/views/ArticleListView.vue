@@ -626,7 +626,7 @@ onBeforeUnmount(() => {
     </aside>
   </main>
 
-  <AppFooter padding-y="40px" />
+  <AppFooter />
 </template>
 
 <style scoped>

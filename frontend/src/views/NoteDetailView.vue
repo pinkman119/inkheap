@@ -206,7 +206,7 @@ function fallbackImg(e) {
     </div>
   </main>
 
-  <AppFooter padding-y="40px" />
+  <AppFooter />
 
   <!-- Lightbox -->
   <div

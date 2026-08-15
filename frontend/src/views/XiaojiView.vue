@@ -131,7 +131,7 @@ function onErr(e) {
     </div>
   </main>
 
-  <AppFooter padding-y="40px" />
+  <AppFooter />
 </template>
 
 <style scoped>
