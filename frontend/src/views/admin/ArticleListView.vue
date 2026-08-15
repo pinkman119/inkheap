@@ -78,7 +78,7 @@
           <table class="article-table">
             <thead class="article-table__head">
               <tr>
-                <th class="th-index">#</th>
+                <th class="th-index">序号</th>
                 <th>标题</th>
                 <th>作者</th>
                 <th>状态</th>
@@ -321,6 +321,10 @@ export default {
       return out
     }
   },
+  created() {
+    // 请求序号令牌：每次重置列表时递增，用于丢弃切换分类前在途的旧请求响应
+    this._loadSeq = 0
+  },
   async mounted() {
     await this.loadCategories()
     await this.loadArticles(true)
@@ -385,11 +389,19 @@ export default {
       return s ? `?${s}` : ''
     },
     async loadArticles(reset = false) {
-      if (reset) { this.page = 1; this.articles = [] }
+      if (reset) {
+        this.page = 1
+        this.articles = []
+        this._loadSeq += 1
+        // 重置同时清空“加载更多”标志，避免在途的 loadMore 响应继续生效
+        this.loadingMore = false
+      }
+      const seq = this._loadSeq
       this.loading = true
       this.loadError = false
       try {
         const data = await api.get(`/admin/articles${this.buildQuery()}`)
+        if (seq !== this._loadSeq) return // 已被更新的筛选请求覆盖，丢弃过期响应
         const items = Array.isArray(data) ? data : (data.items || [])
         this.articles = reset ? items : this.articles.concat(items)
         this.total = typeof data.total === 'number' ? data.total : this.articles.length
@@ -399,22 +411,34 @@ export default {
         }
         this.totalPages = data.totalPages || 1
         this.page = data.page || this.page
-      } catch (e) { this.loadError = true }
-      finally { this.loading = false; this.loadingMore = false }
+      } catch (e) {
+        if (seq !== this._loadSeq) return
+        this.loadError = true
+      }
+      finally {
+        if (seq === this._loadSeq) { this.loading = false; this.loadingMore = false }
+      }
     },
     async loadMore() {
-      if (this.loadingMore || !this.hasMore) return
+      // loading 期间（切分类/重置正在请求）不加载更多，避免基于旧 totalPages 提前翻页
+      if (this.loadingMore || this.loading || !this.hasMore) return
       this.loadingMore = true
       this.loadError = false
+      const seq = this._loadSeq
       this.page += 1
       try {
         const data = await api.get(`/admin/articles${this.buildQuery()}`)
+        if (seq !== this._loadSeq) return // 加载期间发生了筛选切换，丢弃旧分类的翻页数据
         const items = Array.isArray(data) ? data : (data.items || [])
         this.articles = this.articles.concat(items)
         this.totalPages = data.totalPages || this.totalPages
         this.page = data.page || this.page
-      } catch (e) { this.loadError = true; this.page -= 1 }
-      finally { this.loadingMore = false }
+      } catch (e) {
+        if (seq !== this._loadSeq) return
+        this.loadError = true
+        this.page -= 1
+      }
+      finally { if (seq === this._loadSeq) this.loadingMore = false }
     },
     setupObserver() {
       if (!('IntersectionObserver' in window)) return

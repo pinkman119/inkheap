@@ -50,6 +50,15 @@
             </router-link>
           </div>
           <div class="nav-section">
+            <div class="section-label">简历模块</div>
+            <router-link to="/admin/resume" class="nav-item" active-class="active">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 9h5M7 13h10M7 17h7"/>
+              </svg>
+              <span>简历管理</span>
+            </router-link>
+          </div>
+          <div class="nav-section">
             <div class="section-label">知识库</div>
             <router-link to="/admin/categories" class="nav-item" active-class="active">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">

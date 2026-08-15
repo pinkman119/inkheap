@@ -6,7 +6,9 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ArticleModule } from './modules/article/article.module';
 import { CategoryModule } from './modules/category/category.module';
 import { HomePageModule } from './modules/homepage/homepage.module';
+import { ResumeModule } from './modules/resume/resume.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { ProxyModule } from './modules/proxy/proxy.module';
 
 @Module({
   imports: [
@@ -21,7 +23,9 @@ import { UploadModule } from './modules/upload/upload.module';
     ArticleModule,
     CategoryModule,
     HomePageModule,
+    ResumeModule,
     UploadModule,
+    ProxyModule,
   ],
   controllers: [],
   providers: [],

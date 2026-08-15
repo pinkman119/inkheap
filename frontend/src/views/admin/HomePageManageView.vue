@@ -1,6 +1,7 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
+import HomeView from '@/views/HomeView.vue'
 
 const api = useApi()
 
@@ -20,16 +21,63 @@ const form = ref({
 const uploadedFileId = ref('')
 const uploading = ref(false)
 
-// 实时预览用的派生值
-const preview = ref({
-  siteName: '',
-  personTitle: '',
-  codeContent: '',
-  avatar: '',
+// 已保存的代码框内容快照（用于「还原」）
+let savedCodeContent = ''
+
+/* ===== 实时预览：抽屉内直接复用前台首页页面渲染 ===== */
+const previewOpen = ref(false)
+const previewData = computed(() => ({
+  siteName: form.value.siteName,
+  personTitle: form.value.personTitle,
+  codeContent: form.value.codeContent,
+  avatar: form.value.avatar,
+}))
+
+/* ===== 预览抽屉等比例缩放 =====
+ * HomeView 以 1320px 设计宽度（顶栏 max-width），抽屉宽度不足以容纳原布局。
+ * 用 CSS zoom 在基准宽度上整体缩放，实现方式与简历管理抽屉一致。 */
+const PREVIEW_BASE_WIDTH = 1320
+const drawerBodyRef = ref(null)
+const drawerWidth = ref(0)
+
+const previewScale = computed(() => {
+  if (!drawerWidth.value) return 1
+  return Math.min(1, drawerWidth.value / PREVIEW_BASE_WIDTH)
 })
+const previewScaleStyle = computed(() => ({
+  width: PREVIEW_BASE_WIDTH + 'px',
+  zoom: previewScale.value,
+}))
+
+function measurePreview() {
+  nextTick(() => {
+    if (drawerBodyRef.value) {
+      const cs = window.getComputedStyle(drawerBodyRef.value)
+      const pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0)
+      drawerWidth.value = drawerBodyRef.value.clientWidth - pad
+    }
+  })
+}
+function onWindowResize() {
+  measurePreview()
+}
+watch(previewOpen, (open) => {
+  if (open) measurePreview()
+})
+
+/* ===== 未保存修改标记 ===== */
+const dirty = ref(false)
+let suppressDirty = false
+watch(
+  () => JSON.stringify(form.value),
+  () => {
+    if (!suppressDirty) dirty.value = true
+  },
+)
 
 async function load() {
   loading.value = true
+  suppressDirty = true
   try {
     const data = await api.get('/admin/home-page')
     form.value = {
@@ -38,17 +86,17 @@ async function load() {
       codeContent: data.codeContent ?? '',
       avatar: data.avatar ?? '',
     }
+    savedCodeContent = form.value.codeContent
     uploadedFileId.value = ''
-    syncPreview()
+    dirty.value = false
   } catch (e) {
     showToast('加载失败: ' + e.message, 'error')
   } finally {
     loading.value = false
+    // 等 dirty watcher 完成回填触发后再解除抑制，避免误判为「未保存修改」
+    await nextTick()
+    suppressDirty = false
   }
-}
-
-function syncPreview() {
-  preview.value = { ...form.value, avatar: api.assetUrl(form.value.avatar) }
 }
 
 // ===== 头像上传 =====
@@ -62,7 +110,6 @@ async function onAvatarChange(e) {
     const res = await api.upload('/admin/upload', fd)
     form.value.avatar = res.url
     uploadedFileId.value = res.id
-    syncPreview()
     showToast('头像上传成功', 'success')
   } catch (err) {
     showToast('上传失败: ' + err.message, 'error')
@@ -80,14 +127,17 @@ async function removeAvatar() {
     }
     form.value.avatar = ''
     uploadedFileId.value = ''
-    syncPreview()
     showToast('头像已移除', 'success')
   } catch (err) {
     showToast('移除失败: ' + err.message, 'error')
   }
 }
 
-async function save() {
+/* ===== 保存 =====
+ * opts.auto = true 表示自动保存触发：成功时不弹 toast 打扰，失败仍提示错误。
+ * saving 互斥保护：自动保存与 Ctrl+S / 手动保存并发时只执行一个。 */
+async function save(opts = {}) {
+  if (saving.value) return
   saving.value = true
   try {
     const payload = {
@@ -97,8 +147,10 @@ async function save() {
       avatar: form.value.avatar || null,
     }
     await api.put('/admin/home-page', payload)
-    syncPreview()
-    showToast('首页配置已保存', 'success')
+    dirty.value = false
+    savedCodeContent = form.value.codeContent
+    lastSavedAt.value = Date.now()
+    if (!opts.auto) showToast('首页配置已保存', 'success')
   } catch (e) {
     showToast('保存失败: ' + e.message, 'error')
   } finally {
@@ -107,7 +159,35 @@ async function save() {
 }
 
 function resetCode() {
-  form.value.codeContent = preview.value.codeContent
+  form.value.codeContent = savedCodeContent
+}
+
+/* ===== 每 20s 自动保存 ===== */
+const AUTOSAVE_INTERVAL = 20_000
+let autosaveTimer = null
+const lastSavedAt = ref(0)
+
+function startAutosave() {
+  stopAutosave()
+  autosaveTimer = setInterval(() => {
+    if (dirty.value && !saving.value) {
+      save({ auto: true })
+    }
+  }, AUTOSAVE_INTERVAL)
+}
+function stopAutosave() {
+  if (autosaveTimer) {
+    clearInterval(autosaveTimer)
+    autosaveTimer = null
+  }
+}
+
+/* ===== Ctrl + S 保存 ===== */
+function onKeydown(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault()
+    save()
+  }
 }
 
 function showToast(msg, type = 'success') {
@@ -116,7 +196,18 @@ function showToast(msg, type = 'success') {
   setTimeout(() => { toastMsg.value = '' }, 3000)
 }
 
-onMounted(load)
+onMounted(async () => {
+  window.addEventListener('resize', onWindowResize)
+  window.addEventListener('keydown', onKeydown)
+  startAutosave()
+  await load()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', onWindowResize)
+  window.removeEventListener('keydown', onKeydown)
+  stopAutosave()
+})
 </script>
 
 <template>
@@ -129,11 +220,16 @@ onMounted(load)
       <div>
         <h2>首页管理</h2>
         <p class="page-desc">配置前台首页展示的名称、人物 title 与代码框内容，保存后即时生效</p>
+        <span class="autosave-status" :class="{ dirty }" :title="'每 20 秒自动保存 · Ctrl + S 手动保存'">
+          {{ saving ? '保存中…' : dirty ? '未保存' : lastSavedAt ? '已自动保存 ' + new Date(lastSavedAt).toLocaleTimeString() : '' }}
+        </span>
       </div>
-      <button class="btn-primary" :disabled="saving" @click="save">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
-        {{ saving ? '保存中…' : '保存配置' }}
-      </button>
+      <div class="head-actions">
+        <button class="btn-primary" :disabled="saving" @click="save()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
+          {{ saving ? '保存中…' : '保存配置' }}
+        </button>
+      </div>
     </div>
 
     <div v-if="loading" class="empty">加载中…</div>
@@ -142,13 +238,18 @@ onMounted(load)
       <!-- 表单 -->
       <section class="panel">
         <div class="form-field">
-          <label>首页名称</label>
+          <div class="label-row">
+            <label>首页名称</label>
+            <button class="btn-ghost" @click="previewOpen = true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              实时预览
+            </button>
+          </div>
           <input
             v-model="form.siteName"
             type="text"
             maxlength="120"
             placeholder="如：INKHEAP"
-            @input="syncPreview"
           />
           <small class="hint">展示在首页标题与浏览器页签，前端数据由后台驱动</small>
         </div>
@@ -160,7 +261,6 @@ onMounted(load)
             type="text"
             maxlength="240"
             placeholder="如：Digital Gardener & Lifelong Learner"
-            @input="syncPreview"
           />
           <small class="hint">首页人物头像/署名下方的副标题</small>
         </div>
@@ -171,7 +271,6 @@ onMounted(load)
             v-model="form.codeContent"
             rows="12"
             placeholder="支持多行文本，如终端风格的介绍代码"
-            @input="syncPreview"
           ></textarea>
           <div class="field-foot">
             <small class="hint">首页终端/代码展示框内的正文</small>
@@ -210,26 +309,27 @@ onMounted(load)
           <small class="hint">支持 png/jpeg/gif/webp，最大 5MB；保存后回显到前台首页</small>
         </div>
       </section>
+    </div>
 
-      <!-- 实时预览 -->
-      <section class="panel preview-panel">
-        <div class="preview-head">实时预览</div>
-        <div class="preview-card">
-          <div class="preview-site">{{ preview.siteName || 'INKHEAP' }}</div>
-          <div class="preview-person">
-            <div class="avatar">
-              <img v-if="preview.avatar" :src="preview.avatar" alt="头像预览" />
-              <span v-else>👤</span>
-            </div>
-            <div class="preview-title">{{ preview.personTitle || '人物 Title' }}</div>
-          </div>
-          <div class="preview-terminal">
-            <div class="term-bar"><span></span><span></span><span></span></div>
-            <pre class="term-body">{{ preview.codeContent || '// 代码框内容预览' }}</pre>
+    <!-- 实时预览抽屉 -->
+    <transition name="drawer-fade">
+      <div v-if="previewOpen" class="drawer-mask" @click="previewOpen = false"></div>
+    </transition>
+    <transition name="drawer-slide">
+      <aside v-if="previewOpen" class="preview-drawer">
+        <div class="drawer-head">
+          <span>实时预览</span>
+          <button class="drawer-close" title="关闭预览" @click="previewOpen = false">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="drawer-body" ref="drawerBodyRef">
+          <div class="preview-scale" :style="previewScaleStyle">
+            <HomeView :preview-data="previewData" />
           </div>
         </div>
-      </section>
-    </div>
+      </aside>
+    </transition>
   </div>
 </template>
 
@@ -245,6 +345,18 @@ onMounted(load)
 }
 .page-head h2 { font-size: 22px; font-weight: 700; margin: 0; color: var(--text-primary); }
 .page-desc { font-size: 14px; color: var(--text-tertiary); margin: 4px 0 0; }
+.head-actions { display: flex; align-items: center; gap: 10px; }
+
+.autosave-status {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.page-head .autosave-status { display: block; margin-top: 6px; }
+.autosave-status.dirty {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
 
 .btn-primary {
   display: inline-flex;
@@ -268,12 +380,9 @@ onMounted(load)
 
 .manage-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 20px;
   align-items: start;
-}
-@media (max-width: 980px) {
-  .manage-grid { grid-template-columns: 1fr; }
 }
 
 .panel {
@@ -285,6 +394,13 @@ onMounted(load)
 
 .form-field { margin-bottom: 18px; display: flex; flex-direction: column; gap: 6px; }
 .form-field label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.label-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.label-row .btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
 .form-field input,
 .form-field textarea {
   padding: 10px 12px;
@@ -329,49 +445,63 @@ onMounted(load)
 .file-btn { cursor: pointer; display: inline-flex; align-items: center; }
 .file-btn input { display: none; }
 
-/* ===== Preview ===== */
-.preview-head { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 14px; }
-.preview-card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
+/* ===== Preview Drawer ===== */
+.drawer-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+}
+.preview-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(720px, 92vw);
   background: var(--bg-body);
+  box-shadow: var(--shadow-md);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
 }
-.preview-site { font-size: 24px; font-weight: 800; letter-spacing: 2px; color: var(--text-primary); margin-bottom: 18px; }
-.preview-person { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
-.avatar {
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  background: var(--bg-soft);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 20px;
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.drawer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
   border: 1px solid var(--border);
-  overflow: hidden;
-  flex-shrink: 0;
-}
-.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.preview-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
-.preview-terminal {
   border-radius: var(--radius-sm);
-  overflow: hidden;
-  border: 1px solid var(--border);
-  background: #0d1117;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition);
 }
-.term-bar { display: flex; gap: 6px; padding: 8px 12px; background: #161b22; }
-.term-bar span { width: 10px; height: 10px; border-radius: 50%; background: #ff5f56; }
-.term-bar span:nth-child(2) { background: #ffbd2e; }
-.term-bar span:nth-child(3) { background: #27c93f; }
-.term-body {
-  margin: 0;
-  padding: 14px 16px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 13px;
-  line-height: 1.7;
-  color: #9cdcfe;
-  white-space: pre-wrap;
-  word-break: break-word;
-  min-height: 120px;
+.drawer-close:hover { color: var(--accent); border-color: var(--accent); }
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
 }
+.preview-scale {
+  transform-origin: top left;
+}
+.drawer-fade-enter-active, .drawer-fade-leave-active { transition: opacity 0.25s; }
+.drawer-fade-enter-from, .drawer-fade-leave-to { opacity: 0; }
+.drawer-slide-enter-active, .drawer-slide-leave-active { transition: transform 0.25s ease; }
+.drawer-slide-enter-from, .drawer-slide-leave-to { transform: translateX(100%); }
 
 /* ===== Toast ===== */
 .toast {

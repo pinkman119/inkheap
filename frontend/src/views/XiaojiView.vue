@@ -2,354 +2,504 @@
 import { computed, ref } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
-import { noteTags, notes } from '@/data/notes'
+import { notes, noteTags, xiaojiStats as stats, img } from '@/data/xiaoji.js'
 
-/* ===== Tag filter（对应原型的 filterBar 点击逻辑） ===== */
+/* ===== 分类筛选（与原型 filter-bar 一致：切换 hidden，不重排 DOM） ===== */
 const activeTag = ref('all')
 
-const visibleNotes = computed(() =>
-  activeTag.value === 'all' ? notes : notes.filter((n) => n.tag === activeTag.value),
-)
+function matches(n) {
+  return activeTag.value === 'all' || n.tag === activeTag.value
+}
 
-// 原型：countEl.textContent = visible + ' / ' + cards.length + ' 篇'
-const countText = computed(() => `${visibleNotes.value.length} / ${notes.length} 篇`)
+const visibleCount = computed(() => notes.filter((n) => matches(n)).length)
 
-function selectTag(key) {
-  activeTag.value = key
+/* ===== 工具 ===== */
+function fmtDate(d) {
+  if (!d) return ''
+  const [y, m, day] = d.split('-')
+  return `${y}.${m}.${day}`
+}
+
+// 离线兜底：picsum 加载失败时换成内联 SVG 占位
+function onErr(e) {
+  const el = e.target
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'>
+    <rect width='100%' height='100%' fill='#eef1ee'/>
+    <text x='50%' y='50%' fill='#8a948d' font-size='28' font-family='serif' text-anchor='middle' dominant-baseline='middle'>小记 · 图片离线</text>
+  </svg>`
+  el.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
 }
 </script>
 
 <template>
   <AppHeader active-key="notes" />
 
-  <main class="page">
+  <main class="journal-page">
     <!-- Hero -->
-    <section class="page-hero">
-      <div class="hero-glow" />
-      <div class="page-hero-inner">
-        <span class="kicker">Xiaoji · Notes</span>
-        <h1>小记</h1>
-        <p class="lede">
-          生活里那些不值得发朋友圈、却舍不得忘的碎片。酿酒、摄影、BTC，以及一切杂谈——记录下来，就是抵抗遗忘的方式。
+    <section class="page-hero journal-hero">
+      <div class="hero-glow"></div>
+      <div class="page-hero-content">
+        <span class="kicker">Travel · 旅行小记</span>
+        <h1 class="page-title">小记</h1>
+        <p class="page-lede">
+          相册与随笔。这里有登山的喘息、徒步的泥泞、City walk 的悠闲，也有一碗面里的城市脾气。
+          不追求宏大，只记录路上那些让我停下来的瞬间。
         </p>
+        <div class="hero-stats">
+          <div class="stat">
+            <span class="stat-num">{{ stats.total }}</span>
+            <span class="stat-label">篇小记</span>
+          </div>
+          <div class="stat">
+            <span class="stat-num">{{ stats.albums }}</span>
+            <span class="stat-label">组相册</span>
+          </div>
+          <div class="stat">
+            <span class="stat-num">{{ stats.photos }}+</span>
+            <span class="stat-label">张照片</span>
+          </div>
+        </div>
       </div>
     </section>
 
-    <div class="container">
-      <!-- Filter -->
-      <div class="filter-bar" role="tablist" aria-label="文章分类">
+    <div class="journal-container">
+      <!-- 筛选条 -->
+      <nav class="filter-bar" aria-label="小记分类">
         <button
-          v-for="tag in noteTags"
-          :key="tag.key"
-          type="button"
+          v-for="t in noteTags"
+          :key="t.key"
           class="filter-btn"
-          :class="{ active: tag.key === activeTag }"
-          :aria-pressed="tag.key === activeTag"
-          @click="selectTag(tag.key)"
+          :class="{ active: activeTag === t.key }"
+          type="button"
+          @click="activeTag = t.key"
         >
-          {{ tag.label }}
+          {{ t.label }}
         </button>
-        <span class="filter-count">{{ countText }}</span>
-      </div>
+        <div class="filter-count">{{ visibleCount }} / {{ notes.length }} 篇</div>
+      </nav>
 
-      <!-- Notes -->
-      <div class="note-grid">
-        <!-- key 带上当前标签：切换筛选时卡片重新挂载，等价于原型里重放 fadeUp 动画 -->
-        <article v-for="note in visibleNotes" :key="`${activeTag}-${note.id}`" class="note-card">
-          <div class="note-cover">
-            <span class="glyph">{{ note.glyph }}</span>
-            <span class="cover-tag">{{ note.coverTag }}</span>
+      <!-- 卡片网格 -->
+      <div class="journal-grid">
+        <RouterLink
+          v-for="n in notes"
+          :key="n.id"
+          class="journal-card"
+          :class="[n.type, { hidden: !matches(n) }]"
+          :to="`/xiaoji/${n.id}`"
+        >
+          <!-- 相册封面 -->
+          <div v-if="n.type === 'album'" class="journal-cover">
+            <img
+              :src="img(n.cover, 800, 600)"
+              :alt="n.title"
+              loading="lazy"
+              @error="onErr"
+            />
+            <span class="j-type">相册</span>
+            <span class="j-photocount">{{ n.photoCount }} 张</span>
           </div>
-          <div class="note-body">
-            <div class="note-meta">{{ note.meta }}</div>
-            <h3 class="note-title">{{ note.title }}</h3>
-            <p class="note-excerpt">{{ note.excerpt }}</p>
-            <RouterLink class="note-link" :to="'/xiaoji/' + note.id">
-              阅读
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
+
+          <!-- 随笔封面：衬线引文 -->
+          <div v-else class="journal-cover essay-quote">
+            <span class="j-quote-mark">&ldquo;</span>
+            <p class="j-quote">{{ n.quote }}</p>
+          </div>
+
+          <div class="j-body">
+            <div class="j-meta">
+              <span class="j-loc">{{ n.location }}</span>
+              <span class="j-dot"></span>
+              <time :datetime="n.date">{{ fmtDate(n.date) }}</time>
+              <template v-if="n.type === 'essay' && n.readTime">
+                <span class="j-dot"></span>
+                <span>{{ n.readTime }}</span>
+              </template>
+            </div>
+            <h3 class="j-title">{{ n.title }}</h3>
+            <p class="j-excerpt">{{ n.excerpt }}</p>
+            <span class="j-link">
+              {{ n.type === 'album' ? '查看相册' : '阅读全文' }}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <line x1="5" y1="12" x2="19" y2="12" />
                 <polyline points="12 5 19 12 12 19" />
               </svg>
-            </RouterLink>
+            </span>
           </div>
-        </article>
+        </RouterLink>
       </div>
     </div>
   </main>
 
-  <AppFooter padding-y="28px" />
+  <AppFooter padding-y="40px" />
 </template>
 
 <style scoped>
-/* ===== Page layout ===== */
-.page {
-  flex: 1;
+/* ===== Journal Page（严格按 prototypes/xiaoji.html） ===== */
+.journal-page {
+  --j-line: #e3e7e2;
 }
 
-.container {
-  max-width: 1080px;
+.journal-container {
+  max-width: 1200px;
   margin: 0 auto;
   padding: 0 24px;
 }
 
-/* Page hero */
-.page-hero {
+/* Hero */
+.journal-hero {
   position: relative;
+  padding: 80px 0 48px;
+  text-align: center;
   overflow: hidden;
-  padding: 64px 24px 40px;
-  border-bottom: 1px solid var(--border-light);
 }
 
 .hero-glow {
   position: absolute;
-  top: -80px;
-  right: -60px;
-  width: 440px;
-  height: 440px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 640px;
+  height: 640px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(45, 130, 100, 0.14), transparent 65%);
-  filter: blur(48px);
+  background: radial-gradient(closest-side, rgba(45, 130, 100, 0.10), transparent 70%);
   pointer-events: none;
 }
 
-[data-theme='dark'] .hero-glow {
-  background: radial-gradient(circle, rgba(95, 197, 154, 0.13), transparent 65%);
-}
-
-.page-hero-inner {
+.page-hero-content {
   position: relative;
-  z-index: 1;
-  max-width: 1080px;
+  max-width: 640px;
   margin: 0 auto;
+  padding: 0 24px;
 }
 
 .kicker {
-  display: inline-block;
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--accent);
-  padding: 4px 12px;
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
-  border-radius: 100px;
-  background-color: var(--accent-light);
-  margin-bottom: 16px;
+  margin-bottom: 11px;
 }
 
-.page-hero h1 {
+.kicker::before {
+  content: '';
+  width: 32px;
+  height: 1px;
+  background: currentColor;
+}
+
+.page-title {
+  margin: 0 0 13px;
   font-family: var(--font-serif);
-  font-size: 40px;
-  font-weight: 700;
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.15;
   color: var(--text-primary);
-  letter-spacing: 0.02em;
-  margin-bottom: 12px;
 }
 
-.page-hero .lede {
+.page-lede {
+  margin: 0;
   font-size: 16px;
+  line-height: 1.8;
   color: var(--text-secondary);
-  max-width: 600px;
 }
 
-/* Filter bar */
+.hero-stats {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin-top: 27px;
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-num {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.stat-label {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.05em;
+}
+
+/* 筛选条 */
 .filter-bar {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-bottom: 40px;
   flex-wrap: wrap;
-  padding: 28px 0 8px;
+  padding-top: 48px;
+  border-top: 1px solid var(--j-line);
 }
 
 .filter-btn {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
   font-family: var(--font-sans);
   font-size: 14px;
-  font-weight: 500;
-  padding: 7px 16px;
+  padding: 8px 20px;
   border-radius: 100px;
   cursor: pointer;
-  border: 1px solid var(--border);
-  background-color: var(--bg-card);
-  color: var(--text-secondary);
   transition: all var(--transition);
 }
 
 .filter-btn:hover {
-  border-color: var(--accent);
   color: var(--accent);
+  border-color: var(--accent);
 }
 
 .filter-btn.active {
-  background-color: var(--accent);
+  background: var(--accent);
   border-color: var(--accent);
-  color: #ffffff;
-}
-
-[data-theme='dark'] .filter-btn.active {
-  color: #0f0f0f;
+  color: #fff;
 }
 
 .filter-count {
-  font-size: 13px;
-  color: var(--text-tertiary);
   margin-left: auto;
-  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
 }
 
-/* Note grid */
-.note-grid {
+/* 卡片网格 */
+.journal-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 22px;
-  padding: 24px 0 64px;
+  gap: 28px;
+  padding-bottom: 120px;
 }
 
-.note-card {
+.journal-card {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background-color: var(--bg-card);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
   overflow: hidden;
+  text-decoration: none;
+  color: inherit;
   transition:
     transform var(--transition),
     box-shadow var(--transition),
     border-color var(--transition);
-  animation: fadeUp .45s cubic-bezier(.22, 1, .36, 1) both;
+  animation: fadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.note-card:hover {
+.journal-card:nth-child(1) { animation-delay: 0.05s; }
+.journal-card:nth-child(2) { animation-delay: 0.1s; }
+.journal-card:nth-child(3) { animation-delay: 0.15s; }
+.journal-card:nth-child(4) { animation-delay: 0.2s; }
+.journal-card:nth-child(5) { animation-delay: 0.25s; }
+.journal-card:nth-child(6) { animation-delay: 0.3s; }
+.journal-card:nth-child(7) { animation-delay: 0.35s; }
+.journal-card:nth-child(8) { animation-delay: 0.4s; }
+.journal-card:nth-child(9) { animation-delay: 0.45s; }
+
+.journal-card:hover {
   transform: translateY(-4px);
-  box-shadow: var(--shadow-md);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(45, 130, 100, 0.35);
 }
 
-@keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-
-  to {
-    opacity: 1;
-    transform: none;
-  }
+.journal-card.hidden {
+  display: none;
 }
 
-.note-cover {
+.journal-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.journal-cover {
   position: relative;
-  height: 132px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding: 14px 16px;
-  color: #ffffff;
-  background:
-    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.16), transparent 50%),
-    linear-gradient(135deg, #2d8264, #143f30);
+  aspect-ratio: 4 / 3;
+  background: var(--bg-soft);
+  overflow: hidden;
 }
 
-[data-theme='dark'] .note-cover {
-  background:
-    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.13), transparent 50%),
-    linear-gradient(135deg, #2f6b54, #0e2a20);
+.journal-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.note-cover .glyph {
-  font-family: var(--font-mono);
-  font-size: 30px;
-  opacity: 0.92;
+.journal-card:hover .journal-cover img {
+  transform: scale(1.05);
 }
 
-.note-cover .cover-tag {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  letter-spacing: 0.08em;
-  padding: 3px 10px;
+.j-type {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(26, 26, 26, 0.65);
+  backdrop-filter: blur(4px);
+  padding: 4px 12px;
   border-radius: 100px;
-  background-color: rgba(255,255,255,0.16);
-  border: 1px solid rgba(255,255,255,0.28);
 }
 
-.note-body {
-  padding: 18px 18px 20px;
+.j-photocount {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  font-size: 12px;
+  color: #fff;
+  background: rgba(26, 26, 26, 0.65);
+  padding: 4px 10px;
+  border-radius: 100px;
+}
+
+/* 随笔引文封面 */
+.essay-quote {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  justify-content: center;
+  padding: 28px 30px;
+  background: linear-gradient(135deg, rgba(45, 130, 100, 0.08), rgba(45, 130, 100, 0.03));
+  aspect-ratio: auto;
+  min-height: 230px;
+  border-bottom: 1px solid var(--j-line);
 }
 
-.note-meta {
-  font-family: var(--font-mono);
-  font-size: 12.5px;
+.j-quote-mark {
+  font-family: var(--font-serif);
+  font-size: 56px;
+  line-height: 0.5;
   color: var(--accent);
-  margin-bottom: 8px;
+  opacity: 0.4;
 }
 
-.note-title {
-  font-size: 18px;
-  font-weight: 600;
+.j-quote {
+  margin: 22px 0 0;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  line-height: 1.6;
   color: var(--text-primary);
-  margin-bottom: 8px;
 }
 
-.note-excerpt {
-  font-size: 14px;
-  color: var(--text-secondary);
+/* 卡片内容 */
+.j-body {
+  padding: 22px 24px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   flex: 1;
-  margin-bottom: 16px;
 }
 
-.note-link {
+.j-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+  flex-wrap: wrap;
+}
+
+.j-loc {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.j-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  opacity: 0.6;
+}
+
+.j-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 20px;
+  line-height: 1.45;
+  color: var(--text-primary);
+  transition: color var(--transition);
+}
+
+.journal-card:hover .j-title {
+  color: var(--accent);
+}
+
+.j-excerpt {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.j-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  align-self: flex-start;
-  font-size: 14px;
-  font-weight: 500;
+  margin-top: auto;
+  padding-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   color: var(--accent);
-  text-decoration: none;
-  transition: gap var(--transition);
 }
 
-.note-link:hover {
-  gap: 10px;
+.j-link svg {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--transition);
 }
 
-.note-link svg {
-  width: 15px;
-  height: 15px;
+.journal-card:hover .j-link svg {
+  transform: translateX(4px);
 }
 
-/* Responsive */
+/* ===== 响应式 ===== */
 @media (max-width: 1024px) {
-  .note-grid {
+  .journal-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .journal-hero {
+    padding: 64px 0 38px;
   }
 }
 
 @media (max-width: 768px) {
-  .page-hero {
-    padding: 40px 16px 32px;
-  }
-
-  .page-hero h1 {
-    font-size: 32px;
-  }
-
-  .note-grid {
+  .journal-grid {
     grid-template-columns: 1fr;
-    padding: 20px 0 48px;
+    gap: 20px;
+  }
+
+  .filter-bar {
+    padding-top: 32px;
+  }
+
+  .journal-hero {
+    padding: 54px 0 28px;
+  }
+
+  .hero-stats {
+    gap: 16px;
   }
 }
-
-/* 原型 @media (max-width: 480px) 内只有 .nav-links { display: none }，属顶栏样式，已在 AppHeader.vue 中还原 */
 </style>

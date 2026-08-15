@@ -1,236 +1,252 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
-import { noteContent, noteTitles } from '@/data/noteContent'
-import { renderMarkdown } from '@/utils/markdown'
+import { notes, img } from '@/data/xiaoji.js'
 
-const route = useRoute()
+const props = defineProps({
+  id: { type: String, default: '' },
+})
 
-/* ===== 当前笔记 ===== */
-const noteId = computed(() => route.params.id)
-const noteTitle = computed(() => noteTitles[noteId.value] || '小记')
-const noteMd = computed(() => noteContent[noteId.value] || '')
-const noteHtml = computed(() => renderMarkdown(noteMd.value))
+/* ===== 当前条目（无效 id 兜底到第一条，与原型一致） ===== */
+const idx = computed(() => {
+  const i = notes.findIndex((n) => n.id === Number(props.id))
+  return i === -1 ? 0 : i
+})
+const note = computed(() => notes[idx.value])
+const prev = computed(() => notes[(idx.value - 1 + notes.length) % notes.length])
+const next = computed(() => notes[(idx.value + 1) % notes.length])
+const typeLabel = computed(() => (note.value.type === 'album' ? '相册' : '随笔'))
+const coverSeed = computed(() =>
+  note.value.type === 'album' && note.value.photos?.length
+    ? note.value.photos[0].s
+    : note.value.cover,
+)
 
 /* ===== 阅读进度条 ===== */
-const progress = ref(0)
+const progressEl = ref(null)
 
 function onScroll() {
   const h = document.documentElement
-  progress.value = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100
-}
-
-/* ===== 目录：扫描正文 h2/h3，构建两级嵌套树 ===== */
-const contentEl = ref(null)
-const tocTree = ref([])
-const activeId = ref('')
-
-let parentOf = new Map()
-let headingById = new Map()
-let observer = null
-
-function buildToc() {
-  if (!contentEl.value) return []
-  const headings = Array.from(contentEl.value.querySelectorAll('h2, h3'))
-  const parents = new Map()
-  const elements = new Map()
-  const nodes = new Map()
-  const tree = []
-  let lastH2 = null
-
-  headings.forEach((h) => {
-    let parentId = null
-    if (h.tagName === 'H2') {
-      lastH2 = h.id
-    } else {
-      parentId = lastH2
-    }
-
-    const node = { id: h.id, text: h.textContent, children: [] }
-    parents.set(h.id, parentId)
-    elements.set(h.id, h)
-    nodes.set(h.id, node)
-
-    const parent = parentId ? nodes.get(parentId) : null
-    if (parent) parent.children.push(node)
-    else tree.push(node)
-  })
-
-  parentOf = parents
-  headingById = elements
-  tocTree.value = tree
-
-  return headings
-}
-
-function setupContentObservers() {
-  const headings = buildToc()
-
-  if (observer) observer.disconnect()
-  observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) activeId.value = entry.target.id
-      })
-    },
-    { rootMargin: '-80px 0px -65% 0px', threshold: 0 },
-  )
-  headings.forEach((h) => observer.observe(h))
-}
-
-const branchIds = computed(() => {
-  const chain = new Set()
-  let cur = parentOf.get(activeId.value)
-  while (cur) {
-    chain.add(cur)
-    cur = parentOf.get(cur)
+  const max = h.scrollHeight - h.clientHeight
+  if (progressEl.value) {
+    progressEl.value.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + '%'
   }
-  return chain
-})
-
-function linkClass(id) {
-  return { active: id === activeId.value, branch: branchIds.value.has(id) }
 }
-
-function scrollToHeading(id) {
-  const target = headingById.get(id)
-  if (target) target.scrollIntoView()
-}
-
-/* ===== 从 notes 数据中提取当前笔记元信息 ===== */
-import { notes, noteTags } from '@/data/notes'
-
-const currentNote = computed(() => notes.find((n) => n.id === noteId.value))
-const currentTagLabel = computed(() => {
-  if (!currentNote.value) return ''
-  const tag = noteTags.find((t) => t.key === currentNote.value.tag)
-  return tag ? tag.label : currentNote.value.coverTag
-})
 
 onMounted(() => {
-  setupContentObservers()
   window.addEventListener('scroll', onScroll, { passive: true })
+  window.addEventListener('keydown', onKeydown)
   onScroll()
-})
-
-watch(noteHtml, () => {
-  requestAnimationFrame(setupContentObservers)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', onScroll)
-  if (observer) observer.disconnect()
-  observer = null
+  window.removeEventListener('keydown', onKeydown)
 })
+
+/* ===== Lightbox ===== */
+const lbOpen = ref(false)
+const lbIndex = ref(0)
+const lbPhotos = computed(() => note.value.photos || [])
+const lbPhoto = computed(() => lbPhotos.value[lbIndex.value] || { s: '', c: '' })
+let lastFocus = null
+
+function showLb(i) {
+  if (!lbPhotos.value.length) return
+  lbIndex.value = (i + lbPhotos.value.length) % lbPhotos.value.length
+}
+
+function openLb(i, trigger) {
+  if (!lbPhotos.value.length) return
+  lastFocus = trigger || document.activeElement
+  showLb(i)
+  lbOpen.value = true
+  document.body.style.overflow = 'hidden'
+  nextTick(() => closeBtn.value?.focus())
+}
+
+function closeLb() {
+  if (!lbOpen.value) return
+  lbOpen.value = false
+  document.body.style.overflow = ''
+  if (lastFocus) lastFocus.focus()
+}
+
+const closeBtn = ref(null)
+
+function onKeydown(e) {
+  if (!lbOpen.value) return
+  if (e.key === 'Escape') closeLb()
+  else if (e.key === 'ArrowLeft') showLb(lbIndex.value - 1)
+  else if (e.key === 'ArrowRight') showLb(lbIndex.value + 1)
+}
+
+watch(
+  () => note.value.id,
+  () => {
+    closeLb()
+    document.title = `${note.value.title} · 小记 · 墨堆`
+    nextTick(() => window.scrollTo({ top: 0 }))
+    onScroll()
+  },
+  { immediate: true },
+)
+
+/* ===== 图片离线兜底（与原型 fallbackImg 一致） ===== */
+function fallbackImg(e) {
+  const el = e.target
+  const svg =
+    `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'>` +
+    `<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>` +
+    `<stop offset='0' stop-color='%232d8264'/><stop offset='1' stop-color='%23143f30'/>` +
+    `</linearGradient></defs><rect width='800' height='600' fill='url(%23g)'/>` +
+    `<text x='400' y='312' fill='rgba(255,255,255,0.72)' font-family='sans-serif' font-size='26' text-anchor='middle'>墨堆 · 旅行影像</text></svg>`
+  el.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg.replace(/%23/g, '#'))
+}
 </script>
 
 <template>
-  <div class="progress" :style="{ width: progress + '%' }" />
+  <div class="progress" ref="progressEl" aria-hidden="true"></div>
 
   <AppHeader active-key="notes" />
 
-  <div class="layout">
-    <article ref="contentEl" class="article">
-      <RouterLink to="/xiaoji" class="back-link">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <line x1="19" y1="12" x2="5" y2="12"></line>
-          <polyline points="12 19 5 12 12 5"></polyline>
+  <main class="page">
+    <div class="container">
+      <RouterLink class="back-link" to="/xiaoji">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="19" y1="12" x2="5" y2="12" />
+          <polyline points="12 19 5 12 12 5" />
         </svg>
-        返回小记列表
+        返回小记
       </RouterLink>
 
-      <nav class="breadcrumb" aria-label="当前位置">
-        <RouterLink to="/xiaoji">小记</RouterLink>
-        <span class="sep">/</span>
-        <span v-if="currentTagLabel" class="current-tag">{{ currentTagLabel }}</span>
-      </nav>
+      <span class="d-type">{{ typeLabel }}</span>
+      <h1 class="d-title">{{ note.title }}</h1>
 
-      <h1 class="article-title">{{ noteTitle }}</h1>
-
-      <div v-if="currentNote" class="article-meta">
-        <div class="meta-item">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
+      <div class="d-meta">
+        <span v-if="note.location" class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 10c0 7-9 11-9 11s-9-4-9-11a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
           </svg>
-          {{ currentNote.meta }}
+          {{ note.location }}
+        </span>
+        <span v-if="note.date" class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          {{ note.date }}
+        </span>
+        <span v-if="note.duration" class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+          </svg>
+          {{ note.duration }}
+        </span>
+        <span v-if="note.readTime" class="meta-item">{{ note.readTime }}</span>
+        <span class="d-tags">
+          <span v-for="t in note.tags" :key="t" class="chip">{{ t }}</span>
+        </span>
+      </div>
+
+      <template v-if="note.type === 'album'">
+        <div class="d-cover">
+          <img :src="img(coverSeed, 1200, 520)" :alt="note.title" @error="fallbackImg" />
         </div>
-        <span class="dot">·</span>
-        <span class="meta-item tag-label">{{ currentNote.coverTag }}</span>
+      </template>
+      <div v-else class="d-cover essay-quote">
+        <span class="j-quote-mark">&ldquo;</span>
+        <p class="j-quote">{{ note.quote || note.excerpt }}</p>
       </div>
 
-      <div v-if="currentNote" class="cover">
-        <div class="cover-glyph">{{ currentNote.glyph }}</div>
-      </div>
-
-      <div class="content markdown-body" v-html="noteHtml" />
-      <p v-if="!noteHtml" class="empty-hint">该小记暂无正文内容。</p>
-
-      <div v-if="currentNote" class="note-footer">
-        <div class="tags">
-          <a href="#" class="tag">{{ currentNote.coverTag }}</a>
-          <a href="#" class="tag">小记</a>
-          <a href="#" class="tag">生活</a>
+      <!-- 相册 -->
+      <template v-if="note.photos && note.photos.length">
+        <section class="d-section">
+          <h2>相册</h2>
+          <span class="count">{{ note.photos.length }} 张</span>
+        </section>
+        <div class="gallery">
+          <div
+            v-for="(p, i) in note.photos"
+            :key="p.s"
+            class="g-thumb"
+            tabindex="0"
+            role="button"
+            :aria-label="`查看照片：${p.c}`"
+            @click="openLb(i, $event.currentTarget)"
+            @keydown.enter.prevent="openLb(i, $event.currentTarget)"
+            @keydown.space.prevent="openLb(i, $event.currentTarget)"
+          >
+            <img :src="img(p.s, 600, 450)" :alt="p.c" loading="lazy" @error="fallbackImg" />
+            <span class="g-cap">{{ p.c }}</span>
+          </div>
         </div>
-      </div>
-    </article>
+      </template>
 
-    <aside class="toc" v-if="tocTree.length">
-      <nav aria-label="目录">
-        <div class="toc-title">目录</div>
-        <ul class="toc-list">
-          <li v-for="lv1 in tocTree" :key="lv1.id">
-            <a
-              :href="`#${lv1.id}`"
-              :class="linkClass(lv1.id)"
-              :aria-current="lv1.id === activeId ? 'location' : undefined"
-              @click.prevent="scrollToHeading(lv1.id)"
-            >
-              {{ lv1.text }}
-            </a>
-            <ul v-if="lv1.children.length">
-              <li v-for="lv2 in lv1.children" :key="lv2.id">
-                <a
-                  :href="`#${lv2.id}`"
-                  :class="linkClass(lv2.id)"
-                  :aria-current="lv2.id === activeId ? 'location' : undefined"
-                  @click.prevent="scrollToHeading(lv2.id)"
-                >
-                  {{ lv2.text }}
-                </a>
-              </li>
-            </ul>
-          </li>
-        </ul>
-      </nav>
-    </aside>
+      <!-- 旅行感受 -->
+      <section class="d-section">
+        <h2>旅行感受</h2>
+      </section>
+      <!-- eslint-disable-next-line vue/no-v-html —— 正文为项目内静态数据 -->
+      <div class="d-prose" v-html="note.body"></div>
+
+      <!-- 上一篇 / 下一篇 -->
+      <div class="d-nav">
+        <RouterLink :to="`/xiaoji/${prev.id}`">
+          <span class="dir">← 上一篇</span>
+          <span class="nt">{{ prev.title }}</span>
+        </RouterLink>
+        <RouterLink class="next" :to="`/xiaoji/${next.id}`">
+          <span class="dir">下一篇 →</span>
+          <span class="nt">{{ next.title }}</span>
+        </RouterLink>
+      </div>
+    </div>
+  </main>
+
+  <AppFooter padding-y="40px" />
+
+  <!-- Lightbox -->
+  <div
+    class="lightbox"
+    :class="{ open: lbOpen }"
+    role="dialog"
+    aria-modal="true"
+    aria-label="照片查看"
+    @click.self="closeLb"
+  >
+    <button ref="closeBtn" class="lightbox__btn lightbox__close" aria-label="关闭" @click="closeLb">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    </button>
+    <div class="lightbox__inner">
+      <img class="lightbox__img" :src="img(lbPhoto.s, 1280, 860)" :alt="lbPhoto.c" @error="fallbackImg" />
+      <div class="lightbox__bar">
+        <button class="lightbox__btn" aria-label="上一张" @click="showLb(lbIndex - 1)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <span class="lightbox__count">{{ lbIndex + 1 }} / {{ lbPhotos.length }}</span>
+        <button class="lightbox__btn" aria-label="下一张" @click="showLb(lbIndex + 1)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+      </div>
+      <div class="lightbox__cap">{{ lbPhoto.c }}</div>
+    </div>
   </div>
-
-  <AppFooter padding-y="36px" />
 </template>
 
 <style scoped>
-/* ===== Reading progress ===== */
+/* ===== Reading progress（与原型一致） ===== */
 .progress {
   position: fixed;
   top: 0;
@@ -239,62 +255,18 @@ onBeforeUnmount(() => {
   width: 0%;
   background-color: var(--accent);
   z-index: 200;
-  transition: width 0.1s linear;
+  transition: width 0.08s linear;
 }
 
-/* ===== Layout ===== */
-.layout {
-  max-width: 1120px;
+/* ===== Detail layout ===== */
+.page {
+  flex: 1;
+}
+
+.container {
+  max-width: 920px;
   margin: 0 auto;
-  padding: 48px 24px 80px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 56px;
-  align-items: start;
-}
-
-.article {
-  min-width: 0;
-}
-
-@media (max-width: 1024px) {
-  .layout {
-    grid-template-columns: 1fr;
-    gap: 40px;
-  }
-
-  .toc {
-    display: none;
-  }
-}
-
-/* ===== Breadcrumb ===== */
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 13px;
-  margin-bottom: 28px;
-}
-
-.breadcrumb a {
-  color: var(--text-secondary);
-  text-decoration: none;
-  transition: color var(--transition);
-}
-
-.breadcrumb a:hover {
-  color: var(--accent);
-}
-
-.breadcrumb .sep {
-  color: var(--text-tertiary);
-}
-
-.breadcrumb .current-tag {
-  color: var(--text-primary);
-  font-weight: 500;
+  padding: 0 24px;
 }
 
 .back-link {
@@ -304,7 +276,7 @@ onBeforeUnmount(() => {
   font-size: 13px;
   color: var(--accent);
   text-decoration: none;
-  margin-bottom: 20px;
+  margin: 28px 0 0;
   font-weight: 500;
 }
 
@@ -312,70 +284,70 @@ onBeforeUnmount(() => {
   color: var(--accent-hover);
 }
 
-/* ===== Article header ===== */
-.article-title {
+.d-type {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  padding: 4px 12px;
+  border-radius: 100px;
+  margin-top: 22px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background-color: var(--accent-light);
+  color: var(--accent);
+}
+
+.d-title {
   font-family: var(--font-serif);
-  font-size: 38px;
+  font-size: 36px;
   font-weight: 700;
-  line-height: 1.35;
+  line-height: 1.4;
   letter-spacing: 0.01em;
-  margin-bottom: 16px;
-  padding-left: 20px;
-  position: relative;
-  scroll-margin-top: 90px;
+  margin: 14px 0 18px;
 }
 
-.article-title::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 6px;
-  bottom: 6px;
-  width: 5px;
-  background-color: var(--accent);
-  border-radius: 2px;
-}
-
-.article-meta {
+.d-meta {
   display: flex;
   align-items: center;
-  gap: 16px;
   flex-wrap: wrap;
-  padding: 18px 0;
+  gap: 14px 22px;
+  padding: 16px 0;
   border-top: 1px solid var(--border-light);
   border-bottom: 1px solid var(--border-light);
-  margin-bottom: 36px;
+  margin-bottom: 32px;
   font-size: 13.5px;
   color: var(--text-secondary);
 }
 
-.article-meta .dot {
-  color: var(--text-tertiary);
-}
-
-.article-meta .meta-item {
+.d-meta .meta-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 
-.article-meta svg {
+.d-meta svg {
   width: 15px;
   height: 15px;
-  color: var(--text-tertiary);
+  color: var(--accent);
 }
 
-.tag-label {
-  padding: 2px 10px;
-  border-radius: 100px;
-  background-color: var(--accent-light);
-  color: var(--accent-hover);
-  font-weight: 500;
+.d-tags {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.d-tags .chip {
   font-size: 12px;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  padding: 3px 11px;
+  border-radius: 100px;
 }
 
-/* ===== Cover ===== */
-.cover {
+.d-cover {
   width: 100%;
   aspect-ratio: 21 / 9;
   border-radius: var(--radius-lg);
@@ -383,268 +355,158 @@ onBeforeUnmount(() => {
   margin-bottom: 40px;
   position: relative;
   box-shadow: var(--shadow-sm);
-  background:
-    radial-gradient(120% 140% at 12% 18%, #ff8a5c 0%, transparent 42%),
-    radial-gradient(120% 140% at 88% 22%, #5b8def 0%, transparent 45%),
-    radial-gradient(140% 150% at 70% 95%, #2d8264 0%, transparent 50%),
-    linear-gradient(135deg, #1a1a1a, #2b2b2b);
+  background: linear-gradient(135deg, #2d8264, #143f30);
 }
 
-.cover-glyph {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 80px;
-  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.35);
-}
-
-/* ===== Content container ===== */
-.content {
-  font-size: 16px;
-  color: var(--text-primary);
-}
-
-.empty-hint {
-  color: var(--text-tertiary);
-  font-size: 15px;
-  padding: 40px 0;
-  text-align: center;
-}
-
-/* ===== Footer ===== */
-.note-footer {
-  margin-top: 48px;
-}
-
-.tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.tag {
-  font-size: 13px;
-  color: var(--text-secondary);
-  background-color: var(--bg-card);
-  border: 1px solid var(--border);
-  padding: 6px 14px;
-  border-radius: 100px;
-  text-decoration: none;
-  transition: all var(--transition);
-}
-
-.tag:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background-color: var(--accent-light);
-}
-
-/* ===== TOC sidebar ===== */
-.toc {
-  position: sticky;
-  top: 92px;
-  max-height: calc(100vh - 116px);
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.toc::-webkit-scrollbar {
-  width: 6px;
-}
-
-.toc::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
-}
-
-.toc::-webkit-scrollbar-thumb:hover {
-  background: var(--text-tertiary);
-}
-
-.toc-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  margin-bottom: 16px;
-  padding-left: 8px;
-}
-
-.toc-list,
-.toc-list ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.toc-list {
-  border-left: 1px solid var(--border);
-}
-
-.toc-list ul {
-  border-left: 1px solid var(--border);
-  margin-left: 14px;
-}
-
-.toc-list a {
+.d-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
-  padding: 7px 14px 7px 12px;
-  font-size: 14px;
-  color: var(--text-secondary);
-  text-decoration: none;
-  border-left: 2px solid transparent;
-  margin-left: -1px;
-  transition:
-    color var(--transition),
-    border-color var(--transition),
-    background-color var(--transition);
-  line-height: 1.5;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.toc-list ul a {
-  padding-left: 12px;
-  font-size: 13.5px;
+/* 随笔引文封面（与列表页 essay-quote 风格一致） */
+.d-cover.essay-quote {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 32px 40px;
+  background: linear-gradient(135deg, rgba(45, 130, 100, 0.08), rgba(45, 130, 100, 0.03));
+  aspect-ratio: auto;
+  min-height: 240px;
 }
 
-.toc-list a:hover {
-  color: var(--text-primary);
-  background-color: var(--bg-sidebar);
-}
-
-.toc-list a.branch {
-  color: var(--text-primary);
-}
-
-.toc-list a.active {
+.j-quote-mark {
+  font-family: var(--font-serif);
+  font-size: 56px;
+  line-height: 0.5;
   color: var(--accent);
-  border-left-color: var(--accent);
-  font-weight: 500;
-  background-color: var(--accent-light);
+  opacity: 0.4;
 }
 
-@media (max-width: 768px) {
-  .layout {
-    padding: 32px 16px 56px;
-  }
-
-  .article-title {
-    font-size: 28px;
-  }
-
-  .cover {
-    aspect-ratio: 16/9;
-  }
-
-  .cover-glyph {
-    font-size: 56px;
-  }
-}
-</style>
-
-<!-- markdown 排版样式（非 scoped，穿透 v-html） -->
-<style>
-/* ===== Body typography（与 ArticleDetailView 一致的排版风格） ===== */
-.content.markdown-body {
-  font-size: 16px;
-  color: var(--text-primary);
-}
-
-.content.markdown-body h1 {
-  font-family: var(--font-serif);
-  font-size: 30px;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.35;
-  margin: 48px 0 18px;
-  padding-left: 16px;
-  position: relative;
-  scroll-margin-top: 90px;
-}
-
-.content.markdown-body h1::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 4px;
-  bottom: 4px;
-  width: 4px;
-  background-color: var(--accent);
-  border-radius: 2px;
-}
-
-.content.markdown-body h2 {
-  font-family: var(--font-serif);
-  font-size: 25px;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.4;
-  margin: 48px 0 18px;
-  padding-left: 16px;
-  position: relative;
-  scroll-margin-top: 90px;
-}
-
-.content.markdown-body h2::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 4px;
-  bottom: 4px;
-  width: 4px;
-  background-color: var(--accent);
-  border-radius: 2px;
-}
-
-.content.markdown-body h3 {
+.j-quote {
+  margin: 22px 0 0;
   font-family: var(--font-serif);
   font-size: 19px;
-  font-weight: 600;
+  line-height: 1.6;
   color: var(--text-primary);
-  line-height: 1.4;
-  margin: 34px 0 14px;
-  scroll-margin-top: 90px;
 }
 
-.content.markdown-body p {
+/* ===== Section heading（相册 / 旅行感受） ===== */
+.d-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 22px;
+}
+
+.d-section h2 {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+  position: relative;
+  padding-left: 16px;
+}
+
+.d-section h2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 4px;
+  background-color: var(--accent);
+  border-radius: 2px;
+}
+
+.d-section .count {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+/* ===== Gallery ===== */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 56px;
+}
+
+.g-thumb {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: zoom-in;
+  aspect-ratio: 4 / 3;
+  background: linear-gradient(135deg, #2d8264, #143f30);
+  border: 1px solid var(--border-light);
+  transition:
+    transform var(--transition),
+    box-shadow var(--transition);
+}
+
+.g-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.g-thumb:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.g-thumb:hover img {
+  transform: scale(1.07);
+}
+
+.g-thumb .g-cap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 18px 12px 10px;
+  font-size: 12.5px;
+  color: #fff;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.62));
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.g-thumb:hover .g-cap,
+.g-thumb:focus-visible .g-cap {
+  opacity: 1;
+}
+
+.g-thumb:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ===== Prose（旅行感受） ===== */
+.d-prose {
+  font-size: 16.5px;
+  color: var(--text-primary);
+}
+
+.d-prose :deep(p) {
   margin-bottom: 22px;
   color: var(--text-primary);
 }
 
-.content.markdown-body a {
-  color: var(--accent);
-  text-decoration: none;
-  border-bottom: 1px solid var(--accent-light);
-  transition: all var(--transition);
-}
-
-.content.markdown-body a:hover {
-  color: var(--accent-hover);
-  border-bottom-color: var(--accent-hover);
-}
-
-.content.markdown-body ul,
-.content.markdown-body ol {
-  margin: 0 0 22px;
-  padding-left: 22px;
-}
-
-.content.markdown-body li {
-  margin-bottom: 10px;
-}
-
-.content.markdown-body strong {
+.d-prose :deep(h3) {
+  font-family: var(--font-serif);
+  font-size: 21px;
   font-weight: 600;
-  color: var(--text-primary);
+  margin: 36px 0 14px;
 }
 
-.content.markdown-body blockquote {
-  margin: 28px 0;
+.d-prose :deep(blockquote) {
+  margin: 26px 0;
   padding: 16px 22px;
   border-left: 3px solid var(--accent);
   background-color: var(--accent-light);
@@ -653,168 +515,166 @@ onBeforeUnmount(() => {
   font-style: normal;
 }
 
-.content.markdown-body blockquote p:last-child {
+.d-prose :deep(blockquote p:last-child) {
   margin-bottom: 0;
 }
 
-.content.markdown-body code {
-  font-family: var(--font-mono);
-  font-size: 0.88em;
-  background-color: var(--accent-light);
-  color: var(--accent-hover);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.content.markdown-body .code-block {
-  background-color: #161616;
-  color: #e6e6e6;
-  border-radius: var(--radius-md);
-  padding: 20px 22px;
-  overflow-x: auto;
-  margin: 0 0 26px;
-  font-family: var(--font-mono);
-  font-size: 13.5px;
-  line-height: 1.75;
-  border: 1px solid #000;
-}
-
-.content.markdown-body .code-block code.hljs {
-  display: block;
-  background: transparent;
-  padding: 0;
-  font-family: inherit;
-  font-size: inherit;
-  line-height: inherit;
-  color: inherit;
-}
-
-/* highlight.js token 配色 */
-.content.markdown-body .hljs-comment,
-.content.markdown-body .hljs-quote {
-  color: #6b6b6b;
-  font-style: italic;
-}
-
-.content.markdown-body .hljs-keyword,
-.content.markdown-body .hljs-selector-tag,
-.content.markdown-body .hljs-literal,
-.content.markdown-body .hljs-section,
-.content.markdown-body .hljs-name {
-  color: #5fc59a;
-}
-
-.content.markdown-body .hljs-string,
-.content.markdown-body .hljs-attr,
-.content.markdown-body .hljs-template-tag,
-.content.markdown-body .hljs-addition {
-  color: #e0b27a;
-}
-
-.content.markdown-body .hljs-number,
-.content.markdown-body .hljs-type,
-.content.markdown-body .hljs-built_in,
-.content.markdown-body .hljs-class .hljs-title {
-  color: #8fb3ff;
-}
-
-.content.markdown-body .hljs-attribute,
-.content.markdown-body .hljs-variable,
-.content.markdown-body .hljs-property {
-  color: #d3c6a5;
-}
-
-.content.markdown-body .hljs-title,
-.content.markdown-body .hljs-function .hljs-title {
-  color: #c5e1a5;
-}
-
-.content.markdown-body .hljs-meta {
-  color: #8a8a8a;
-}
-
-.content.markdown-body .hljs-emphasis {
-  font-style: italic;
-}
-
-.content.markdown-body .hljs-strong {
-  font-weight: 600;
-}
-
-[data-theme='dark'] .content.markdown-body .code-block {
-  background-color: #0c0c0c;
-  border-color: #000;
-}
-
-/* ===== :::callout ===== */
-.content.markdown-body .callout {
-  display: flex;
-  gap: 14px;
-  margin: 28px 0;
-  padding: 18px 20px;
-  background-color: var(--bg-sidebar);
-  border: 1px solid var(--border-light);
-  border-left: 3px solid var(--accent);
-  border-radius: var(--radius-sm);
-}
-
-.content.markdown-body .callout .c-title {
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 4px;
-}
-
-.content.markdown-body .callout p {
-  font-size: 14.5px;
+.d-prose :deep(.lead) {
+  font-size: 18px;
   color: var(--text-secondary);
-  margin: 0;
+  font-weight: 300;
+  margin-bottom: 28px;
 }
 
-.content.markdown-body .md-callout[data-type='warning'] {
-  border-left-color: #e0a458;
+/* ===== Prev / Next ===== */
+.d-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 64px 0 8px;
 }
 
-.content.markdown-body .md-callout[data-type='info'] {
-  border-left-color: #5b8def;
-}
-
-.content.markdown-body img {
-  max-width: 100%;
-  height: auto;
-  border-radius: var(--radius-md);
-  margin: 8px 0 24px;
-  display: block;
-}
-
-.content.markdown-body table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 0 0 26px;
-  font-size: 14.5px;
-  overflow: hidden;
-  border-radius: var(--radius-sm);
-}
-
-.content.markdown-body th,
-.content.markdown-body td {
+.d-nav a {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 20px 22px;
   border: 1px solid var(--border-light);
-  padding: 10px 14px;
-  text-align: left;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-card);
+  text-decoration: none;
+  color: inherit;
+  transition: all var(--transition);
 }
 
-.content.markdown-body th {
-  background-color: var(--bg-sidebar);
+.d-nav a:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+
+.d-nav .dir {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+}
+
+.d-nav .nt {
+  font-family: var(--font-serif);
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.content.markdown-body tr:nth-child(even) td {
-  background-color: var(--bg-card);
+.d-nav .next {
+  text-align: right;
+  align-items: flex-end;
 }
 
-.content.markdown-body hr {
-  border: none;
-  border-top: 1px solid var(--border-light);
-  margin: 36px 0;
+/* ===== Lightbox ===== */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background: rgba(8, 8, 8, 0.86);
+  backdrop-filter: blur(6px);
+}
+
+.lightbox.open {
+  display: flex;
+}
+
+.lightbox__inner {
+  max-width: 1100px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.lightbox__img {
+  max-width: 100%;
+  max-height: 78vh;
+  border-radius: var(--radius-md);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  object-fit: contain;
+}
+
+.lightbox__cap {
+  color: #e8e8e8;
+  font-size: 14px;
+  text-align: center;
+}
+
+.lightbox__bar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.lightbox__btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+
+.lightbox__btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: #fff;
+}
+
+.lightbox__count {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #cfcfcf;
+}
+
+.lightbox__close {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 16px;
+  }
+
+  .d-title {
+    font-size: 28px;
+  }
+
+  .gallery {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .d-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .d-nav .next {
+    text-align: left;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .gallery {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

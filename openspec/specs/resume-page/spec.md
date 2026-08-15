@@ -1,0 +1,53 @@
+# resume-page Specification
+
+## Purpose
+TBD - created by archiving change resume-module. Update Purpose after archive.
+## Requirements
+### Requirement: 按新原型渲染简历页面
+前台简历页 MUST 严格按照最新原型 `frontend/prototypes/resume.html` 的布局与样式渲染，包括：Hero 区（姓名、handle、tagline、下载 PDF 按钮、隐私提示信息）、页面内锚点导航（关于我 / 教育背景 / 技术与能力 / 项目经历 / 工作经历）、关于我（lead-text 段落 + callout 引用块）、技术与能力（tech-cat + tech-list + tech-item 名称/描述列表）、项目经历（proj 卡片：标题 + 年份 + 描述 + 标签）、工作经历（exp 时间线）、侧边栏（个人信息 / 教育背景 / 资质证书）。
+
+#### Scenario: 页面结构对齐原型
+- **WHEN** 用户打开前台简历页
+- **THEN** 页面主区域与侧边栏的区块顺序、标题层级、卡片与时间线样式均与 `resume.html` 原型一致
+
+#### Scenario: 样式与原型一致
+- **WHEN** 用户对比页面与原型文件
+- **THEN** 配色、间距、字体、圆角、阴影等视觉细节与原型一致（同一断点下的响应式表现相同）
+
+### Requirement: 锚点导航与滚动高亮
+页面 MUST 在顶部提供锚点导航条，点击导航项滚动到对应区块；滚动过程中当前所在区块对应的导航项 MUST 高亮。
+
+#### Scenario: 点击导航跳转
+- **WHEN** 用户点击导航中的"技术与能力"
+- **THEN** 页面平滑滚动到技术与能力区块，且该导航项进入高亮态
+
+#### Scenario: 滚动监听高亮
+- **WHEN** 用户滚动页面使当前视口位于"项目经历"区块
+- **THEN** 导航条中"项目经历"项高亮，其他项取消高亮
+
+### Requirement: 通过接口获取当前生效版本数据
+前台简历页 MUST 通过后端接口（`GET /api/resume`）获取当前生效版本（`isActive = true`）的简历数据，不得再从前端本地 mock 文件读取；请求失败时 MUST 降级为本地默认数据并提示加载失败。
+
+#### Scenario: 接口返回生效版本数据渲染
+- **WHEN** 接口返回当前生效版本数据
+- **THEN** 页面各区块使用接口数据渲染，Hero 姓名、项目标题、工作经历等均来自接口
+
+#### Scenario: 后台切换版本后前台更新
+- **WHEN** 后台将生效版本切换为版本 B，前台重新加载简历页
+- **THEN** 页面渲染版本 B 的内容
+
+#### Scenario: 接口失败降级
+- **WHEN** 请求 `GET /api/resume` 失败
+- **THEN** 页面使用内置默认简历数据渲染，并显示"简历数据加载失败"等提示，不出现空白页
+
+### Requirement: 响应式与打印样式
+简历页 MUST 保留原型中的响应式布局（桌面双栏、移动端单栏）与打印样式（打印时导航与侧边栏等非内容元素按原型规则隐藏/调整）。
+
+#### Scenario: 移动端单栏
+- **WHEN** 视口宽度小于原型断点（如 900px）
+- **THEN** 布局切换为单栏，主内容与侧边栏自上而下堆叠
+
+#### Scenario: 打印适配
+- **WHEN** 用户触发页面打印
+- **THEN** 按原型打印样式输出，隐藏导航条与不适于打印的元素，正文可读
+

@@ -1,0 +1,51 @@
+[     344ms] [WARNING] [Vue warn]: Unhandled error during execution of watcher callback 
+  at <NoteDetailView id="1" onVnodeUnmounted=fn<onVnodeUnmounted> ref=Ref< undefined > > 
+  at <RouterView> 
+  at <App> @ http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2229
+[     344ms] [WARNING] [Vue warn]: Unhandled error during execution of setup function 
+  at <NoteDetailView id="1" onVnodeUnmounted=fn<onVnodeUnmounted> ref=Ref< undefined > > 
+  at <RouterView> 
+  at <App> @ http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2229
+[     345ms] [WARNING] [Vue warn]: Unhandled error during execution of component update 
+  at <RouterView> 
+  at <App> @ http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2229
+[     345ms] [WARNING] [Vue Router warn]: uncaught error during route navigation: @ http://localhost:5173/node_modules/.vite/deps/vue-router.js?v=f667289a:206
+[     345ms] [ERROR] ReferenceError: Cannot access 'lbOpen' before initialization
+    at closeLb (http://localhost:5173/src/views/NoteDetailView.vue?t=1786780358017:82:3)
+    at watch.immediate (http://localhost:5173/src/views/NoteDetailView.vue?t=1786780358017:30:5)
+    at callWithErrorHandling (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2377:19)
+    at callWithAsyncErrorHandling (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2384:17)
+    at baseWatchOptions.call (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:3075:47)
+    at job (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2107:18)
+    at watch (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2142:7)
+    at doWatch (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:3103:23)
+    at watch2 (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:3036:10)
+    at setup (http://localhost:5173/src/views/NoteDetailView.vue?t=1786780358017:27:1) @ http://localhost:5173/node_modules/.vite/deps/vue-router.js?v=f667289a:2262
+[     357ms] ReferenceError: Cannot access 'lbOpen' before initialization
+    at closeLb (http://localhost:5173/src/views/NoteDetailView.vue?t=1786780358017:82:3)
+    at watch.immediate (http://localhost:5173/src/views/NoteDetailView.vue?t=1786780358017:30:5)
+    at callWithErrorHandling (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2377:19)
+    at callWithAsyncErrorHandling (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2384:17)
+    at baseWatchOptions.call (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:3075:47)
+    at job (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2107:18)
+    at watch (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2142:7)
+    at doWatch (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:3103:23)
+    at watch2 (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:3036:10)
+    at setup (http://localhost:5173/src/views/NoteDetailView.vue?t=1786780358017:27:1)
+[   19943ms] [WARNING] [Vue warn]: Unhandled error during execution of scheduler flush 
+  at <NoteDetailView id="1" onVnodeUnmounted=fn<onVnodeUnmounted> ref=Ref< undefined > > 
+  at <RouterView> 
+  at <App> @ http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2229
+[   19945ms] TypeError: Cannot read properties of null (reading 'flags')
+    at http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2717:28
+    at callWithErrorHandling (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2377:33)
+    at flushJobs (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2589:9)
+[   23340ms] [WARNING] [Vue warn]: Unhandled error during execution of scheduler flush 
+  at <NoteDetailView id="1" onVnodeUnmounted=fn<onVnodeUnmounted> ref=Ref< undefined > > 
+  at <RouterView> 
+  at <App> @ http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2229
+[   23342ms] TypeError: Cannot read properties of null (reading 'flags')
+    at http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2717:28
+    at callWithErrorHandling (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2377:33)
+    at flushJobs (http://localhost:5173/node_modules/.vite/deps/chunk-47A5N3YI.js?v=e2979561:2589:9)
+[   27809ms] [INFO] Images loaded lazily and replaced with placeholders. Load events are deferred. See https://go.microsoft.com/fwlink/?linkid=2048113 @ http://localhost:5173/#/xiaoji/1:0

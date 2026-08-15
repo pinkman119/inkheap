@@ -13,7 +13,6 @@ const categoryTree = ref([])
 const articleList = ref([])
 const allCount = ref(null) // 全部已发布文章总数（单一数字，用于"全部"节点计数）
 const loading = ref(true)
-const backToTopHidden = ref(true)
 
 /* ===== 文章列表分页（首页先渲染 20 篇，滚动触底再追加 20 篇） ===== */
 const PAGE_SIZE = 20
@@ -126,16 +125,12 @@ onMounted(() => {
   onWindowScroll()
 })
 
-// 页面滚动：滚动一定距离后显示"回到顶部" + 触底追加文章
+// 页面滚动：触底追加文章
 function onWindowScroll() {
   const y = window.scrollY || window.pageYOffset || 0
-  backToTopHidden.value = y < 240
   if (y + window.innerHeight >= document.documentElement.scrollHeight - 240) {
     loadMoreArticles()
   }
-}
-function scrollToTop() {
-  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 /* ===== 分类筛选 + 文本搜索 ===== */
@@ -575,9 +570,6 @@ onBeforeUnmount(() => {
         <p>该分类下暂无文章</p>
       </div>
 
-      <button type="button" class="back-to-top" :class="{ hidden: backToTopHidden }" @click="scrollToTop">
-        回到顶部
-      </button>
     </section>
 
     <!-- RIGHT: 侧栏 -->
@@ -1005,34 +997,11 @@ onBeforeUnmount(() => {
   font-size: 15px;
 }
 
-/* 回到顶部 */
-.back-to-top {
-  display: block;
-  width: fit-content;
-  margin: 16px auto 0;
-  padding: 10px 22px;
-  font-size: 14px;
-  color: var(--text-secondary);
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: all var(--transition);
-}
-.back-to-top:hover {
-  color: var(--text-primary);
-  border-color: var(--accent);
-  background-color: var(--bg-hover);
-}
-.back-to-top.hidden {
-  display: none;
-}
-
 .list-more {
   margin: 24px 0 8px;
   text-align: center;
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
 }
 .list-more-loading {
   display: inline-flex;

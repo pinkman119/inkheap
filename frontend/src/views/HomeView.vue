@@ -7,6 +7,12 @@ import { useApi } from '@/composables/useApi'
 
 const api = useApi()
 
+const props = defineProps({
+  /** 后台「首页管理」实时预览数据：{ siteName, personTitle, codeContent, avatar }。
+   * 传入时跳过接口加载，直接用该数据渲染，供管理端抽屉内复用本页渲染逻辑。 */
+  previewData: { type: Object, default: null },
+})
+
 const DEFAULT_AVATAR = 'https://picsum.photos/seed/cat/400/400'
 
 const profile = ref({
@@ -26,20 +32,43 @@ const { isDark } = useTheme()
 /* ===== 首页配置（来自后台） ===== */
 const codeContent = ref('Hello, World. Welcome to My Page!\nme show you about me!\n这里只能定义一部分的我，\n这里不能定义我的全部！')
 
+function applyConfig(data) {
+  if (data.siteName) profile.value.name = data.siteName
+  if (data.personTitle) profile.value.role = data.personTitle
+  if (data.codeContent) codeContent.value = data.codeContent
+  // 优先使用后台配置的头像，缺失时回退默认占位图
+  profile.value.avatar = api.assetUrl(data.avatar) || DEFAULT_AVATAR
+}
+
 async function loadHomeConfig() {
+  // 管理端实时预览：直接使用传入的预览数据，跳过接口加载
+  if (props.previewData) {
+    applyConfig(props.previewData)
+    runTypewriter()
+    return
+  }
   try {
     const data = await api.get('/public/home-page')
-    if (data.siteName) profile.value.name = data.siteName
-    if (data.personTitle) profile.value.role = data.personTitle
-    if (data.codeContent) codeContent.value = data.codeContent
-    // 优先使用后台配置的头像，缺失时回退默认占位图
-    profile.value.avatar = api.assetUrl(data.avatar) || DEFAULT_AVATAR
+    applyConfig(data)
     runTypewriter()
   } catch (e) {
     // 拉取失败时使用默认值，保证页面可用
     runTypewriter()
   }
 }
+
+/* 管理端实时预览：表单数据变化时重新应用配置并（防抖后）重跑打字机 */
+let previewTimer = null
+watch(
+  () => props.previewData,
+  (data) => {
+    if (!data) return
+    applyConfig(data)
+    if (previewTimer) clearTimeout(previewTimer)
+    previewTimer = setTimeout(() => runTypewriter(), 300)
+  },
+  { deep: true },
+)
 
 /* ===== 终端打字机 ===== */
 const terminalLines = computed(() =>
@@ -96,12 +125,16 @@ watch(isDark, () => {
 
 onMounted(async () => {
   await loadHomeConfig()
-  await wait(400)
-  if (!cancelled) runTypewriter()
+  // 预览模式已在 loadHomeConfig 中启动打字机，无需再次延迟启动
+  if (!props.previewData) {
+    await wait(400)
+    if (!cancelled) runTypewriter()
+  }
 })
 
 onBeforeUnmount(() => {
   cancelTypewriter()
+  if (previewTimer) clearTimeout(previewTimer)
 })
 </script>
 

@@ -1,0 +1,111 @@
+- generic [ref=f1e2]:
+  - banner [ref=f1e3]:
+    - generic [ref=f1e4]:
+      - link "墨堆" [ref=f1e5] [cursor=pointer]:
+        - /url: "#/"
+      - navigation [ref=f1e13]:
+        - generic [ref=f1e14]:
+          - link "首页" [ref=f1e15] [cursor=pointer]:
+            - /url: "#/"
+          - link "知识库" [ref=f1e16] [cursor=pointer]:
+            - /url: "#/articles"
+          - link "简历" [ref=f1e17] [cursor=pointer]:
+            - /url: "#/resume"
+          - link "数字生命" [ref=f1e18] [cursor=pointer]:
+            - /url: "#/digital-life"
+        - generic [ref=f1e19]:
+          - button "切换到生活模式" [ref=f1e20] [cursor=pointer]
+          - generic [ref=f1e23]: 工作模式
+  - main [ref=f1e24]:
+    - generic [ref=f1e25]:
+      - link "返回小记" [ref=f1e26] [cursor=pointer]:
+        - /url: "#/xiaoji"
+      - generic [ref=f1e29]: 相册
+      - heading "四姑娘山大峰：4400 米的日出" [level=1] [ref=f1e30]
+      - generic [ref=f1e31]:
+        - generic [ref=f1e32]: 四姑娘山
+        - generic [ref=f1e36]: 2025-10-03
+        - generic [ref=f1e39]: 2 天 1 夜
+        - generic [ref=f1e43]: 相册 · 14 张
+        - generic [ref=f1e44]:
+          - generic [ref=f1e45]: 登山
+          - generic [ref=f1e46]: 日出
+      - img "四姑娘山大峰：4400 米的日出" [ref=f1e48]
+      - generic [ref=f1e49]:
+        - heading "相册" [level=2] [ref=f1e50]
+        - generic [ref=f1e51]: 8 张
+      - generic [ref=f1e52]:
+        - button "查看照片：大本营出发前的最后一觉" [ref=f1e53]:
+          - img "大本营出发前的最后一觉" [ref=f1e54]
+          - generic [ref=f1e55]: 大本营出发前的最后一觉
+        - button "查看照片：海拔 3800 米的碎石坡" [ref=f1e56]:
+          - img "海拔 3800 米的碎石坡" [ref=f1e57]
+          - generic [ref=f1e58]: 海拔 3800 米的碎石坡
+        - button "查看照片：垭口的风，吹得人站不稳" [ref=f1e59]:
+          - img "垭口的风，吹得人站不稳" [ref=f1e60]
+          - generic [ref=f1e61]: 垭口的风，吹得人站不稳
+        - button "查看照片：第一缕光打在幺妹峰" [ref=f1e62]:
+          - img "第一缕光打在幺妹峰" [ref=f1e63]
+          - generic [ref=f1e64]: 第一缕光打在幺妹峰
+        - button "查看照片：云海在脚下翻涌" [ref=f1e65]:
+          - img "云海在脚下翻涌" [ref=f1e66]
+          - generic [ref=f1e67]: 云海在脚下翻涌
+        - button "查看照片：下撤时遇到的经幡" [ref=f1e68]:
+          - img "下撤时遇到的经幡" [ref=f1e69]
+          - generic [ref=f1e70]: 下撤时遇到的经幡
+        - button "查看照片：4300 米的雪檐" [ref=f1e71]:
+          - img "4300 米的雪檐" [ref=f1e72]
+          - generic [ref=f1e73]: 4300 米的雪檐
+        - button "查看照片：回到镇上的第一碗热汤" [ref=f1e74]:
+          - img "回到镇上的第一碗热汤" [ref=f1e75]
+          - generic [ref=f1e76]: 回到镇上的第一碗热汤
+      - heading "旅行感受" [level=2] [ref=f1e78]
+      - generic [ref=f1e79]:
+        - paragraph [ref=f1e80]: 登顶那一瞬间其实很安静。没有想象中的欢呼，只有风，和一种"原来真的到了"的恍惚。
+        - paragraph [ref=f1e81]: 凌晨四点从大本营出发，头灯连成一条歪歪扭扭的线，在黑暗里往上爬。四姑娘山大峰是入门级雪山，但 4400 米的含氧量依旧会让每一步都变得沉重。走到垭口时风大得站不稳，我把自己缩在石头后面等天亮。
+        - paragraph [ref=f1e82]: 然后光来了。先是山脊线被描了一道金边，接着整片幺妹峰被点燃，云海在脚下慢慢亮起来。那一刻我忘了冷，也忘了累，只觉得——所有的提前准备、所有的不确定，都为了这二十分钟。
+        - blockquote [ref=f1e83]:
+          - paragraph [ref=f1e84]: 登山最迷人的地方，是它把"坚持"这件事变得毫无商量余地：你只能一步一步，没有退路，也没有捷径。
+        - paragraph [ref=f1e85]: 下撤比上攀更难，膝盖在抗议，但心情是轻的。回到镇上喝到那碗热汤时，我忽然懂了为什么那么多人会上瘾——不是为了征服，是为了那份干净的、只属于自己的安静。
+      - generic [ref=f1e86]:
+        - link "← 上一篇 一碗面里的城市性格" [ref=f1e87] [cursor=pointer]:
+          - /url: "#/xiaoji/9"
+          - generic [ref=f1e88]: ← 上一篇
+          - generic [ref=f1e89]: 一碗面里的城市性格
+        - link "下一篇 → 雨崩：神瀑下的七天" [ref=f1e90] [cursor=pointer]:
+          - /url: "#/xiaoji/2"
+          - generic [ref=f1e91]: 下一篇 →
+          - generic [ref=f1e92]: 雨崩：神瀑下的七天
+  - contentinfo [ref=f1e93]:
+    - generic [ref=f1e94]:
+      - button "返回顶部" [ref=f1e96] [cursor=pointer]: 回到顶部
+      - generic [ref=f1e99]:
+        - generic [ref=f1e100]:
+          - generic [ref=f1e101]: 墨堆
+          - paragraph [ref=f1e109]: 以设计记录思考
+        - navigation "页脚导航" [ref=f1e110]:
+          - heading "导航" [level=3] [ref=f1e111]
+          - list [ref=f1e112]:
+            - listitem [ref=f1e113]:
+              - link "首页" [ref=f1e114] [cursor=pointer]:
+                - /url: "#/"
+            - listitem [ref=f1e115]:
+              - link "知识库" [ref=f1e116] [cursor=pointer]:
+                - /url: "#/articles"
+            - listitem [ref=f1e117]:
+              - link "简历" [ref=f1e118] [cursor=pointer]:
+                - /url: "#/resume"
+            - listitem [ref=f1e119]:
+              - link "关于我" [ref=f1e120] [cursor=pointer]:
+                - /url: "#/about"
+            - listitem [ref=f1e121]:
+              - link "小记" [ref=f1e122] [cursor=pointer]:
+                - /url: "#/xiaoji"
+        - generic [ref=f1e123]:
+          - heading "关注" [level=3] [ref=f1e124]
+          - generic [ref=f1e125]:
+            - link "语雀" [ref=f1e126] [cursor=pointer]:
+              - /url: https://www.yuque.com
+            - link "GitHub" [ref=f1e131] [cursor=pointer]:
+              - /url: https://github.com
+      - paragraph [ref=f1e136]: © 2024–2026 墨堆 · 以设计记录思考

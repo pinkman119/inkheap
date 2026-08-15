@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -70,6 +71,19 @@ model File {
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("files")
+}
+
+// ==================== 简历 ====================
+
+model Resume {
+  id        String   @id @default(uuid())
+  name      String   @default("默认版本") // 版本名称，便于后台区分
+  content   String   @default("{}") // 完整简历 JSON 字符串（结构对齐新原型各区块）
+  isActive  Boolean  @default(false) // 是否为当前生效版本（前台展示）
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("resume")
 }
 
 // ==================== 分类 ====================

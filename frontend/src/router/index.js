@@ -56,6 +56,7 @@ const routes = [
     path: '/xiaoji/:id',
     name: 'note-detail',
     component: () => import('@/views/NoteDetailView.vue'),
+    props: true,
     meta: { title: '小记详情 - 墨堆', layout: 'layout-flow', navKey: 'notes' },
   },
   { path: '/:pathMatch(.*)*', redirect: '/' },
@@ -109,6 +110,12 @@ const adminRoutes = [
     name: 'admin-home-page',
     component: () => import('@/views/admin/HomePageManageView.vue'),
     meta: { title: '首页管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/resume',
+    name: 'admin-resume',
+    component: () => import('@/views/admin/ResumeManageView.vue'),
+    meta: { title: '简历管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
   },
 ]
 

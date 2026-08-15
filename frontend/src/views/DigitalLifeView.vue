@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, reactive, ref } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
-import { fallbackReply, quickQuestions, replyRules, topics, welcome } from '@/data/digitalLife'
+import { fallbackReply, quickQuestions, replyRules, welcome } from '@/data/digitalLife'
 
 /* =========================================================
    数字生命 · 对话逻辑（原型）
@@ -149,46 +149,8 @@ onBeforeUnmount(() => {
 
   <div class="chat-app page-digital-life">
     <div class="chat-layout">
-      <!-- Topics panel (left entry points) -->
-      <aside class="topics-panel" aria-label="话题入口">
-        <div class="topics-head">
-          <h2>聊点什么</h2>
-          <p>挑一个话题，认识数字林深</p>
-        </div>
-        <div class="topic-list">
-          <button
-            v-for="topic in topics"
-            :key="topic"
-            type="button"
-            class="topic-item"
-            @click="sendMessage(topic)"
-          >
-            <span class="topic-dot" aria-hidden="true" />
-            <span class="topic-text">{{ topic }}</span>
-          </button>
-        </div>
-        <div class="topics-foot">
-          <span class="dot" />
-          数字生命引擎 v0.1 · 原型
-        </div>
-      </aside>
-
       <!-- Chat main -->
       <main class="chat-main">
-        <div class="chat-header">
-          <span class="chat-avatar" aria-hidden="true">
-            <svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="14" cy="9" r="3.2" fill="#ffffff" />
-              <rect x="7.5" y="14.5" width="13" height="2.8" rx="1.4" fill="#ffffff" />
-              <rect x="7.5" y="19" width="13" height="2.8" rx="1.4" fill="#ffffff" />
-            </svg>
-          </span>
-          <div class="chat-title-wrap">
-            <span class="chat-title">数字林深</span>
-            <span class="chat-sub">由 RAG 知识库 + 提示词工程驱动</span>
-          </div>
-        </div>
-
         <div
           ref="chatMessagesEl"
           class="chat-messages"
@@ -328,106 +290,6 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 
-/* Topics panel (left entry points) */
-.topics-panel {
-  width: 280px;
-  flex-shrink: 0;
-  border-right: 1px solid var(--border-light);
-  background-color: var(--bg-sidebar);
-  display: flex;
-  flex-direction: column;
-}
-
-.topics-head {
-  padding: 22px 20px 14px;
-}
-
-.topics-head h2 {
-  font-family: var(--font-serif);
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 6px;
-  letter-spacing: 0.02em;
-}
-
-.topics-head p {
-  font-size: 13px;
-  color: var(--text-tertiary);
-  line-height: 1.6;
-}
-
-.topic-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 6px 12px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.topic-item {
-  appearance: none;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 13px 14px;
-  border-radius: var(--radius-sm);
-  background-color: var(--bg-card);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  font-size: 14px;
-  font-family: var(--font-sans);
-  text-align: left;
-  cursor: pointer;
-  transition: all var(--transition);
-}
-
-.topic-item:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background-color: var(--accent-light);
-  transform: translateY(-1px);
-}
-
-.topic-item:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.topic-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-light);
-  transition: box-shadow var(--transition);
-}
-
-.topic-item:hover .topic-dot {
-  box-shadow: 0 0 0 3px var(--bg-card);
-}
-
-.topics-foot {
-  padding: 14px 20px;
-  border-top: 1px solid var(--border-light);
-  font-size: 12px;
-  color: var(--text-tertiary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.topics-foot .dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-light);
-}
-
 /* Chat main */
 .chat-main {
   flex: 1;
@@ -436,53 +298,6 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
   position: relative;
-}
-
-.chat-header {
-  height: 64px;
-  flex-shrink: 0;
-  padding: 0 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border-bottom: 1px solid var(--border-light);
-  background-color: color-mix(in srgb, var(--bg-body) 92%, transparent);
-  backdrop-filter: blur(12px);
-}
-
-.chat-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background-color: var(--accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.chat-avatar svg {
-  width: 22px;
-  height: 22px;
-}
-
-.chat-title-wrap {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.chat-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.2;
-}
-
-.chat-sub {
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.4;
 }
 
 /* Messages */
@@ -603,7 +418,7 @@ onBeforeUnmount(() => {
   margin: auto;
   text-align: center;
   max-width: 520px;
-  padding: 24px 16px;
+  padding: 88px 16px 24px;
 }
 
 .welcome .welcome-avatar {
@@ -810,40 +625,8 @@ onBeforeUnmount(() => {
     padding: 20px 16px;
   }
 
-  .chat-header {
-    padding: 0 14px;
-  }
-
   .chat-layout {
     flex-direction: column;
-  }
-
-  .topics-panel {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .topics-head {
-    padding: 16px 16px 10px;
-  }
-
-  .topic-list {
-    flex-direction: row;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 4px 16px 14px;
-    gap: 8px;
-  }
-
-  .topic-item {
-    width: auto;
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
-
-  .topics-foot {
-    display: none;
   }
 }
 

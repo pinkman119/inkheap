@@ -95,10 +95,75 @@ marked.use({
   },
 })
 
+/**
+ * 语雀（Yuque）导出图片语法兼容预处理。
+ *
+ * 语雀新版导出会在图片前插入 OCR 占位注释，且常与图片紧贴同一行：
+ *   <!-- 这是一张图片，ocr 内容为：... -->![](https://cdn.nlark.com/...)
+ * marked 的 GFM 解析器会把整行当作 HTML 注释块，导致后面的 `![](url)`
+ * 被吞掉、图片无法渲染。这里把“注释 + 图片”拆为独立成段的图片语法，
+ * 丢弃无用的 OCR 注释，确保 marked 能正确渲染出 <img>。
+ */
+function normalizeYuqueImages(src) {
+  return src
+    // 注释与图片同行紧贴：<!-- ... -->![](url)
+    .replace(
+      /<!--\s*这是一张图片[^>]*-->\s*!\[([^\]]*)\]\(([^)\s]+)\)/g,
+      '\n\n![$1]($2)\n\n'
+    )
+    // 注释独占一行、图片在其后（可能隔行）：<!-- ... -->\n... !(url)
+    .replace(
+      /<!--\s*这是一张图片[^>]*-->\s*\n+(\s*!\[[^\]]*\]\([^)\s]+\))/g,
+      '\n\n$1\n\n'
+    )
+}
+
+/**
+ * 外链图片代理：语雀/第三方图床的图片直接 <img src> 引用时，部分 CDN 在
+ * 浏览器侧会被 ORB（Opaque Response Blocking）或防盗链拦截，导致图片不显示。
+ * 这里把所有非同源的外链图片改写为本站代理地址（/api/proxy/image?url=），
+ * 由后端拉取并以正确的 image/* 响应转发，从而可靠显示。
+ */
+function isSameOrigin(url) {
+  try {
+    const u = new URL(url, window.location.origin)
+    return u.origin === window.location.origin
+  } catch {
+    return false
+  }
+}
+
+function shouldProxy(url) {
+  if (!url) return false
+  // 仅处理 http(s) 绝对地址中的外链；本站相对/绝对资源直连
+  if (!/^https?:\/\//i.test(url)) return false
+  return !isSameOrigin(url)
+}
+
+// 与 useApi 的 ASSET_BASE 保持一致：开发环境前端(5173)与后端(3000)不同源，
+// 需补全为绝对地址；生产环境同域时用当前 origin 即可。
+const ASSET_BASE =
+  typeof window !== 'undefined' && window.location.port === '5173'
+    ? 'http://localhost:3000'
+    : typeof window !== 'undefined'
+    ? window.location.origin
+    : ''
+
+// 注册一次（DOMPurify 为单例），渲染时对 img 的 src 做代理改写
+DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+  if (node.tagName === 'IMG') {
+    const src = node.getAttribute('src')
+    if (src && shouldProxy(src)) {
+      node.setAttribute('src', `${ASSET_BASE}/api/proxy/image?url=${encodeURIComponent(src)}`)
+    }
+  }
+})
+
 /** 把 markdown 源渲染为净化后的 HTML 字符串 */
 export function renderMarkdown(source) {
   if (!source) return ''
-  const rawHtml = marked.parse(source)
+  const normalized = normalizeYuqueImages(source)
+  const rawHtml = marked.parse(normalized)
   return DOMPurify.sanitize(rawHtml, {
     ADD_ATTR: ['target'],
   })

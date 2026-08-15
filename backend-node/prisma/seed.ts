@@ -1,5 +1,6 @@
 import { PrismaClient } from '../src/generated/prisma';
 import * as bcrypt from 'bcrypt';
+import { DEFAULT_RESUME_CONTENT, DEFAULT_RESUME_NAME } from '../src/modules/resume/resume.defaults';
 
 const prisma = new PrismaClient();
 
@@ -131,6 +132,21 @@ async function main() {
   }
 
   console.log(`Articles seeded: ${articles.length} published articles`);
+
+  // Seed default resume version (create only if none exists; keep existing records)
+  const resumeCount = await prisma.resume.count();
+  if (resumeCount === 0) {
+    await prisma.resume.create({
+      data: {
+        name: DEFAULT_RESUME_NAME,
+        content: JSON.stringify(DEFAULT_RESUME_CONTENT),
+        isActive: true,
+      },
+    });
+    console.log('Resume seeded: 1 active default version');
+  } else {
+    console.log(`Resume skipped: ${resumeCount} version(s) already exist`);
+  }
 }
 
 main()
