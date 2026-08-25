@@ -252,25 +252,6 @@ async function main() {
   });
   console.log('AboutProfile seeded');
 
-  // 年轮
-  const rings = [
-    { year: '2015', title: '初遇代码', desc: '大学开始写 Python，做出第一个能跑的爬虫。那一刻发现：逻辑可以替人干活，挺迷人的。', sortOrder: 0 },
-    { year: '2015', title: '参加竞赛', desc: '蓝桥杯拿到国奖，第一次知道"把想法跑成程序"能换来实实在在的认可。', sortOrder: 1 },
-    { year: '2018', title: '转做 AI 全栈', desc: '进入一支做推荐系统的团队，从特征工程到线上服务一手包办，第一次理解"系统"二字的分量。', sortOrder: 2 },
-    { year: '2020', title: '登山启蒙', desc: '第一次进高原，爬上四姑娘山。高原反应很诚实，银河也很诚实——城市里没有这种坦诚。', sortOrder: 3 },
-    { year: '2022', title: '登顶慕士塔格', desc: '7546 米，雪线之上风把人吹得很轻。在海拔几千米的地方，人会重新想清楚什么重要。', sortOrder: 4 },
-    { year: '2024', title: '墨堆 · 数字生命', desc: '开始把文章、笔记与作品沉淀成一个可对话的"数字我"——用设计记录思考，用检索留住经历。', sortOrder: 5 },
-  ];
-  for (const r of rings) {
-    const existing = await prisma.aboutRing.findFirst({ where: { year: r.year, title: r.title } });
-    if (existing) {
-      await prisma.aboutRing.update({ where: { id: existing.id }, data: r });
-    } else {
-      await prisma.aboutRing.create({ data: r });
-    }
-  }
-  console.log(`AboutRings seeded: ${rings.length} items`);
-
   // 足迹
   const footprints = [
     { province: '新疆维吾尔自治区', place: '慕士塔格峰', time: '2022', location: '新疆 · 喀什地区 · 阿克陶县', elevation: '7546 m', note: '雪线之上，风把人吹得很轻。下撤那天，我才真正学会“慢”。', sortOrder: 0 },
@@ -309,26 +290,92 @@ async function main() {
   console.log(`AboutTravels seeded: ${travels.length} items`);
 
   // 事件日历（date 存为 ISO，由本地日期解析）
+  // isRing = 设为成就：成就事件沉淀到前台「这一年的年轮」时间线，其余事件仅通过热力块抽屉查看。
+  // mock 数据覆盖 2020→2026：早年稀疏、2026 年密集（含本周数据），方便演示年份筛选与热力图层次。
   const events = [
-    { date: '2015-06-30', title: '大学毕业', desc: '拿到学士学位，正式结束学生身份，开始在社会里写自己的程序。', sortOrder: 0 },
-    { date: '2016-09-12', title: '学会开车', desc: '科目三一次过，第一次独自把车从驾校开回小区，手握方向盘的踏实感很上头。', sortOrder: 1 },
-    { date: '2023-11-05', title: '英雄联盟打到大师段位', desc: '单排冲上大师，证明坚持和系统训练真的能把段位打上去。', sortOrder: 2 },
-    { date: '2024-03-18', title: '炉石传说上了传说', desc: '天梯冲上传说，卡组理解与读牌节奏终于磨到位的那一刻很爽。', sortOrder: 3 },
-    { date: '2026-08-11', title: '英雄联盟上钻石段位', desc: '新赛季定级后一路打到钻石，手感回来了。', sortOrder: 4 },
-    { date: '2026-08-11', title: '开始健身满一年', desc: '坚持健身整一年，体脂和心态都肉眼可见地变好。', sortOrder: 5 },
-    { date: '2026-08-11', title: '谈恋爱满一年', desc: '和 TA 在一起满一年，平凡日子里藏着最稳的幸福。', sortOrder: 6 },
+    // ===== 2020：登山启蒙 + 远程办公 =====
+    { date: '2020-01-11', title: '第一次进高原', desc: '四姑娘山大峰 5025m，高原反应很诚实，银河也很诚实——城市里没有这种坦诚。', isRing: true },
+    { date: '2020-03-02', title: '开始远程办公', desc: '把书桌收拾成工位，猫蹲在显示器后面监工，效率意外地高。', isRing: false },
+    { date: '2020-05-20', title: '换了台相机', desc: '入手中画幅，从此背包里多了一块砖，也多了一双眼睛。', isRing: false },
+    { date: '2020-07-18', title: '第一次拍到银河', desc: '在海拔 4000 米的营地守到凌晨两点，快门按下那一刻手是抖的。', isRing: false },
+    { date: '2020-11-11', title: '跑完第一个半马', desc: '2 小时 15 分，撞墙期在 18 公里，靠路边陌生人的加油声撑完。', isRing: false },
+    { date: '2020-12-31', title: '跨年夜重构博客', desc: '用新框架把写了三年的老博客推倒重来，跨年钟声响的时候正在调样式。', isRing: false },
+
+    // ===== 2021 =====
+    { date: '2021-02-14', title: '学会做菜', desc: '第一次做出不糊锅的红烧排骨，从此周末的厨房归我。', isRing: false },
+    { date: '2021-04-04', title: '黔东南苗寨', desc: '苗寨的酒和歌，比城市里的人诚实。一晚敬天地，一晚敬朋友。', isRing: false },
+    { date: '2021-06-19', title: '独立部署 K8s 集群', desc: '从证书签发到灰度发布一手包办，凌晨三点看到 Pod 全绿才敢睡。', isRing: true },
+    { date: '2021-08-08', title: '读完《数据库系统实现》', desc: 'B+ 树、WAL、MVCC，把平时含糊的概念一个个落回纸上。', isRing: false },
+    { date: '2021-10-24', title: '开源第一个库', desc: '把内部用的图片处理工具整理开源，第一个 star 来自陌生人。', isRing: false },
+    { date: '2021-12-11', title: '滑雪初体验', desc: '在崇礼摔了一下午，最后终于能连续转弯下初级道。', isRing: false },
+
+    // ===== 2022：慕士塔格 =====
+    { date: '2022-01-15', title: '制定登山训练计划', desc: '7546 米不是开玩笑，跑步、负重、深蹲，一切按表推进。', isRing: false },
+    { date: '2022-03-26', title: '负重徒步拉练', desc: '背着 15 公斤走完 25 公里山路，肩膀勒出印子，心里反而踏实。', isRing: false },
+    { date: '2022-05-01', title: '成都集结', desc: '和队友碰头检查装备，出发前的兴奋和忐忑各占一半。', isRing: false },
+    { date: '2022-07-16', title: '登顶慕士塔格', desc: '7546 米，雪线之上风把人吹得很轻。在海拔几千米的地方，人会重新想清楚什么重要。', isRing: true },
+    { date: '2022-08-20', title: '恢复训练', desc: '下山一个月后重新回到健身房，把掉下去的肌肉一点点捡回来。', isRing: false },
+    { date: '2022-09-10', title: '中秋写家书', desc: '在山顶没信号欠下的话，用一封长信补给了爸妈。', isRing: false },
+    { date: '2022-11-20', title: '摄影集整理', desc: '把三年的山野照片挑出 200 张，做成第一本个人摄影集。', isRing: false },
+
+    // ===== 2023 =====
+    { date: '2023-01-08', title: '冰岛追极光', desc: '极光下面泡温泉，世界安静得只剩风声和自己的呼吸。', isRing: true },
+    { date: '2023-03-15', title: '开始写技术专栏', desc: '把踩过的坑写成文章，第一篇阅读量破了五位数。', isRing: false },
+    { date: '2023-05-28', title: '5 公里跑进 25 分钟', desc: '配速练到 5 分内，跑步从煎熬变成了享受。', isRing: false },
+    { date: '2023-08-12', title: '读完《失控》', desc: '蜂群思维与涌现，读完再看系统设计，很多事突然通了。', isRing: false },
+    { date: '2023-11-05', title: '英雄联盟打到大师', desc: '单排冲上大师，证明坚持和系统训练真的能把段位打上去。', isRing: true },
+    { date: '2023-12-24', title: '第一个被合并的开源 PR', desc: '给常用框架修了个文档 typo，被合并那天的快乐超出预期。', isRing: false },
+
+    // ===== 2024：墨堆起步 =====
+    { date: '2024-01-06', title: '年度复盘', desc: '写下「把经历沉淀成可对话的系统」这一年的主线目标。', isRing: false },
+    { date: '2024-03-18', title: '炉石传说上传说', desc: '天梯冲上传说，卡组理解与读牌节奏终于磨到位的那一刻很爽。', isRing: true },
+    { date: '2024-05-02', title: '墨堆立项', desc: '个人知识库 + 数字生命的想法落地成第一页 PRD，代号 inkheap。', isRing: true },
+    { date: '2024-06-15', title: '第一版原型', desc: '画完首页与文章流的原型，凌晨的 Figma 文件名叫「就差亿点点」。', isRing: false },
+    { date: '2024-08-08', title: '健身满半年', desc: '半年打卡 96 次，体检报告第一次全部飘绿。', isRing: false },
+    { date: '2024-09-22', title: '数字生命 Demo 跑通', desc: 'RAG 检索 + 流式回复第一次在本地跑通，对着屏幕傻笑了十分钟。', isRing: true },
+    { date: '2024-11-11', title: '单日骑行 100km', desc: '环湖骑行破百，最后十公里是靠意念和补给站的香蕉蹬完的。', isRing: false },
+    { date: '2024-12-25', title: '墨堆内测上线', desc: '把链接发给五个朋友，收到第一句反馈：「这个数字生命有点东西」。', isRing: false },
+
+    // ===== 2025 =====
+    { date: '2025-01-18', title: '墨堆 v1.0 发布', desc: '正式对外发布，文章、小记、简历、关于我四个板块全部就位。', isRing: true },
+    { date: '2025-03-30', title: '重访雨崩', desc: '时隔六年再走神瀑线，有些地方，开车到不了，只能走着靠近。', isRing: false },
+    { date: '2025-05-04', title: '半马 PB 1:52', desc: '比第一次快了 23 分钟，配速表上的曲线终于好看了。', isRing: false },
+    { date: '2025-07-20', title: '数字生命接入微信', desc: '扫码就能和「数字我」聊天，后台消息列表第一次热闹起来。', isRing: false },
+    { date: '2025-08-11', title: '在一起的第一天', desc: '平凡日子开始有了新的坐标系。', isRing: false },
+    { date: '2025-08-16', title: '318 川藏线出发', desc: '和两位老友自驾进藏，后备箱塞满氧气瓶和胶卷。', isRing: false },
+    { date: '2025-08-28', title: '抵达拉萨', desc: '第 13 天，布达拉宫广场的风很大，功劳簿上写着「全程没高反」。', isRing: true },
+    { date: '2025-10-01', title: '十一闭关重构', desc: '七天假期全给了墨堆的权限系统，假期结束，代码也清爽了。', isRing: false },
+    { date: '2025-12-31', title: '年度复盘', desc: '连续第三年写年度复盘，今年的关键词是「留下痕迹」。', isRing: false },
+
+    // ===== 2026：密集记录（含本周） =====
+    { date: '2026-01-01', title: '新年第一天晨跑', desc: '零下三度的江边，呼出的白气比烟花先出现。', isRing: false },
+    { date: '2026-02-17', title: '春节返乡', desc: '教爸妈用上了数字生命的微信入口，他们管它叫「电子儿子」。', isRing: false },
+    { date: '2026-03-08', title: '数字生命加上长期记忆', desc: '向量库接入记忆压缩，它终于记得住上周聊过什么了。', isRing: false },
+    { date: '2026-04-12', title: '首页改版定稿', desc: '第七版稿通过，设计稿上的绿色和山上的苔藓是同一个色号。', isRing: false },
+    { date: '2026-05-01', title: '东西冲海岸线徒步', desc: '一边是大鹏湾，一边是礁石与浪，走完晒脱一层皮。', isRing: false },
+    { date: '2026-06-06', title: '拿到潜水证 OW', desc: '在涠洲岛完成开放水域考核，水下 18 米的世界安静得像另一个宇宙。', isRing: false },
+    { date: '2026-07-11', title: '咖啡拉花成功', desc: '第 31 杯，终于拉出一颗完整的心，虽然三秒后就散了。', isRing: false },
+    { date: '2026-07-25', title: '深圳湾夜骑 30km', desc: '晚风、霓虹和轮组的嗡嗡声，夜骑是最好的解压方式。', isRing: false },
+    { date: '2026-08-08', title: '健身第 11 个月', desc: '硬拉摸到 1.5 倍体重，教练说可以开始考虑打业余赛了。', isRing: false },
+    { date: '2026-08-11', title: '英雄联盟上钻石', desc: '新赛季定级后一路打到钻石，手感回来了。', isRing: true },
+    { date: '2026-08-11', title: '健身满一年', desc: '坚持健身整一年，体脂和心态都肉眼可见地变好。', isRing: true },
+    { date: '2026-08-11', title: '恋爱满一年', desc: '和 TA 在一起满一年，平凡日子里藏着最稳的幸福。', isRing: true },
+    { date: '2026-08-15', title: '读完《孤独六讲》', desc: '「孤独是生命圆满的开始」，抄进了墨堆的每日一句。', isRing: false },
+    { date: '2026-08-23', title: '徒手攀岩体验课', desc: '在岩馆的抱石墙上挂了两个小时，指尖磨红了但上头。', isRing: false },
+    { date: '2026-08-24', title: '全站 HTTPS 上线', desc: '证书续签脚本 + 反代配置全部自动化，从此锁头常绿。', isRing: false },
+    { date: '2026-08-25', title: '重构年轮系统', desc: '把独立年轮表合并进事件日历，热力块抽屉上线，写下这条记录作纪念。', isRing: false },
   ];
-  for (const e of events) {
+  // 事件 mock 采用「清空重建」策略：旧数据（含旧年轮表时代的演示数据）全部移除
+  await prisma.aboutEvent.deleteMany({});
+  for (let i = 0; i < events.length; i++) {
+    const e = events[i];
     const [y, m, d] = e.date.split('-').map(Number);
-    const isoDate = new Date(y, m - 1, d);
-    const existing = await prisma.aboutEvent.findFirst({ where: { date: isoDate, title: e.title } });
-    if (existing) {
-      await prisma.aboutEvent.update({ where: { id: existing.id }, data: { ...e, date: isoDate } });
-    } else {
-      await prisma.aboutEvent.create({ data: { ...e, date: isoDate } });
-    }
+    await prisma.aboutEvent.create({
+      data: { ...e, date: new Date(y, m - 1, d), sortOrder: i },
+    });
   }
-  console.log(`AboutEvents seeded: ${events.length} items`);
+  const ringCount = events.filter((e) => e.isRing).length;
+  console.log(`AboutEvents seeded: ${events.length} items (${ringCount} rings)`);
 
   // ==================== 数字生命 seed ====================
   // 人格（单条全局，id 固定 "default"；初始值 = muztagh-cat skill 全文）

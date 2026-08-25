@@ -60,17 +60,34 @@ function normalizeDateKey(s) {
 }
 
 /**
- * 事件按日期分组：把后端返回的扁平事件数组聚合成 { 'YYYY-M-D': [{title,desc}] }。
- * @param {Array<{date:string,title:string,desc:string}>} events
+ * 事件按日期分组：把后端返回的扁平事件数组聚合成 { 'YYYY-M-D': [{title,desc,isRing}] }。
+ * @param {Array<{date:string,title:string,desc:string,isRing?:boolean}>} events
  */
 export function groupEventsByDate(events) {
   const map = {}
   for (const ev of events || []) {
     const key = normalizeDateKey(ev.date) // 后端 YYYY-MM-DD → YYYY-M-D
     if (!map[key]) map[key] = []
-    map[key].push({ title: ev.title, desc: ev.desc })
+    map[key].push({ title: ev.title, desc: ev.desc, isRing: !!ev.isRing })
   }
   return map
+}
+
+/**
+ * 从事件中提取年轮：isRing=true 的事件即「这一年的年轮」条目。
+ * 返回 [{ year, title, desc }]，按日期正序（一年之内从年初长到年尾，像树的年轮）。
+ * @param {Array<{date:string,title:string,desc:string,isRing?:boolean}>} events
+ */
+export function ringsFromEvents(events) {
+  return (events || [])
+    .filter((ev) => ev.isRing)
+    .slice()
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+    .map((ev) => ({
+      year: String(ev.date).slice(0, 4),
+      title: ev.title,
+      desc: ev.desc,
+    }))
 }
 
 /**
@@ -99,13 +116,13 @@ function groupByProvince(footprints) {
 /**
  * 一次性并发拉取「关于我」页所需的全部数据。
  * 返回结构与原静态导出一致，供 AboutMeView 直接装配。
+ * 年轮不再是独立接口：由事件（isRing=true）聚合生成。
  */
 export async function loadAboutData() {
   const api = useApi()
-  const [home, profile, rings, footprints, events] = await Promise.all([
+  const [home, profile, footprints, events] = await Promise.all([
     api.get('/public/home-page'),
     api.get('/about/profile'),
-    api.get('/about/rings'),
     api.get('/about/footprints'),
     api.get('/about/events'),
   ])
@@ -122,7 +139,7 @@ export async function loadAboutData() {
       quote: profile.evaluationQuote || '',
       by: profile.evaluationBy || '',
     },
-    rings: rings.map((r) => ({ year: r.year, title: r.title, desc: r.desc })),
+    rings: ringsFromEvents(events),
     footprintData: groupByProvince(footprints),
     visitedProvinces: [...new Set(footprints.map((f) => f.province))],
     eventCalendar: groupEventsByDate(events),

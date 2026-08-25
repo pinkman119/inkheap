@@ -66,7 +66,7 @@ async function handleLogin() {
 
         <!-- Slogan -->
         <div class="brand-slogan">
-          <h1>以设计记录思考<br />让内容自由生长</h1>
+          <h1>会呼吸的Blog，直接与数字的我对话<br />让内容自由生长</h1>
           <p>墨堆管理后台 · 一站式撰写文章、整理小记、洞察灵感轨迹。基于墨绿设计语言打造。</p>
 
           <div class="brand-feats">

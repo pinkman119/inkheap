@@ -1,0 +1,183 @@
+﻿- generic
+  - banner
+    - link "墨堆" [ref=e1]
+      - StaticText "墨堆"
+      - StaticText "光阴易逝，数字永生"
+    - navigation
+      - generic
+        - link "首页" [ref=e54]
+        - link "小记" [ref=e55]
+        - link "关于我" [ref=e56]
+        - link "数字生命" [ref=e57]
+      - group "工作/生活模式切换"
+        - button "工作" [ref=e51]
+        - button "生活" [ref=e52]
+      - button "切换到黑夜模式" [ref=e25]
+        - image
+  - main
+    - generic
+      - generic
+        - generic
+          - StaticText "TRAVEL · 旅行小记"
+        - heading "小记" [level=1, ref=e53]
+        - paragraph
+          - StaticText "相册与随笔。这里有登山的喘息、徒步的泥泞、City walk 的悠闲，也有一碗面里的城市脾气。 不追求宏大，只记录路上那些让我停下来的瞬间。"
+        - StaticText "10"
+        - StaticText "篇小记"
+        - StaticText "6"
+        - StaticText "组相册"
+        - StaticText "45+"
+        - StaticText "张照片"
+    - navigation "小记分类" [ref=e2]
+      - button "全部" [ref=e26]
+      - button "City walk" [ref=e27]
+      - button "泉州" [ref=e28]
+      - button "杂谈" [ref=e29]
+      - button "上海" [ref=e30]
+      - button "登山" [ref=e31]
+      - button "高反" [ref=e32]
+      - button "徒步" [ref=e33]
+      - button "武功山" [ref=e34]
+      - button "美食" [ref=e35]
+      - button "兰州" [ref=e36]
+      - button "成都" [ref=e37]
+      - button "日出" [ref=e38]
+      - button "雨崩" [ref=e39]
+      - button "test" [ref=e40]
+      - StaticText "10 / 10 篇"
+    - link "四姑娘山大峰：4400 米的日出 相册 8 张 四姑娘山 2025.10.03 四姑娘山大峰：4400 米的日出 凌晨四点摸黑出发，等到第一缕光打在幺妹峰上的瞬间，所有的喘都值了。一组高海拔的清晨影像。 查看相册" [ref=e3]
+      - generic
+        - image "四姑娘山大峰：4400 米的日出"
+        - StaticText "相册"
+        - StaticText "8 张"
+      - StaticText "四姑娘山"
+      - time
+        - StaticText "2025.10.03"
+      - heading "四姑娘山大峰：4400 米的日出" [level=3, ref=e41]
+      - paragraph
+        - StaticText "凌晨四点摸黑出发，等到第一缕光打在幺妹峰上的瞬间，所有的喘都值了。一组高海拔的清晨影像。"
+      - StaticText "查看相册"
+    - link "雨崩：神瀑下的七天 相册 8 张 雨崩 2025.09.12 雨崩：神瀑下的七天 进山要徒步六小时，出山坐越野车十分钟的落差里，藏着一个被时间遗忘的村庄。神瀑、冰湖、笑农大本营。 查看相册" [ref=e4]
+      - generic
+        - image "雨崩：神瀑下的七天"
+        - StaticText "相册"
+        - StaticText "8 张"
+      - StaticText "雨崩"
+      - time
+        - StaticText "2025.09.12"
+      - heading "雨崩：神瀑下的七天" [level=3, ref=e42]
+      - paragraph
+        - StaticText "进山要徒步六小时，出山坐越野车十分钟的落差里，藏着一个被时间遗忘的村庄。神瀑、冰湖、笑农大本营。"
+      - StaticText "查看相册"
+    - link "“ 一座老城最好的打开方式，是把自己走丢在巷子里，再让香气把你找回来。 泉州 2025.08.20 在泉州，走了三天的老城 开元寺的东西塔、蟳埔女的簪花围、半夜还在排队的面线糊。没有打卡清单，只是沿着红砖厝慢慢走。 阅读全文" [ref=e5]
+      - generic
+        - StaticText "“"
+        - paragraph
+          - StaticText "一座老城最好的打开方式，是把自己走丢在巷子里，再让香气把你找回来。"
+      - StaticText "泉州"
+      - time
+        - StaticText "2025.08.20"
+      - heading "在泉州，走了三天的老城" [level=3, ref=e43]
+      - paragraph
+        - StaticText "开元寺的东西塔、蟳埔女的簪花围、半夜还在排队的面线糊。没有打卡清单，只是沿着红砖厝慢慢走。"
+      - StaticText "阅读全文"
+    - link "成都苍蝇馆子地图 相册 8 张 成都 2025.07.15 成都苍蝇馆子地图 没有环境，只有味道。一家家破旧小店，拼出这座城市最诚实的脾气。附上我吃到撑的那几顿。 查看相册" [ref=e6]
+      - generic
+        - image "成都苍蝇馆子地图"
+        - StaticText "相册"
+        - StaticText "8 张"
+      - StaticText "成都"
+      - time
+        - StaticText "2025.07.15"
+      - heading "成都苍蝇馆子地图" [level=3, ref=e44]
+      - paragraph
+        - StaticText "没有环境，只有味道。一家家破旧小店，拼出这座城市最诚实的脾气。附上我吃到撑的那几顿。"
+      - StaticText "查看相册"
+    - link "“ 旅行为什么让人上瘾？大概是因为它短暂地，把\"日常\"从你身上抽走了。 2025.06.30 旅行为什么让人上瘾 不是因为风景，而是因为出发那一刻，你终于允许自己什么都不做，只是去感受。一些关于出走的零碎思考。 阅读全文" [ref=e7]
+      - generic
+        - StaticText "“"
+        - paragraph
+          - StaticText "旅行为什么让人上瘾？大概是因为它短暂地，把\"日常\"从你身上抽走了。"
+      - time
+        - StaticText "2025.06.30"
+      - heading "旅行为什么让人上瘾" [level=3, ref=e45]
+      - paragraph
+        - StaticText "不是因为风景，而是因为出发那一刻，你终于允许自己什么都不做，只是去感受。一些关于出走的零碎思考。"
+      - StaticText "阅读全文"
+    - link "上海武康路：梧桐与洋房 相册 8 张 上海 2025.05.22 上海武康路：梧桐与洋房 一条路，半部近代史。梧桐影子里藏着咖啡馆、老公寓和慢下来的下午。一组明亮的街拍。 查看相册" [ref=e8]
+      - generic
+        - image "上海武康路：梧桐与洋房"
+        - StaticText "相册"
+        - StaticText "8 张"
+      - StaticText "上海"
+      - time
+        - StaticText "2025.05.22"
+      - heading "上海武康路：梧桐与洋房" [level=3, ref=e46]
+      - paragraph
+        - StaticText "一条路，半部近代史。梧桐影子里藏着咖啡馆、老公寓和慢下来的下午。一组明亮的街拍。"
+      - StaticText "查看相册"
+    - link "“ 第一次高反教会我的，不是怎么登顶，而是怎么认输、然后慢下来。 贡嘎 2025.04.10 第一次高反，和学会慢下来 在海拔 4000 米被身体按了暂停键。那次之后我才懂，山不急着被征服，它只是等你准备好。 阅读全文" [ref=e9]
+      - generic
+        - StaticText "“"
+        - paragraph
+          - StaticText "第一次高反教会我的，不是怎么登顶，而是怎么认输、然后慢下来。"
+      - StaticText "贡嘎"
+      - time
+        - StaticText "2025.04.10"
+      - heading "第一次高反，和学会慢下来" [level=3, ref=e47]
+      - paragraph
+        - StaticText "在海拔 4000 米被身体按了暂停键。那次之后我才懂，山不急着被征服，它只是等你准备好。"
+      - StaticText "阅读全文"
+    - link "武功山：云海上的草甸 相册 8 张 武功山 2025.03.18 武功山：云海上的草甸 十万亩高山草甸铺到天边，夜里帐篷外是银河，早上醒来云在脚下游。一组治愈系的风光大片。 查看相册" [ref=e10]
+      - generic
+        - image "武功山：云海上的草甸"
+        - StaticText "相册"
+        - StaticText "8 张"
+      - StaticText "武功山"
+      - time
+        - StaticText "2025.03.18"
+      - heading "武功山：云海上的草甸" [level=3, ref=e48]
+      - paragraph
+        - StaticText "十万亩高山草甸铺到天边，夜里帐篷外是银河，早上醒来云在脚下游。一组治愈系的风光大片。"
+      - StaticText "查看相册"
+    - link "“ 一碗面里，往往住着一整座城市的性格。 兰州 2025.02.14 一碗面里的城市性格 清汤、白萝卜、红辣油、绿蒜苗、黄面条——兰州人用一碗牛肉面，把讲究和豪爽熬进了一锅。 阅读全文" [ref=e11]
+      - generic
+        - StaticText "“"
+        - paragraph
+          - StaticText "一碗面里，往往住着一整座城市的性格。"
+      - StaticText "兰州"
+      - time
+        - StaticText "2025.02.14"
+      - heading "一碗面里的城市性格" [level=3, ref=e49]
+      - paragraph
+        - StaticText "清汤、白萝卜、红辣油、绿蒜苗、黄面条——兰州人用一碗牛肉面，把讲究和豪爽熬进了一锅。"
+      - StaticText "阅读全文"
+    - link "test 相册 1 张 1 test test 查看相册" [ref=e12]
+      - generic
+        - image "test"
+        - StaticText "相册"
+        - StaticText "1 张"
+      - StaticText "1"
+      - time
+      - heading "test" [level=3, ref=e50]
+      - paragraph
+        - StaticText "test"
+      - StaticText "查看相册"
+  - contentinfo
+    - button "回到顶部" [ref=e13]
+    - link "墨堆" [ref=e14]
+      - image "墨堆"
+    - StaticText "墨堆"
+    - StaticText "光阴易逝，数字永生"
+    - link "GitHub" [ref=e15]
+    - link "邮箱" [ref=e16]
+    - link "语雀" [ref=e17]
+    - heading "导航" [level=4, ref=e18]
+    - link "知识库" [ref=e19]
+    - link "简历" [ref=e20]
+    - link "联系我" [ref=e21]
+    - heading "扩展" [level=4, ref=e22]
+    - link "源码" [ref=e23]
+    - StaticText "项目代码：MIT Commons Clause（开源 · 非商用） · 项目知识库：CC BY-NC 4.0（署名 · 非商用）"
+    - StaticText "© 2024–2026 墨堆"
+    - link "苏ICP备2024125779号" [ref=e24]

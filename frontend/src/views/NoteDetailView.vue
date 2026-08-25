@@ -168,10 +168,10 @@ function fallbackImg(e) {
         返回小记
       </RouterLink>
 
-      <span class="d-type">{{ typeLabel }}</span>
       <h1 class="d-title">{{ note.title }}</h1>
 
       <div class="d-meta">
+        <span class="d-type">{{ typeLabel }}</span>
         <span v-if="note.location" class="meta-item">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M21 10c0 7-9 11-9 11s-9-4-9-11a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
@@ -325,14 +325,14 @@ function fallbackImg(e) {
 }
 
 .d-type {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.08em;
-  padding: 4px 12px;
+  padding: 3px 12px;
   border-radius: 100px;
-  margin-top: 22px;
   border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
   background-color: var(--accent-light);
   color: var(--accent);
@@ -344,7 +344,7 @@ function fallbackImg(e) {
   font-weight: 700;
   line-height: 1.4;
   letter-spacing: 0.01em;
-  margin: 14px 0 18px;
+  margin: 28px 0 18px;
 }
 
 .d-meta {

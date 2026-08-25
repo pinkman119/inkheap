@@ -1,12 +1,12 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useTheme } from '@/composables/useTheme'
 import { useMode } from '@/composables/useMode'
 import logoUrl from '@/assets/logo.png'
 
 const props = defineProps({
-  /** 当前高亮的导航项 key：home / kb / resume / digital / notes / about（空字符串表示不激活任何项） */
+  /** 显式指定高亮的导航项 key：home / kb / resume / digital / notes / about；留空时自动按路由 meta.navKey 匹配 */
   activeKey: { type: String, default: '' },
   /** 顶栏内容区最大宽度（简历页原型为 1120px，其余为 1320px） */
   maxWidth: { type: String, default: '1320px' },
@@ -15,10 +15,11 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const route = useRoute()
 const { isDark, toggleTheme } = useTheme()
-const { isWork, toggleMode, toast } = useMode()
+const { isWork, setMode, toggleMode, toast } = useMode()
 
-/** 工作 / 生活两套导航（与原型 navData 一致），href 换成真实路由 */
+/** 工作 / 生活两套导航（与原型 modeData 一致），href 换成真实路由 */
 const navData = {
   work: [
     { key: 'home', label: '首页', to: '/' },
@@ -34,24 +35,41 @@ const navData = {
   ],
 }
 
-const items = computed(() => (isWork.value ? navData.work : navData.life))
-// 未匹配任何导航项时不强制高亮首页，避免跳转后错误停留在「首页」
+/** 模式切换动画期间冻结旧列表（与原型 200ms 退场节奏一致） */
+const pendingItems = ref(null)
+const items = computed(() => pendingItems.value ?? (isWork.value ? navData.work : navData.life))
+
+// 激活项来源：显式传入的 prop 优先，否则按当前路由 meta.navKey 自动匹配
+const activeKey = computed(() => props.activeKey || route.meta?.navKey || '')
+
+/** 页面访问后自动对齐到正确的模式（让导航与页面内容一致，体验更自然） */
+function syncModeForKey(key) {
+  if (!key || key === 'home') return
+  const inWork = navData.work.some((i) => i.key === key)
+  const inLife = navData.life.some((i) => i.key === key)
+  if (inWork && !inLife && !isWork.value) setMode('work')
+  else if (inLife && !inWork && isWork.value) setMode('life')
+}
+
+// 原型行为：当前 key 不在本模式导航中时回落到第一项（首页）
 const currentKey = computed(() =>
-  items.value.some((i) => i.key === props.activeKey) ? props.activeKey : '',
+  items.value.some((i) => i.key === activeKey.value) ? activeKey.value : items.value[0].key,
 )
 
 const navLinksEl = ref(null)
-const indicator = ref({ width: 0, left: 0 })
-const preview = ref(false)
+/** 滑动描边框位置：跟随激活 / 悬停项移动（原型 nav-outline） */
+const indicator = ref({ width: 0, left: 0, visible: false })
+/** 模式切换时导航项的退场 / 入场状态（原型 leaving / entering） */
+const navLeaving = ref(false)
+const navEntering = ref(false)
 const spin = ref(false)
-const modeSpin = ref(false)
 
 function measure(el) {
   if (!el) {
-    indicator.value = { width: 0, left: 0 }
+    indicator.value = { width: 0, left: 0, visible: false }
     return
   }
-  indicator.value = { width: el.offsetWidth, left: el.offsetLeft }
+  indicator.value = { width: el.offsetWidth, left: el.offsetLeft, visible: true }
 }
 
 function activeEl() {
@@ -61,17 +79,16 @@ function activeEl() {
 }
 
 function syncIndicator() {
+  // 退场动画期间保持描边框隐藏（原型 switchMode 会先将 outline 置为透明）
+  if (navLeaving.value) return
   measure(activeEl())
 }
 
-function onEnter(event, key) {
-  if (key === currentKey.value) return
-  preview.value = true
+function onEnter(event) {
   measure(event.currentTarget)
 }
 
 function onLeave() {
-  preview.value = false
   syncIndicator()
 }
 
@@ -79,6 +96,7 @@ const onResize = () => syncIndicator()
 
 onMounted(async () => {
   await nextTick()
+  syncModeForKey(activeKey.value)
   syncIndicator()
   window.addEventListener('resize', onResize)
   if (document.fonts && document.fonts.ready) {
@@ -86,9 +104,14 @@ onMounted(async () => {
   }
 })
 
+// 路由变化时同步模式（确保直接刷新 / 链接打开到生活/工作专属页面时导航列表对齐）
+watch(() => route.fullPath, () => {
+  syncModeForKey(activeKey.value)
+})
+
 onBeforeUnmount(() => window.removeEventListener('resize', onResize))
 
-// 主题切换会整组替换导航项，需要重新量一次下划线
+// 模式 / 激活项变化整组替换导航项，需要重新量一次描边框
 watch([items, currentKey], async () => {
   await nextTick()
   syncIndicator()
@@ -102,15 +125,33 @@ function onToggleTheme() {
   })
 }
 
-function onToggleMode() {
+/**
+ * 模式切换（原型节奏）：
+ * 1. 冻结旧导航列表并整体退场（opacity 0 + 下移 6px）
+ * 2. 200ms 后渲染新模式列表，先处于隐藏态，强制 reflow 后移除入场类触发过渡
+ */
+function onToggleMode(mode) {
+  if (navLeaving.value || mode === (isWork.value ? 'work' : 'life')) return
+  pendingItems.value = items.value
   toggleMode()
   if (router.currentRoute.value.path !== '/') {
     router.push('/')
   }
-  modeSpin.value = false
-  requestAnimationFrame(() => {
-    modeSpin.value = true
-  })
+  navLeaving.value = true
+  indicator.value = { width: 0, left: 0, visible: false }
+  setTimeout(() => {
+    pendingItems.value = null
+    navLeaving.value = false
+    nextTick().then(() => {
+      navEntering.value = true
+      // 强制 reflow，确保入场过渡能触发（原型 void offsetWidth）
+      void navLinksEl.value?.offsetWidth
+      requestAnimationFrame(() => {
+        navEntering.value = false
+      })
+      syncIndicator()
+    })
+  }, 200)
 }
 </script>
 
@@ -121,122 +162,116 @@ function onToggleMode() {
         <span class="brand-mark" aria-hidden="true">
           <img :src="logoUrl" alt="" />
         </span>
-        <span class="brand-name">墨堆</span>
+        <span class="brand-text">
+          <span class="brand-name">墨堆</span>
+          <span class="brand-divider" aria-hidden="true"></span>
+          <span class="brand-tag">光阴易逝，数字永生</span>
+        </span>
       </RouterLink>
 
       <nav class="nav">
-        <div ref="navLinksEl" class="nav-links" @mouseleave="onLeave">
-          <RouterLink
-            v-for="item in items"
-            :key="item.key"
-            :to="item.to"
-            :class="{ active: item.key === currentKey }"
-            :aria-current="item.key === currentKey ? 'page' : undefined"
-            @mouseenter="onEnter($event, item.key)"
-          >
-            {{ item.label }}
-          </RouterLink>
+        <div class="nav-wrap">
+          <div ref="navLinksEl" class="nav-links" @mouseleave="onLeave">
+            <RouterLink
+              v-for="item in items"
+              :key="item.key"
+              :to="item.to"
+              :class="{
+                active: item.key === currentKey,
+                leaving: navLeaving,
+                entering: navEntering,
+              }"
+              :aria-current="item.key === currentKey ? 'page' : undefined"
+              @mouseenter="onEnter"
+            >
+              {{ item.label }}
+            </RouterLink>
+          </div>
           <span
-            class="nav-underline"
-            :class="{ preview }"
-            :style="{ width: indicator.width + 'px', transform: `translateX(${indicator.left}px)` }"
+            class="nav-outline"
+            aria-hidden="true"
+            :style="{
+              width: `${indicator.width}px`,
+              transform: `translateX(${indicator.left}px)`,
+              opacity: indicator.visible ? 1 : 0,
+            }"
           />
         </div>
 
-        <div class="theme-toggle-wrap">
-          <!-- 工作 / 生活模式切换按钮 -->
+        <!-- 工作 / 生活模式 — 滑块式切换（原型 mode-toggle） -->
+        <div
+          class="mode-toggle"
+          :data-mode="isWork ? 'work' : 'life'"
+          role="group"
+          aria-label="工作/生活模式切换"
+        >
+          <span class="mode-toggle__thumb" aria-hidden="true"></span>
           <button
-            class="mode-toggle"
             type="button"
-            :aria-label="isWork ? '切换到生活模式' : '切换到工作模式'"
-            :aria-pressed="!isWork"
-            @click="onToggleMode"
+            class="mode-toggle__opt"
+            :class="{ active: isWork }"
+            :aria-pressed="isWork"
+            @click="onToggleMode('work')"
           >
-            <!-- 公文包图标（工作模式显示） -->
-            <svg
-              v-if="isWork"
-              :class="{ spin: modeSpin }"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect x="2" y="7" width="20" height="14" rx="2" />
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-            </svg>
-            <!-- 咖啡杯图标（生活模式显示） -->
-            <svg
-              v-else
-              :class="{ spin: modeSpin }"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
-              <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
-              <line x1="6" y1="2" x2="6" y2="4" />
-              <line x1="10" y1="2" x2="10" y2="4" />
-              <line x1="14" y1="2" x2="14" y2="4" />
-            </svg>
-            <span>{{ isWork ? '工作模式' : '生活模式' }}</span>
+            工作
           </button>
-
           <button
-            class="theme-toggle"
             type="button"
-            :aria-label="isDark ? '切换到白天模式' : '切换到黑夜模式'"
-            :aria-pressed="isDark"
-            @click="onToggleTheme"
+            class="mode-toggle__opt"
+            :class="{ active: !isWork }"
+            :aria-pressed="!isWork"
+            @click="onToggleMode('life')"
           >
-            <!-- 太阳图标（黑夜模式显示） -->
-            <svg
-              v-if="isDark"
-              :class="{ spin }"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="12" cy="12" r="5" />
-              <line x1="12" y1="1" x2="12" y2="3" />
-              <line x1="12" y1="21" x2="12" y2="23" />
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-              <line x1="1" y1="12" x2="3" y2="12" />
-              <line x1="21" y1="12" x2="23" y2="12" />
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-            </svg>
-            <!-- 月亮图标（白天模式显示） -->
-            <svg
-              v-else
-              :class="{ spin }"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
+            生活
           </button>
         </div>
+
+        <button
+          class="theme-toggle"
+          type="button"
+          :aria-label="isDark ? '切换到白天模式' : '切换到黑夜模式'"
+          :aria-pressed="isDark"
+          @click="onToggleTheme"
+        >
+          <!-- 太阳图标（黑夜模式显示） -->
+          <svg
+            v-if="isDark"
+            :class="{ spin }"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+          <!-- 月亮图标（白天模式显示） -->
+          <svg
+            v-else
+            :class="{ spin }"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        </button>
       </nav>
     </div>
   </header>
@@ -284,30 +319,44 @@ function onToggleMode() {
 </template>
 
 <style scoped>
-/* Header — 逐条搬自原型 HTML，数值未做任何调整 */
+/* ===== Header — 严格按原型 index.html 逐条还原 ===== */
 .header {
   position: sticky;
   top: 0;
   z-index: 100;
-  background-color: color-mix(in srgb, var(--bg-body) 92%, transparent);
+  background-color: color-mix(in srgb, var(--bg-body) 90%, transparent);
   border-bottom: 1px solid var(--border-light);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* 底部品牌色渐变装饰线 */
+.header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent) 50%, transparent);
+  opacity: 0.55;
 }
 
 .header-inner {
   max-width: var(--header-max, 1320px);
   margin: 0 auto;
-  padding: 0 24px;
-  height: 68px;
+  padding: 0 28px;
+  height: 72px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
+/* Brand — 渐变印章式 logo + 衬线站名 + 编辑感标语 */
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   font-family: var(--font-serif);
   text-decoration: none;
   color: var(--text-primary);
@@ -315,86 +364,106 @@ function onToggleMode() {
 
 .brand-mark {
   display: inline-flex;
-  width: 30px;
-  height: 30px;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
   flex-shrink: 0;
+  transition: transform var(--transition);
 }
 
-.brand-mark svg,
 .brand-mark img {
   width: 100%;
   height: 100%;
+  object-fit: contain;
   display: block;
+}
+
+.brand:hover .brand-mark {
+  transform: translateY(-1px) rotate(-2deg);
+}
+
+.brand-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .brand-name {
   font-size: 22px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   line-height: 1;
   color: var(--accent);
 }
 
+.brand-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+}
+
+.brand-tag {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+/* Nav — 文字链接 + 滑动描边框 */
 .nav {
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 18px;
+}
+
+.nav-wrap {
+  position: relative;
 }
 
 .nav-links {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 44px;
-}
-
-/* 滑动下划线 */
-.nav-underline {
-  position: absolute;
-  left: 0;
-  bottom: 4px;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent), #3fae86);
-  border-radius: 100px;
-  transition:
-    transform .5s cubic-bezier(.22, 1, .36, 1),
-    width .5s cubic-bezier(.22, 1, .36, 1),
-    opacity .35s ease;
-  z-index: 0;
-  pointer-events: none;
-}
-
-.nav-underline.preview {
-  opacity: 0.4;
+  gap: 22px;
+  height: 36px;
 }
 
 .nav-links a {
   position: relative;
   z-index: 1;
   display: inline-flex;
-  flex-direction: column;
-  justify-content: center;
   align-items: center;
-  height: 44px;
-  padding: 0 16px;
+  height: 36px;
+  padding: 0 13px;
   font-size: 15px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   text-decoration: none;
   letter-spacing: 0.04em;
-  border-radius: 10px;
+  white-space: nowrap;
+  border-radius: 999px;
   transition:
     color var(--transition),
-    background-color var(--transition);
+    opacity 0.22s ease,
+    transform 0.22s ease;
 }
 
 .nav-links a:hover {
-  color: var(--text-primary);
+  color: var(--accent);
 }
 
 .nav-links a.active {
-  color: var(--text-primary);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* 模式切换的退场 / 入场（原型 leaving / entering） */
+.nav-links a.leaving,
+.nav-links a.entering {
+  opacity: 0;
+  transform: translateY(6px);
 }
 
 .nav-links a:focus-visible {
@@ -402,49 +471,87 @@ function onToggleMode() {
   outline-offset: 2px;
 }
 
-.theme-toggle-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+/* 滑动描边框：包裹激活 / 悬停项 */
+.nav-outline {
+  position: absolute;
+  top: 0;
+  height: 36px;
+  width: 0;
+  border: 1.5px solid var(--accent);
+  border-radius: 999px;
+  opacity: 0;
+  transition:
+    transform var(--transition),
+    width var(--transition),
+    opacity 0.2s ease;
+  pointer-events: none;
 }
 
+/* 工作 / 生活模式 — 滑块式切换 */
 .mode-toggle {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  color: var(--accent);
-  background-color: var(--accent-light);
-  border: 1px solid transparent;
-  padding: 7px 12px;
-  border-radius: 100px;
-  white-space: nowrap;
-  user-select: none;
+  padding: 3px;
+  gap: 0;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+}
+
+.mode-toggle__thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(45, 130, 100, 0.28);
+  transition: transform var(--transition);
+  pointer-events: none;
+}
+
+.mode-toggle[data-mode='life'] .mode-toggle__thumb {
+  transform: translateX(100%);
+}
+
+[data-theme='dark'] .mode-toggle__thumb {
+  box-shadow: 0 2px 6px rgba(95, 197, 154, 0.22);
+}
+
+.mode-toggle__opt {
+  position: relative;
+  z-index: 1;
+  appearance: none;
+  border: none;
+  background: transparent;
   cursor: pointer;
-  transition: all var(--transition);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 6px 13px;
+  border-radius: 999px;
+  letter-spacing: 0.06em;
+  min-width: 54px;
+  transition: color var(--transition);
 }
 
-.mode-toggle svg {
-  flex-shrink: 0;
-  transition: transform .55s cubic-bezier(.22, 1, .36, 1);
+.mode-toggle__opt:hover {
+  color: var(--accent);
 }
 
-.mode-toggle svg.spin {
-  transform: rotate(360deg);
+.mode-toggle__opt.active {
+  color: #fff;
 }
 
-.mode-toggle:hover {
-  border-color: var(--accent);
-}
-
-.mode-toggle:focus-visible {
+.mode-toggle__opt:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
+/* 主题切换按钮 */
 .theme-toggle {
   width: 40px;
   height: 40px;
@@ -472,27 +579,22 @@ function onToggleMode() {
 }
 
 .theme-toggle svg {
-  transition: transform .55s cubic-bezier(.22, 1, .36, 1);
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .theme-toggle svg.spin {
   transform: rotate(360deg);
 }
 
-/* 常规断点 768px（首页 / 知识库 / 详情 / 数字生命 / 关于我 / 小记） */
+/* 常规断点 768px（首页 / 知识库 / 详情 / 数字生命 / 关于我 / 小记，数值来自原型） */
 @media (max-width: 768px) {
   .header:not(.header--narrow) .header-inner {
-    height: 60px;
+    height: 62px;
     padding: 0 16px;
   }
 
-  .header:not(.header--narrow) .nav-links {
-    gap: 2px;
-  }
-
   .header:not(.header--narrow) .nav-links a {
-    font-size: 13px;
-    padding: 0 13px;
+    font-size: 13.5px;
   }
 
   .header:not(.header--narrow) .brand-name {
@@ -500,21 +602,25 @@ function onToggleMode() {
   }
 
   .header:not(.header--narrow) .brand-mark {
-    width: 26px;
-    height: 26px;
+    width: 30px;
+    height: 30px;
+  }
+
+  .header:not(.header--narrow) .brand-tag,
+  .header:not(.header--narrow) .brand-divider {
+    display: none;
   }
 }
 
 /* 简历页原型的顶栏断点是 720px，单独还原 */
 @media (max-width: 720px) {
   .header--narrow .header-inner {
-    height: 60px;
+    height: 62px;
     padding: 0 16px;
   }
 
   .header--narrow .nav-links a {
-    font-size: 13px;
-    padding: 0 13px;
+    font-size: 13.5px;
   }
 
   .header--narrow .brand-name {
@@ -522,13 +628,18 @@ function onToggleMode() {
   }
 
   .header--narrow .brand-mark {
-    width: 26px;
-    height: 26px;
+    width: 30px;
+    height: 30px;
+  }
+
+  .header--narrow .brand-tag,
+  .header--narrow .brand-divider {
+    display: none;
   }
 }
 
 @media (max-width: 480px) {
-  .nav-links {
+  .nav-wrap {
     display: none;
   }
 }
@@ -574,19 +685,19 @@ function onToggleMode() {
   color: #fff;
   box-shadow: 0 2px 8px rgba(45, 130, 100, 0.35);
   flex-shrink: 0;
-  animation: toast-icon-bounce .6s cubic-bezier(.34, 1.56, .64, 1) .12s both;
+  animation: toast-icon-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.12s both;
 }
 
 .mode-toast .toast-icon svg {
   width: 15px;
   height: 15px;
   transform-origin: center;
-  animation: toast-icon-spin .5s cubic-bezier(.34, 1.56, .64, 1) .18s both;
+  animation: toast-icon-spin 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.18s both;
 }
 
 .mode-toast .toast-text {
   line-height: 1;
-  animation: toast-text-in .4s cubic-bezier(.22, 1, .36, 1) .2s both;
+  animation: toast-text-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
 }
 
 /* 光带扫过 */
@@ -603,7 +714,7 @@ function onToggleMode() {
     rgba(255, 255, 255, 0.45),
     transparent
   );
-  animation: toast-shine 1.4s cubic-bezier(.4, 0, .2, 1) .25s both;
+  animation: toast-shine 1.4s cubic-bezier(0.4, 0, 0.2, 1) 0.25s both;
 }
 
 @keyframes toast-icon-bounce {
@@ -616,7 +727,7 @@ function onToggleMode() {
     opacity: 1;
   }
   75% {
-    transform: scale(.92) rotate(-4deg);
+    transform: scale(0.92) rotate(-4deg);
   }
   100% {
     transform: scale(1) rotate(0);
@@ -625,7 +736,7 @@ function onToggleMode() {
 
 @keyframes toast-icon-spin {
   from {
-    transform: rotate(-120deg) scale(.4);
+    transform: rotate(-120deg) scale(0.4);
   }
   to {
     transform: rotate(0) scale(1);
@@ -669,38 +780,38 @@ function onToggleMode() {
 
 /* 入场：带 overshoot 的多段弹跳下落；离场：淡出 + 缩小 + 上飘 */
 .toast-pop-enter-active {
-  animation: toast-pop-in .55s cubic-bezier(.22, 1, .36, 1) both;
+  animation: toast-pop-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .toast-pop-leave-active {
   transition:
-    opacity .35s ease,
-    transform .35s ease,
-    filter .35s ease;
+    opacity 0.35s ease,
+    transform 0.35s ease,
+    filter 0.35s ease;
 }
 
 .toast-pop-enter-from {
   opacity: 0;
-  transform: translateX(-50%) translateY(-26px) scale(.8);
+  transform: translateX(-50%) translateY(-26px) scale(0.8);
 }
 
 .toast-pop-leave-to {
   opacity: 0;
-  transform: translateX(-50%) translateY(-12px) scale(.9);
+  transform: translateX(-50%) translateY(-12px) scale(0.9);
   filter: blur(4px);
 }
 
 @keyframes toast-pop-in {
   0% {
     opacity: 0;
-    transform: translateX(-50%) translateY(-26px) scale(.8);
+    transform: translateX(-50%) translateY(-26px) scale(0.8);
   }
   40% {
     opacity: 1;
     transform: translateX(-50%) translateY(3px) scale(1.06);
   }
   65% {
-    transform: translateX(-50%) translateY(-2px) scale(.98);
+    transform: translateX(-50%) translateY(-2px) scale(0.98);
   }
   82% {
     transform: translateX(-50%) translateY(1px) scale(1.01);

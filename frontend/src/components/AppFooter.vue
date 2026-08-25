@@ -13,7 +13,7 @@ const props = defineProps({
   /** 站点名称 */
   brand: { type: String, default: '墨堆' },
   /** 一句站点 slogan */
-  slogan: { type: String, default: '以设计记录思考' },
+  slogan: { type: String, default: '光阴易逝，数字永生' },
   /** 站内导航链接（默认按模式动态计算） */
   links: { type: Array, default: null },
   /** 友链（外链），留空则不展示该列 */

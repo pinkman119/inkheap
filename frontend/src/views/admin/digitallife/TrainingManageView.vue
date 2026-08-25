@@ -4,7 +4,7 @@ import { useApi } from '@/composables/useApi'
 
 const api = useApi()
 
-// 数据源 tab（关于我拆成 5 个子类型，由 tab 内再分组展示）
+// 数据源 tab（关于我拆成 4 个子类型，由 tab 内再分组展示）
 const TABS = [
   { key: 'article', label: '文章（知识库）', types: ['article'] },
   { key: 'blog', label: '小记', types: ['blog'] },
@@ -12,7 +12,7 @@ const TABS = [
   {
     key: 'about',
     label: '关于我',
-    types: ['about_profile', 'about_ring', 'about_footprint', 'about_travel', 'about_event'],
+    types: ['about_profile', 'about_footprint', 'about_travel', 'about_event'],
   },
 ]
 const TYPE_LABELS = {
@@ -20,7 +20,6 @@ const TYPE_LABELS = {
   blog: '小记',
   resume: '简历',
   about_profile: '个人简介',
-  about_ring: '年轮',
   about_footprint: '足迹',
   about_travel: '旅行',
   about_event: '事件',

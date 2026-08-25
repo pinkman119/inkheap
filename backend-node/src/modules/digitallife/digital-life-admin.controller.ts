@@ -39,17 +39,17 @@ export class DigitalLifeAdminController {
 
   // ==================== 模型管理 ====================
 
-  @Get('model')
+  @Get('models')
   getModelConfig() {
     return this.modelConfigService.getConfig();
   }
 
-  @Put('model')
+  @Put('models')
   updateModelConfig(@Body() dto: UpdateModelConfigDto) {
     return this.modelConfigService.updateConfig(dto);
   }
 
-  @Post('model/test')
+  @Post('models/test')
   testModelConnection() {
     return this.modelConfigService.testConnection();
   }

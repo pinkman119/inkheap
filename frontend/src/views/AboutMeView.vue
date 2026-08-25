@@ -73,6 +73,7 @@ const calWeeks = computed(() => {
       days.push({
         key,
         inYear,
+        date: new Date(date),
         dateStr: `${date.getFullYear()}-${m}-${d2}`,
         events,
         level: levelOf(events.length),
@@ -84,15 +85,66 @@ const calWeeks = computed(() => {
   return weeks
 })
 
-const openDay = ref(null) // 当前展开查看的事件日
+/* ===== 当日事件抽屉（点击热力块弹出，替代旧的网格下方展开区） ===== */
+const openDay = ref(null) // 抽屉中查看的日期（Date 对象；空白天也可打开）
 
-function toggleDay(day) {
+const WEEK_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+
+function keyOf(date) {
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+}
+
+// 抽屉浏览边界：数据年份区间（最早年 1/1 ~ 最晚年 12/31）；无数据时退化为当前年
+const dayRange = computed(() => {
+  const years = eventCalendarYears.value
+  const fallback = new Date().getFullYear()
+  const min = years.length ? Number(years[years.length - 1]) : fallback
+  const max = years.length ? Number(years[0]) : fallback
+  return { min: new Date(min, 0, 1), max: new Date(max, 11, 31) }
+})
+
+const openDayKey = computed(() => (openDay.value ? keyOf(openDay.value) : null))
+const drawerEvents = computed(() =>
+  openDay.value ? eventCalendar.value[openDayKey.value] || [] : [],
+)
+const drawerDateStr = computed(() => {
+  if (!openDay.value) return ''
+  return `${openDay.value.getFullYear()}年${openDay.value.getMonth() + 1}月${openDay.value.getDate()}日`
+})
+const drawerWeek = computed(() => WEEK_LABELS[openDay.value?.getDay() ?? 0])
+const canPrevDay = computed(() => !!openDay.value && openDay.value > dayRange.value.min)
+const canNextDay = computed(() => !!openDay.value && openDay.value < dayRange.value.max)
+
+// 点击热力块：年内任意一天（含无事件的空白天）都打开抽屉
+function openDrawer(day) {
   if (!day.inYear) return
-  if (day.events.length === 0) {
+  openDay.value = day.date
+}
+
+function closeDrawer() {
+  openDay.value = null
+}
+
+// 抽屉内切换上一天 / 下一天；跨年时热力块网格联动切换年份
+function shiftDay(delta) {
+  if (!openDay.value) return
+  const next = new Date(openDay.value)
+  next.setDate(next.getDate() + delta)
+  if (next < dayRange.value.min || next > dayRange.value.max) return
+  openDay.value = next
+  const y = String(next.getFullYear())
+  if (y !== calYear.value) calYear.value = y
+}
+
+// 手动切换年份时，关闭停留在旧年份的抽屉
+watch(calYear, (y) => {
+  if (openDay.value && String(openDay.value.getFullYear()) !== y) {
     openDay.value = null
-    return
   }
-  openDay.value = openDay.value && openDay.value.key === day.key ? null : day
+})
+
+function onKeydown(e) {
+  if (e.key === 'Escape') closeDrawer()
 }
 
 /* ===== Scroll reveal（对应原型的 IntersectionObserver） ===== */
@@ -143,6 +195,7 @@ watch(loaded, async (val) => {
 })
 
 onMounted(async () => {
+  window.addEventListener('keydown', onKeydown)
   // 拉取关于我页全部数据
   try {
     const data = await loadAboutData()
@@ -162,6 +215,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
   if (io) {
     io.disconnect()
     io = null
@@ -270,29 +324,16 @@ onBeforeUnmount(() => {
                   v-for="(day, di) in week"
                   :key="di"
                   class="cal-cell"
-                  :class="[`lv${day.level}`, { 'cal-out': !day.inYear, 'cal-active': openDay && openDay.key === day.key }]"
+                  :class="[`lv${day.level}`, { 'cal-out': !day.inYear, 'cal-active': openDayKey === day.key }]"
                   :disabled="!day.inYear"
                   :title="day.inYear ? `${day.dateStr} · ${day.events.length} 件事` : ''"
-                  @click="toggleDay(day)"
+                  @click="openDrawer(day)"
                 />
               </div>
             </div>
           </div>
 
-          <!-- 当天事件详情 -->
-          <div v-if="openDay" class="cal-detail">
-            <div class="cal-detail-date">{{ openDay.dateStr }}</div>
-            <ul class="cal-detail-list">
-              <li v-for="(ev, i) in openDay.events" :key="i" class="cal-detail-item">
-                <span class="cal-detail-dot" />
-                <div>
-                  <div class="cal-detail-title">{{ ev.title }}</div>
-                  <div class="cal-detail-desc">{{ ev.desc }}</div>
-                </div>
-              </li>
-            </ul>
-          </div>
-          <div v-else class="cal-hint">点击有颜色的方块，查看那一天的成就事件。</div>
+          <div class="cal-hint">点击任意方块，在抽屉里查看那一天的记录。</div>
 
           <!-- 年轮：同一年份下的人生经历 -->
           <div class="rings-in-cal">
@@ -355,6 +396,51 @@ onBeforeUnmount(() => {
       </section>
     </div>
   </main>
+
+  <!-- 当日事件抽屉：点击热力块弹出，右侧滑入 -->
+  <transition name="drawer-fade">
+    <div v-if="openDay" class="drawer-mask" @click="closeDrawer" />
+  </transition>
+  <transition name="drawer-slide">
+    <aside v-if="openDay" class="day-drawer" role="dialog" aria-modal="true" aria-label="当日事件">
+      <div class="drawer-head">
+        <div class="drawer-date-wrap">
+          <span class="drawer-date">{{ drawerDateStr }}</span>
+          <span class="drawer-week">{{ drawerWeek }}</span>
+          <span class="drawer-count">{{ drawerEvents.length ? `${drawerEvents.length} 件事` : '无记录' }}</span>
+        </div>
+        <div class="drawer-tools">
+          <button class="drawer-nav-btn" :disabled="!canPrevDay" title="上一天" @click="shiftDay(-1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button class="drawer-nav-btn" :disabled="!canNextDay" title="下一天" @click="shiftDay(1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <button class="drawer-close" title="关闭 (Esc)" @click="closeDrawer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="drawer-body">
+        <ul v-if="drawerEvents.length" class="drawer-list">
+          <li v-for="(ev, i) in drawerEvents" :key="i" class="drawer-item">
+            <span class="drawer-dot" :class="{ 'is-ring': ev.isRing }" />
+            <div class="drawer-item-body">
+              <div class="drawer-item-title">
+                {{ ev.title }}
+                <span v-if="ev.isRing" class="drawer-badge">✦ 成就</span>
+              </div>
+              <div class="drawer-item-desc">{{ ev.desc }}</div>
+            </div>
+          </li>
+        </ul>
+        <div v-else class="drawer-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <p>这一天没有记录。</p>
+        </div>
+      </div>
+    </aside>
+  </transition>
 
   <AppFooter />
 </template>
@@ -856,56 +942,221 @@ onBeforeUnmount(() => {
   color: var(--text-tertiary);
 }
 
-/* 当天事件详情 */
-.cal-detail {
-  margin-top: 18px;
-  border-top: 1px solid var(--border-light);
-  padding-top: 18px;
+/* 当日事件抽屉 */
+.drawer-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 18, 14, 0.42);
+  backdrop-filter: blur(2px);
+  z-index: 900;
 }
 
-.cal-detail-date {
+.drawer-fade-enter-active,
+.drawer-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.drawer-fade-enter-from,
+.drawer-fade-leave-to {
+  opacity: 0;
+}
+
+.day-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(420px, 92vw);
+  background-color: var(--bg-card);
+  border-left: 1px solid var(--border);
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.18);
+  z-index: 901;
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer-slide-enter-active,
+.drawer-slide-leave-active {
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.drawer-slide-enter-from,
+.drawer-slide-leave-to {
+  transform: translateX(100%);
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.drawer-date-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.drawer-date {
   font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--accent);
-  margin-bottom: 12px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
 }
 
-.cal-detail-list {
+.drawer-week {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+}
+
+.drawer-count {
+  font-size: 12px;
+  color: var(--accent);
+  background-color: var(--accent-light);
+  border-radius: 100px;
+  padding: 2px 10px;
+  font-family: var(--font-mono);
+}
+
+.drawer-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.drawer-nav-btn,
+.drawer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    color var(--transition),
+    border-color var(--transition),
+    background-color var(--transition);
+}
+
+.drawer-nav-btn svg,
+.drawer-close svg {
+  width: 15px;
+  height: 15px;
+}
+
+.drawer-nav-btn:hover:not(:disabled),
+.drawer-close:hover {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background-color: var(--accent-light);
+}
+
+.drawer-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 22px 26px;
+}
+
+.drawer-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
 }
 
-.cal-detail-item {
+.drawer-item {
   display: flex;
   gap: 12px;
   align-items: flex-start;
 }
 
-.cal-detail-dot {
+.drawer-dot {
   width: 9px;
   height: 9px;
   border-radius: 50%;
   background-color: var(--accent);
-  margin-top: 6px;
+  margin-top: 7px;
   flex-shrink: 0;
 }
 
-.cal-detail-title {
+.drawer-dot.is-ring {
+  background-color: #e6a23c;
+  box-shadow: 0 0 0 4px rgba(230, 162, 60, 0.18);
+}
+
+.drawer-item-body {
+  min-width: 0;
+}
+
+.drawer-item-title {
   font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.cal-detail-desc {
+.drawer-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #e6a23c;
+  background-color: #fdf6e9;
+  border: 1px solid rgba(230, 162, 60, 0.35);
+  border-radius: 100px;
+  padding: 1px 9px;
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .drawer-badge {
+  background-color: #2e2718;
+}
+
+.drawer-item-desc {
   font-size: 13.5px;
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: 1.7;
+}
+
+.drawer-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 56px 0;
+  color: var(--text-tertiary);
+}
+
+.drawer-empty svg {
+  width: 34px;
+  height: 34px;
+  opacity: 0.5;
+}
+
+.drawer-empty p {
+  margin: 0;
+  font-size: 13.5px;
 }
 
 /* Reveal on scroll */

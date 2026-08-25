@@ -9,17 +9,15 @@ const actionLoading = ref(false)
 const toastMsg = ref('')
 const toastType = ref('success')
 
-/* 年份筛选（按年管理，Q4=A） */
-const now = new Date()
-const CURRENT_YEAR = 2026
-const yearValue = ref(CURRENT_YEAR)
+/* 年份筛选：从事件数据动态生成（倒序），默认选中最新年份 */
+const yearValue = ref('')
 const yearOptions = computed(() => {
-  const years = new Set([CURRENT_YEAR, now.getFullYear()])
+  const years = new Set([String(new Date().getFullYear())])
   events.value.forEach((ev) => {
     const y = String(ev.date || '').slice(0, 4)
-    if (y) years.add(Number(y))
+    if (y) years.add(y)
   })
-  return Array.from(years).sort((a, b) => b - a)
+  return Array.from(years).sort((a, b) => (a < b ? 1 : -1))
 })
 
 /* 事件列表 */
@@ -33,6 +31,10 @@ async function loadEvents() {
   try {
     const list = await api.get('/admin/about/events')
     events.value = list
+    // 首次加载默认选中最新年份
+    if (!yearValue.value && yearOptions.value.length) {
+      yearValue.value = yearOptions.value[0]
+    }
   } catch (e) {
     showToast('加载事件失败: ' + e.message, 'error')
   } finally {
@@ -103,7 +105,7 @@ async function saveEvent() {
   }
 }
 
-/* 设为年轮：即时切换（Q9=A） */
+/* 设为成就：即时切换（写进前台年轮） */
 async function toggleRing(ev) {
   if (actionLoading.value) return
   actionLoading.value = true
@@ -111,7 +113,7 @@ async function toggleRing(ev) {
   try {
     await api.patch(`/admin/about/events/${ev.id}/ring`, { isRing: next })
     ev.isRing = next
-    showToast(next ? '已设为年轮' : '已取消年轮', 'success')
+    showToast(next ? '已设为成就，写进年轮' : '已取消成就', 'success')
   } catch (e) {
     showToast('操作失败: ' + e.message, 'error')
   } finally {
@@ -178,11 +180,11 @@ onMounted(async () => {
       <div class="page-hero-inner">
         <div class="hero-row">
           <div class="hero-copy">
-            <span class="kicker">About · 事件 / 年轮</span>
-            <h1>事件日历 · 年轮</h1>
+            <span class="kicker">About · 事件日历</span>
+            <h1>事件日历</h1>
           </div>
           <div class="hero-side">
-            <select v-model.number="yearValue" class="filter-select">
+            <select v-model="yearValue" class="filter-select">
               <option v-for="y in yearOptions" :key="y" :value="y">{{ y }} 年</option>
             </select>
             <button class="btn btn--primary" type="button" @click="openCreate">
@@ -191,8 +193,8 @@ onMounted(async () => {
             </button>
           </div>
         </div>
-        <p class="lede">按年份维护「关于我」里的大事件与年轮。把值得记住的日子设为年轮，它会沉淀到前台年轮时间线。</p>
-        <p class="hero-note">共 {{ events.length }} 条事件 · 年轮 {{ ringCount }} 条 · 当前 {{ yearValue }} 年 {{ filteredEvents.length }} 条</p>
+        <p class="lede">按年份维护「关于我」里的大事件。把值得记住的日子设为成就，它会写进前台「这一年的年轮」时间线；其余事件通过前台热力块抽屉查看。</p>
+        <p class="hero-note">共 {{ events.length }} 条事件 · 成就 {{ ringCount }} 条 · 当前 {{ yearValue || '—' }} 年 {{ filteredEvents.length }} 条</p>
       </div>
     </section>
 
@@ -214,7 +216,7 @@ onMounted(async () => {
         <div class="event-main">
           <div class="event-head">
             <span class="event-date">{{ ev.date }}</span>
-            <span v-if="ev.isRing" class="ring-chip">◆ 年轮</span>
+            <span v-if="ev.isRing" class="ring-chip">✦ 成就</span>
           </div>
           <h3 class="event-title">{{ ev.title }}</h3>
           <p v-if="ev.desc" class="event-desc">{{ ev.desc }}</p>
@@ -226,7 +228,7 @@ onMounted(async () => {
             :disabled="actionLoading"
             @click="toggleRing(ev)"
           >
-            {{ ev.isRing ? '★ 取消年轮' : '☆ 设为年轮' }}
+            {{ ev.isRing ? '★ 取消成就' : '☆ 设为成就' }}
           </button>
           <button class="mini-btn" :disabled="actionLoading" @click="openEdit(ev)">编辑</button>
           <button class="mini-btn danger" :disabled="actionLoading" @click="askDelete(ev)">删除</button>
@@ -255,7 +257,7 @@ onMounted(async () => {
                 <input id="evDate" v-model="editing.date" class="form-input" type="date" />
               </div>
               <div class="form-field ring-field">
-                <label class="field-label" for="evRing">设为年轮</label>
+                <label class="field-label" for="evRing">设为成就</label>
                 <label class="switch">
                   <input id="evRing" v-model="editing.isRing" type="checkbox" />
                   <span class="switch-slider"></span>
@@ -286,6 +288,9 @@ onMounted(async () => {
           确定要删除
           <strong v-if="pendingDelete">{{ pendingDelete.date }} · {{ pendingDelete.title }}</strong>
           吗？此操作不可撤销。
+        </p>
+        <p v-if="pendingDelete && pendingDelete.isRing" class="confirm-warn">
+          该事件已设为成就，删除后将同时从年轮中移除。
         </p>
         <div class="confirm-actions">
           <button class="btn btn--ghost" :disabled="deleting" @click="cancelDelete">取消</button>
@@ -630,6 +635,9 @@ onMounted(async () => {
 .confirm-card h3 { margin: 0 0 10px; font-size: 18px; }
 .confirm-text { color: var(--text-secondary); font-size: 14px; margin: 0 0 18px; line-height: 1.6; }
 .confirm-text strong { color: var(--text-primary); }
+.confirm-warn {
+  color: #e6a23c; font-size: 13px; margin: -8px 0 18px; line-height: 1.6;
+}
 .confirm-actions { display: flex; justify-content: center; gap: 10px; }
 
 /* ===== Toast ===== */

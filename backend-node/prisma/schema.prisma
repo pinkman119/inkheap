@@ -162,21 +162,6 @@ model AboutProfile {
   @@map("about_profile")
 }
 
-// 关于我 - 年轮（按年份归档的人生经历）
-model AboutRing {
-  id        String   @id @default(uuid())
-  year      String
-  title     String
-  desc      String
-  sortOrder Int      @default(0) @map("sort_order")
-  // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练
-  trainType Int      @default(0) @map("train_type")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@map("about_rings")
-}
-
 // 关于我 - 足迹（省份 → 多条记录）
 model AboutFootprint {
   id        String   @id @default(uuid())
@@ -212,11 +197,13 @@ model AboutTravel {
 }
 
 // 关于我 - 事件日历（date 存 ISO，返回前端转 YYYY-MM-DD）
+// isRing：是否设为成就（成就事件沉淀到前台年轮时间线；年轮不再使用独立表）
 model AboutEvent {
   id        String   @id @default(uuid())
   date      DateTime
   title     String
   desc      String
+  isRing    Boolean  @default(false) @map("is_ring")
   sortOrder Int      @default(0) @map("sort_order")
   // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练
   trainType Int      @default(0) @map("train_type")

@@ -150,10 +150,6 @@ onBeforeUnmount(() => {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span class="sidenav__label">个人资料</span>
           </router-link>
-          <router-link to="/admin/about/rings" class="sidenav__item" :class="{ active: isActive('/admin/about/rings') }">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <span class="sidenav__label">年轮</span>
-          </router-link>
           <router-link to="/admin/about/footprints" class="sidenav__item" :class="{ active: isActive('/admin/about/footprints') }">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
             <span class="sidenav__label">足迹</span>

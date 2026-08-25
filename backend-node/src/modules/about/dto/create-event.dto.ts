@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, Matches, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, Matches, MaxLength, Min } from 'class-validator';
 
 export class CreateEventDto {
   // YYYY-MM-DD 格式
@@ -12,6 +12,11 @@ export class CreateEventDto {
 
   @IsString()
   desc: string;
+
+  // 是否设为成就（写进前台年轮）
+  @IsOptional()
+  @IsBoolean()
+  isRing?: boolean;
 
   @IsOptional()
   @IsInt()

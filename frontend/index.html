@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8">
   <link rel="icon" href="./logo.png" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>墨堆 · 以设计记录思考</title>
+  <title>墨堆 · 光阴易逝，数字永生</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
   <script>
     // 主题前置注入：避免首屏白闪（FOUC）
     (function () {
@@ -17,12 +20,14 @@
         if (saved === 'dark' || (!saved && prefersDark)) {
           document.documentElement.setAttribute('data-theme', 'dark');
         }
-      } catch (e) {}
+      } catch (e) { }
     })();
   </script>
 </head>
+
 <body>
   <div id="app"></div>
   <script type="module" src="/src/main.js"></script>
 </body>
+
 </html>

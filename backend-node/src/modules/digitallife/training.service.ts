@@ -9,7 +9,6 @@ export type RefType =
   | 'blog'
   | 'resume'
   | 'about_profile'
-  | 'about_ring'
   | 'about_footprint'
   | 'about_travel'
   | 'about_event';
@@ -19,7 +18,6 @@ export const REF_TYPES: RefType[] = [
   'blog',
   'resume',
   'about_profile',
-  'about_ring',
   'about_footprint',
   'about_travel',
   'about_event',
@@ -34,7 +32,6 @@ export const REF_TYPE_LABELS: Record<RefType, string> = {
   blog: '小记',
   resume: '简历',
   about_profile: '关于我·个人简介',
-  about_ring: '关于我·年轮',
   about_footprint: '关于我·足迹',
   about_travel: '关于我·旅行',
   about_event: '关于我·事件',
@@ -194,8 +191,6 @@ export class TrainingService {
           row.lede ?? '',
           row.evaluationQuote ? `「${row.evaluationQuote}」—— ${row.evaluationBy ?? ''}` : '',
         ].join('\n');
-      case 'about_ring':
-        return `【关于我·年轮】${row.year} ${row.title}：${row.desc}`;
       case 'about_footprint':
         return `【关于我·足迹】${row.province}·${row.place}（${row.time}，${row.location}，海拔${row.elevation}）：${row.note}`;
       case 'about_travel':
@@ -246,7 +241,6 @@ export class TrainingService {
       blog: 'blog',
       resume: 'resume',
       about_profile: 'aboutProfile',
-      about_ring: 'aboutRing',
       about_footprint: 'aboutFootprint',
       about_travel: 'aboutTravel',
       about_event: 'aboutEvent',
@@ -304,8 +298,6 @@ export class TrainingService {
         return { ...base, title: `简历版本「${row.name}」`, summary: '当前生效版本', isActive: row.isActive };
       case 'about_profile':
         return { ...base, title: '个人简介', summary: (row.lede ?? '').slice(0, 80) };
-      case 'about_ring':
-        return { ...base, title: `${row.year} · ${row.title}`, summary: (row.desc ?? '').slice(0, 80) };
       case 'about_footprint':
         return { ...base, title: `${row.place}`, summary: `${row.province} · ${row.time}`, };
       case 'about_travel':

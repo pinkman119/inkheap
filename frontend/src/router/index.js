@@ -155,12 +155,6 @@ const adminRoutes = [
     meta: { title: '关于我·个人资料 · 墨堆 Admin', layout: 'layout-admin', auth: true },
   },
   {
-    path: '/admin/about/rings',
-    name: 'admin-about-rings',
-    component: () => import('@/views/admin/about/RingsManageView.vue'),
-    meta: { title: '关于我·年轮 · 墨堆 Admin', layout: 'layout-admin', auth: true },
-  },
-  {
     path: '/admin/about/footprints',
     name: 'admin-about-footprints',
     component: () => import('@/views/admin/about/FootprintsManageView.vue'),

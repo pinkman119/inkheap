@@ -2,14 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TrainingService, RefType } from '../digitallife/training.service';
 import { UpdateAboutProfileDto } from './dto/update-about-profile.dto';
-import { CreateRingDto } from './dto/create-ring.dto';
-import { UpdateRingDto } from './dto/update-ring.dto';
 import { CreateFootprintDto } from './dto/create-footprint.dto';
 import { UpdateFootprintDto } from './dto/update-footprint.dto';
 import { CreateTravelDto } from './dto/create-travel.dto';
 import { UpdateTravelDto } from './dto/update-travel.dto';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
+import { ToggleEventRingDto } from './dto/toggle-event-ring.dto';
 
 const PROFILE_ID = 'about';
 
@@ -76,47 +75,6 @@ export class AboutService {
         evaluationBy: dto.evaluationBy ?? '',
       },
     });
-  }
-
-  // ==================== Rings ====================
-
-  async findRings() {
-    const list = await this.prisma.aboutRing.findMany({
-      orderBy: [{ sortOrder: 'asc' }, { year: 'desc' }, { createdAt: 'asc' }],
-    });
-    return list;
-  }
-
-  async createRing(dto: CreateRingDto) {
-    return this.prisma.aboutRing.create({
-      data: {
-        year: dto.year,
-        title: dto.title,
-        desc: dto.desc,
-        sortOrder: dto.sortOrder ?? 0,
-      },
-    });
-  }
-
-  async updateRing(id: string, dto: UpdateRingDto) {
-    const existing = await this.prisma.aboutRing.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('年轮记录不存在');
-    const data: any = {};
-    if (dto.year !== undefined) data.year = dto.year;
-    if (dto.title !== undefined) data.title = dto.title;
-    if (dto.desc !== undefined) data.desc = dto.desc;
-    if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
-    const updated = await this.prisma.aboutRing.update({ where: { id }, data });
-    await this.trainingService.invalidateIfTrained('about_ring', id);
-    return updated;
-  }
-
-  async removeRing(id: string) {
-    const existing = await this.prisma.aboutRing.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('年轮记录不存在');
-    await this.trainingService.invalidateByRef('about_ring', id);
-    await this.prisma.aboutRing.delete({ where: { id } });
-    return { success: true };
   }
 
   // ==================== Footprints ====================
@@ -222,6 +180,7 @@ export class AboutService {
         date: parseDateStr(dto.date),
         title: dto.title,
         desc: dto.desc,
+        isRing: dto.isRing ?? false,
         sortOrder: dto.sortOrder ?? 0,
       },
     });
@@ -235,9 +194,24 @@ export class AboutService {
     if (dto.date !== undefined) data.date = parseDateStr(dto.date);
     if (dto.title !== undefined) data.title = dto.title;
     if (dto.desc !== undefined) data.desc = dto.desc;
+    if (dto.isRing !== undefined) data.isRing = dto.isRing;
     if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
     const updated = await this.prisma.aboutEvent.update({ where: { id }, data });
     await this.trainingService.invalidateIfTrained('about_event', id);
+    return { ...updated, date: toDateStr(updated.date) };
+  }
+
+  /**
+   * 设为成就（写进年轮）：仅切换 isRing 标记，不改动 title/desc/date，
+   * RAG 训练文本不受影响，故不触发训练失效。
+   */
+  async toggleEventRing(id: string, dto: ToggleEventRingDto) {
+    const existing = await this.prisma.aboutEvent.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('事件记录不存在');
+    const updated = await this.prisma.aboutEvent.update({
+      where: { id },
+      data: { isRing: dto.isRing },
+    });
     return { ...updated, date: toDateStr(updated.date) };
   }
 

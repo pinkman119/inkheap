@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   UseGuards,
@@ -12,14 +13,13 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AboutService } from './about.service';
 import { UpdateAboutProfileDto } from './dto/update-about-profile.dto';
-import { CreateRingDto } from './dto/create-ring.dto';
-import { UpdateRingDto } from './dto/update-ring.dto';
 import { CreateFootprintDto } from './dto/create-footprint.dto';
 import { UpdateFootprintDto } from './dto/update-footprint.dto';
 import { CreateTravelDto } from './dto/create-travel.dto';
 import { UpdateTravelDto } from './dto/update-travel.dto';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
+import { ToggleEventRingDto } from './dto/toggle-event-ring.dto';
 
 /** 后台关于我管理接口（JWT 鉴权） */
 @Controller('admin/about')
@@ -36,27 +36,6 @@ export class AboutAdminController {
   @Put('profile')
   updateProfile(@Body() dto: UpdateAboutProfileDto) {
     return this.service.updateProfile(dto);
-  }
-
-  // ===== Rings =====
-  @Get('rings')
-  findRings() {
-    return this.service.findRings();
-  }
-
-  @Post('rings')
-  createRing(@Body() dto: CreateRingDto) {
-    return this.service.createRing(dto);
-  }
-
-  @Put('rings/:id')
-  updateRing(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateRingDto) {
-    return this.service.updateRing(id, dto);
-  }
-
-  @Delete('rings/:id')
-  removeRing(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.removeRing(id);
   }
 
   // ===== Footprints =====
@@ -115,6 +94,12 @@ export class AboutAdminController {
   @Put('events/:id')
   updateEvent(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateEventDto) {
     return this.service.updateEvent(id, dto);
+  }
+
+  /** 设为成就（写进年轮）/ 取消成就：仅切换 isRing 标记 */
+  @Patch('events/:id/ring')
+  toggleEventRing(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ToggleEventRingDto) {
+    return this.service.toggleEventRing(id, dto);
   }
 
   @Delete('events/:id')
