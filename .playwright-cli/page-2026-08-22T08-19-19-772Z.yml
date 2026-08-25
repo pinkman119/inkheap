@@ -1,0 +1,125 @@
+- generic [ref=f3e271]:
+  - complementary [ref=f3e272]:
+    - generic [ref=f3e273]:
+      - generic [ref=f3e280]: 墨堆
+      - generic [ref=f3e281]: 后台
+    - navigation [ref=f3e282]:
+      - generic [ref=f3e283]:
+        - generic [ref=f3e284]: 概览
+        - link "仪表盘" [ref=f3e285] [cursor=pointer]:
+          - /url: "#/admin/dashboard"
+      - generic [ref=f3e292]:
+        - generic [ref=f3e293]: 内容运营
+        - link "首页管理" [ref=f3e294] [cursor=pointer]:
+          - /url: "#/admin/home-page"
+        - link "简历管理" [ref=f3e297] [cursor=pointer]:
+          - /url: "#/admin/resume"
+        - link "收信箱" [ref=f3e302] [cursor=pointer]:
+          - /url: "#/admin/contact"
+        - link "文章管理" [ref=f3e307] [cursor=pointer]:
+          - /url: "#/admin/articles"
+        - link "分类管理" [ref=f3e312] [cursor=pointer]:
+          - /url: "#/admin/categories"
+        - link "小记管理" [ref=f3e316] [cursor=pointer]:
+          - /url: "#/admin/xiaoji"
+      - generic [ref=f3e320]:
+        - generic [ref=f3e321]: 关于我
+        - link "个人资料" [ref=f3e322] [cursor=pointer]:
+          - /url: "#/admin/about/profile"
+        - link "年轮" [ref=f3e327] [cursor=pointer]:
+          - /url: "#/admin/about/rings"
+        - link "足迹" [ref=f3e332] [cursor=pointer]:
+          - /url: "#/admin/about/footprints"
+        - link "事件日历" [ref=f3e337] [cursor=pointer]:
+          - /url: "#/admin/about/events"
+      - generic [ref=f3e341]:
+        - generic [ref=f3e342]: 数字生命
+        - link "模型管理" [ref=f3e343] [cursor=pointer]:
+          - /url: "#/admin/digital-life/model"
+        - link "人格编写" [ref=f3e349] [cursor=pointer]:
+          - /url: "#/admin/digital-life/persona"
+        - link "训练管理" [ref=f3e356] [cursor=pointer]:
+          - /url: "#/admin/digital-life/training"
+      - generic [ref=f3e360]:
+        - generic [ref=f3e361]: 系统
+        - link "返回站点" [ref=f3e362] [cursor=pointer]:
+          - /url: "#/"
+    - generic [ref=f3e368]: 墨堆 · Admin v0.1
+  - generic [ref=f3e369]:
+    - banner [ref=f3e370]:
+      - generic [ref=f3e371]:
+        - button "切换菜单" [ref=f3e372] [cursor=pointer]
+        - generic [ref=f3e374]:
+          - generic [ref=f3e375]: 后台
+          - generic [ref=f3e376]: /
+          - generic [ref=f3e377]: 收信箱
+      - generic [ref=f3e378]:
+        - link "返回站点" [ref=f3e379] [cursor=pointer]:
+          - /url: "#/"
+        - button "切换主题" [ref=f3e385] [cursor=pointer]
+        - button "a" [ref=f3e393] [cursor=pointer]
+    - main [ref=f3e394]:
+      - generic [ref=f3e546]:
+        - generic [ref=f3e548]:
+          - generic [ref=f3e549]:
+            - generic [ref=f3e550]: Inbox · 收信
+            - heading "收信箱" [level=1] [ref=f3e551]
+          - paragraph [ref=f3e552]: 查看并处理「联系我」表单收到的来信。
+          - paragraph [ref=f3e553]: 共 6 封来信 · 当前页未读 0 封 · 点击来信自动标记为已读
+        - generic [ref=f3e554]:
+          - generic [ref=f3e555]:
+            - button "全部" [ref=f3e556] [cursor=pointer]
+            - button "未读" [ref=f3e557] [cursor=pointer]
+            - button "已读" [ref=f3e558] [cursor=pointer]
+          - generic [ref=f3e559]:
+            - textbox "搜索称呼 / 邮箱 / 主题 / 内容" [ref=f3e560]
+            - button "搜索" [ref=f3e561] [cursor=pointer]
+        - generic [ref=f3e562]:
+          - generic [ref=f3e563] [cursor=pointer]:
+            - generic [ref=f3e564]: Z
+            - generic [ref=f3e565]:
+              - generic [ref=f3e566]:
+                - generic [ref=f3e567]: Zhang3
+                - generic [ref=f3e568]: 08-22 14:45
+              - generic [ref=f3e569]: （无主题）
+              - generic [ref=f3e570]: hello letter test with contact
+          - generic [ref=f3e571] [cursor=pointer]:
+            - generic [ref=f3e572]: Z
+            - generic [ref=f3e573]:
+              - generic [ref=f3e574]:
+                - generic [ref=f3e575]: Zhang3
+                - generic [ref=f3e576]: 08-22 14:44
+              - generic [ref=f3e577]: （无主题）
+              - generic [ref=f3e578]: hello letter test
+          - generic [ref=f3e579] [cursor=pointer]:
+            - generic [ref=f3e580]: "1"
+            - generic [ref=f3e581]:
+              - generic [ref=f3e582]:
+                - generic [ref=f3e583]: "1"
+                - generic [ref=f3e584]: 08-22 14:42
+              - generic [ref=f3e585]: "1"
+              - generic [ref=f3e586]: "12"
+          - generic [ref=f3e587] [cursor=pointer]:
+            - generic [ref=f3e588]: 匿
+            - generic [ref=f3e589]:
+              - generic [ref=f3e590]:
+                - generic [ref=f3e591]: 匿名访客
+                - generic [ref=f3e592]: 08-22 14:29
+              - generic [ref=f3e593]: （无主题）
+              - generic [ref=f3e594]: 数字生命这个想法很酷！期待上线，到时候来体验。
+          - generic [ref=f3e595] [cursor=pointer]:
+            - generic [ref=f3e596]: A
+            - generic [ref=f3e597]:
+              - generic [ref=f3e598]:
+                - generic [ref=f3e599]: Aiden
+                - generic [ref=f3e600]: 08-22 14:29
+              - generic [ref=f3e601]: 合作 / 前端咨询
+              - generic [ref=f3e602]: 我们在做一个设计类社区，想请你做一期关于「用设计记录思考」的分享，方便的话加个微信？
+          - generic [ref=f3e603] [cursor=pointer]:
+            - generic [ref=f3e604]: 林
+            - generic [ref=f3e605]:
+              - generic [ref=f3e606]:
+                - generic [ref=f3e607]: 林小满
+                - generic [ref=f3e608]: 08-22 14:29
+              - generic [ref=f3e609]: 想聊聊一次登山装备选购
+              - generic [ref=f3e610]: 你好！看到你登顶慕士塔格的记录，太厉害了。我准备去四姑娘山，想请教一下高海拔装备怎么选？

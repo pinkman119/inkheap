@@ -231,8 +231,8 @@ onBeforeUnmount(() => {
 /* Hero */
 .hero {
   flex: 1 1 auto;
-  /* 占满首屏（视口 - 顶栏），不预留页脚空间，使页脚落在首屏之外 */
-  min-height: calc(100vh - 68px);
+  /* 首屏略高于视口（视口 - 顶栏 + 48px），将 footer 顶部悬浮的回到顶部按钮挤出首屏 */
+  min-height: calc(100vh - 68px + 48px);
   position: relative;
   display: flex;
   align-items: center;
@@ -244,7 +244,7 @@ onBeforeUnmount(() => {
 /* 移动端顶栏降为 60px，重新核算首屏高度 */
 @media (max-width: 768px) {
   .hero {
-    min-height: calc(100dvh - 60px);
+    min-height: calc(100dvh - 60px + 48px);
   }
 }
 

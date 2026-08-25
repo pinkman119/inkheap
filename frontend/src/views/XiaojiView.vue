@@ -1,17 +1,84 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
-import { notes, noteTags, xiaojiStats as stats, img } from '@/data/xiaoji.js'
+import { useApi } from '@/composables/useApi'
+import {
+  notes as staticNotes,
+  noteTags as staticTags,
+  xiaojiStats as staticStats,
+  img,
+} from '@/data/xiaoji.js'
+
+const api = useApi()
+const { assetUrl } = api
+
+/* ===== 数据：优先后端接口，接口失败时降级静态数据 ===== */
+const notes = ref([])
+const noteTags = ref([])
+const stats = ref({ total: 0, albums: 0, photos: 0 })
+const loading = ref(true)
+
+function normalize(item, isStatic = false) {
+  if (isStatic) {
+    return {
+      ...item,
+      slug: String(item.id),
+      cover: item.cover ? img(item.cover, 800, 600) : '',
+      photoCount: item.photoCount || 0,
+      summary: item.excerpt,
+      tags: [item.tag],
+    }
+  }
+  return {
+    ...item,
+    slug: item.slug,
+    cover: item.photos?.[0]?.url ? assetUrl(item.photos[0].url) : '',
+    photoCount: item.photos?.length || 0,
+    summary: item.summary || item.excerpt || '',
+    tags: item.tags || [],
+  }
+}
+
+function applyStatic() {
+  notes.value = staticNotes.map((n) => normalize(n, true))
+  noteTags.value = [
+    { key: 'all', label: '全部' },
+    ...staticTags.filter((t) => t.key !== 'all').map((t) => ({ key: t.key, label: t.label })),
+  ]
+  stats.value = staticStats
+}
+
+async function load() {
+  try {
+    const [list, cats, stat] = await Promise.all([
+      api.get('/xiaoji'),
+      api.get('/xiaoji/categories'),
+      api.get('/xiaoji/stats'),
+    ])
+    notes.value = (list || []).map((n) => normalize(n))
+    noteTags.value = [
+      { key: 'all', label: '全部' },
+      ...(cats || []).map((c) => ({ key: c.key, label: c.name })),
+    ]
+    stats.value = stat || { total: 0, albums: 0, photos: 0 }
+  } catch {
+    applyStatic()
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(load)
 
 /* ===== 分类筛选（与原型 filter-bar 一致：切换 hidden，不重排 DOM） ===== */
 const activeTag = ref('all')
 
 function matches(n) {
-  return activeTag.value === 'all' || n.tag === activeTag.value
+  return activeTag.value === 'all' || (n.tags || []).includes(activeTag.value)
 }
 
-const visibleCount = computed(() => notes.filter((n) => matches(n)).length)
+const visibleCount = computed(() => notes.value.filter((n) => matches(n)).length)
 
 /* ===== 工具 ===== */
 function fmtDate(d) {
@@ -20,7 +87,7 @@ function fmtDate(d) {
   return `${y}.${m}.${day}`
 }
 
-// 离线兜底：picsum 加载失败时换成内联 SVG 占位
+// 离线兜底：图片加载失败时换成内联 SVG 占位
 function onErr(e) {
   const el = e.target
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'>
@@ -32,7 +99,7 @@ function onErr(e) {
 </script>
 
 <template>
-  <AppHeader active-key="notes" />
+  <AppHeader active-key="" />
 
   <main class="journal-page">
     <!-- Hero -->
@@ -82,15 +149,15 @@ function onErr(e) {
       <div class="journal-grid">
         <RouterLink
           v-for="n in notes"
-          :key="n.id"
+          :key="n.slug"
           class="journal-card"
           :class="[n.type, { hidden: !matches(n) }]"
-          :to="`/xiaoji/${n.id}`"
+          :to="`/xiaoji/${n.slug}`"
         >
           <!-- 相册封面 -->
           <div v-if="n.type === 'album'" class="journal-cover">
             <img
-              :src="img(n.cover, 800, 600)"
+              :src="n.cover"
               :alt="n.title"
               loading="lazy"
               @error="onErr"
@@ -99,10 +166,13 @@ function onErr(e) {
             <span class="j-photocount">{{ n.photoCount }} 张</span>
           </div>
 
-          <!-- 随笔封面：衬线引文 -->
-          <div v-else class="journal-cover essay-quote">
+          <!-- 随笔封面：优先引文，无引文则用标题文字 -->
+          <div v-else-if="n.quote" class="journal-cover essay-quote">
             <span class="j-quote-mark">&ldquo;</span>
             <p class="j-quote">{{ n.quote }}</p>
+          </div>
+          <div v-else class="journal-cover essay-title">
+            <p class="j-title-cover">{{ n.title }}</p>
           </div>
 
           <div class="j-body">
@@ -110,13 +180,9 @@ function onErr(e) {
               <span class="j-loc">{{ n.location }}</span>
               <span class="j-dot"></span>
               <time :datetime="n.date">{{ fmtDate(n.date) }}</time>
-              <template v-if="n.type === 'essay' && n.readTime">
-                <span class="j-dot"></span>
-                <span>{{ n.readTime }}</span>
-              </template>
             </div>
             <h3 class="j-title">{{ n.title }}</h3>
-            <p class="j-excerpt">{{ n.excerpt }}</p>
+            <p class="j-excerpt">{{ n.summary }}</p>
             <span class="j-link">
               {{ n.type === 'album' ? '查看相册' : '阅读全文' }}
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -378,6 +444,28 @@ function onErr(e) {
   aspect-ratio: auto;
   min-height: 230px;
   border-bottom: 1px solid var(--j-line);
+}
+
+/* 随笔标题封面（未填写引文时） */
+.essay-title {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 28px 30px;
+  text-align: center;
+  background: linear-gradient(135deg, rgba(45, 130, 100, 0.08), rgba(45, 130, 100, 0.03));
+  aspect-ratio: auto;
+  min-height: 230px;
+  border-bottom: 1px solid var(--j-line);
+}
+
+.j-title-cover {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 22px;
+  line-height: 1.5;
+  color: var(--text-primary);
 }
 
 .j-quote-mark {

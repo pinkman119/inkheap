@@ -51,7 +51,7 @@ function onScroll() {
     :style="{ width: progressWidth }"
   />
 
-  <AppHeader active-key="resume" narrow />
+  <AppHeader active-key="" narrow />
 
   <div v-if="loadFailed" class="load-tip">简历数据加载失败，当前展示默认内容。</div>
 

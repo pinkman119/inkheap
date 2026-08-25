@@ -367,7 +367,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <AppHeader active-key="kb" />
+  <AppHeader active-key="" />
 
   <main class="container">
     <!-- LEFT: 分类树 -->

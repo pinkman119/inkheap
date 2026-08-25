@@ -53,11 +53,17 @@ const routes = [
     meta: { title: '小记 · 生活杂谈 · 墨堆', layout: 'layout-column', navKey: 'notes' },
   },
   {
-    path: '/xiaoji/:id',
+    path: '/xiaoji/:slug',
     name: 'note-detail',
     component: () => import('@/views/NoteDetailView.vue'),
     props: true,
     meta: { title: '小记详情 - 墨堆', layout: 'layout-flow', navKey: 'notes' },
+  },
+  {
+    path: '/contact',
+    name: 'contact',
+    component: () => import('@/views/ContactView.vue'),
+    meta: { title: '联系我 · 墨堆', layout: 'layout-flow', navKey: 'contact' },
   },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
@@ -82,10 +88,10 @@ const adminRoutes = [
     meta: { title: '仪表盘 · 墨堆 Admin', layout: 'layout-admin', auth: true },
   },
   {
-    path: '/admin/categories',
-    name: 'admin-categories',
-    component: () => import('@/views/admin/CategoryManageView.vue'),
-    meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+    path: '/admin/contact',
+    name: 'admin-contact',
+    component: () => import('@/views/admin/ContactManageView.vue'),
+    meta: { title: '收信箱 · 墨堆 Admin', layout: 'layout-admin', auth: true },
   },
   {
     path: '/admin/articles',
@@ -106,6 +112,12 @@ const adminRoutes = [
     meta: { title: '编辑文章 · 墨堆 Admin', layout: 'layout-admin', auth: true },
   },
   {
+    path: '/admin/categories',
+    name: 'admin-categories',
+    component: () => import('@/views/admin/CategoryManageView.vue'),
+    meta: { title: '分类管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
     path: '/admin/home-page',
     name: 'admin-home-page',
     component: () => import('@/views/admin/HomePageManageView.vue'),
@@ -116,6 +128,68 @@ const adminRoutes = [
     name: 'admin-resume',
     component: () => import('@/views/admin/ResumeManageView.vue'),
     meta: { title: '简历管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/xiaoji',
+    name: 'admin-xiaoji',
+    component: () => import('@/views/admin/AdminXiaojiListView.vue'),
+    meta: { title: '小记管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/xiaoji/new',
+    name: 'admin-xiaoji-new',
+    component: () => import('@/views/admin/AdminXiaojiEditView.vue'),
+    meta: { title: '新建小记 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/xiaoji/:id/edit',
+    name: 'admin-xiaoji-edit',
+    component: () => import('@/views/admin/AdminXiaojiEditView.vue'),
+    meta: { title: '编辑小记 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  // ===== 关于我管理 =====
+  {
+    path: '/admin/about/profile',
+    name: 'admin-about-profile',
+    component: () => import('@/views/admin/about/ProfileManageView.vue'),
+    meta: { title: '关于我·个人资料 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/about/rings',
+    name: 'admin-about-rings',
+    component: () => import('@/views/admin/about/RingsManageView.vue'),
+    meta: { title: '关于我·年轮 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/about/footprints',
+    name: 'admin-about-footprints',
+    component: () => import('@/views/admin/about/FootprintsManageView.vue'),
+    meta: { title: '关于我·足迹 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/about/events',
+    name: 'admin-about-events',
+    component: () => import('@/views/admin/about/EventsManageView.vue'),
+    meta: { title: '关于我·事件日历 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  // ===== 数字生命管理 =====
+  {
+    path: '/admin/digital-life/model',
+    name: 'admin-digital-life-model',
+    component: () => import('@/views/admin/digitallife/ModelManageView.vue'),
+    meta: { title: '数字生命·模型管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/digital-life/persona',
+    name: 'admin-digital-life-persona',
+    component: () => import('@/views/admin/digitallife/PersonaManageView.vue'),
+    meta: { title: '数字生命·人格编写 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/digital-life/training',
+    name: 'admin-digital-life-training',
+    component: () => import('@/views/admin/digitallife/TrainingManageView.vue'),
+    meta: { title: '数字生命·训练管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
   },
 ]
 
@@ -143,6 +217,36 @@ router.beforeEach((to, from, next) => {
 
 router.afterEach((to) => {
   if (to.meta?.title) document.title = to.meta.title
+  // 前台页面 PV 上报（排除 admin 后台路由）
+  if (!to.path.startsWith('/admin')) reportVisit(to.path)
 })
+
+// ===================== 前台 PV 上报 =====================
+
+// API 基础路径判断与 useApi 保持一致：
+// 开发环境（Vite 5173/4173）直连后端 3000；生产同源走 Nginx 反代
+const VISIT_IS_DEV =
+  typeof window !== 'undefined' &&
+  (window.location.port === '5173' || window.location.port === '4173')
+const VISIT_BASE = VISIT_IS_DEV ? 'http://localhost:3000/api' : '/api'
+
+// 同一路径 30 秒内只上报一次（防刷新抖动 / 短时间往返）
+const VISIT_THROTTLE_MS = 30 * 1000
+const visitLastAt = new Map()
+
+function reportVisit(path) {
+  const now = Date.now()
+  const last = visitLastAt.get(path) || 0
+  if (now - last < VISIT_THROTTLE_MS) return
+  visitLastAt.set(path, now)
+
+  fetch(`${VISIT_BASE}/visit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path }),
+  }).catch(() => {
+    /* 上报失败静默忽略 */
+  })
+}
 
 export default router

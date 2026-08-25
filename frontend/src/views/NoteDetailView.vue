@@ -2,26 +2,71 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
-import { notes, img } from '@/data/xiaoji.js'
+import { useApi } from '@/composables/useApi'
+import { renderMarkdown } from '@/utils/markdown'
+import { notes as staticNotes, img } from '@/data/xiaoji.js'
 
 const props = defineProps({
-  id: { type: String, default: '' },
+  slug: { type: String, default: '' },
 })
 
-/* ===== 当前条目（无效 id 兜底到第一条，与原型一致） ===== */
-const idx = computed(() => {
-  const i = notes.findIndex((n) => n.id === Number(props.id))
-  return i === -1 ? 0 : i
-})
-const note = computed(() => notes[idx.value])
-const prev = computed(() => notes[(idx.value - 1 + notes.length) % notes.length])
-const next = computed(() => notes[(idx.value + 1) % notes.length])
-const typeLabel = computed(() => (note.value.type === 'album' ? '相册' : '随笔'))
-const coverSeed = computed(() =>
-  note.value.type === 'album' && note.value.photos?.length
-    ? note.value.photos[0].s
-    : note.value.cover,
+const api = useApi()
+const { assetUrl } = api
+
+/* ===== 数据：优先后端接口，接口失败时降级静态数据 ===== */
+const note = ref(null)
+const prev = ref(null)
+const next = ref(null)
+
+function normalize(item, isStatic = false) {
+  const photos = (item.photos || []).map((p) =>
+    isStatic
+      ? { url: img(p.s, 600, 450), caption: p.c }
+      : { url: assetUrl(p.url), caption: p.caption || '' },
+  )
+  const cover = item.cover
+    ? assetUrl(item.cover)
+    : isStatic
+      ? photos[0]?.url || img(item.cover || 'xiaoji', 1200, 520)
+      : photos[0]?.url || ''
+  return {
+    ...item,
+    slug: item.slug ?? String(item.id),
+    photos,
+    cover,
+    content: item.content || item.body || '',
+    excerpt: item.summary || item.excerpt || '',
+  }
+}
+
+function applyStatic() {
+  const i = staticNotes.findIndex((n) => String(n.id) === props.slug)
+  const idx = i === -1 ? 0 : i
+  note.value = normalize(staticNotes[idx], true)
+  prev.value = normalize(staticNotes[(idx - 1 + staticNotes.length) % staticNotes.length], true)
+  next.value = normalize(staticNotes[(idx + 1) % staticNotes.length], true)
+}
+
+async function load() {
+  try {
+    const d = await api.get(`/xiaoji/slug/${encodeURIComponent(props.slug)}`)
+    note.value = normalize(d, false)
+    prev.value = d.prev ? normalize(d.prev, false) : null
+    next.value = normalize(d.next || {}, false)
+    if (next.value && !next.value.slug) next.value = null
+  } catch {
+    applyStatic()
+  }
+}
+
+watch(
+  () => props.slug,
+  () => load(),
+  { immediate: true },
 )
+
+const typeLabel = computed(() => (note.value?.type === 'album' ? '相册' : '随笔'))
+const bodyHtml = computed(() => renderMarkdown(note.value?.content || ''))
 
 /* ===== 阅读进度条 ===== */
 const progressEl = ref(null)
@@ -48,8 +93,8 @@ onBeforeUnmount(() => {
 /* ===== Lightbox ===== */
 const lbOpen = ref(false)
 const lbIndex = ref(0)
-const lbPhotos = computed(() => note.value.photos || [])
-const lbPhoto = computed(() => lbPhotos.value[lbIndex.value] || { s: '', c: '' })
+const lbPhotos = computed(() => note.value?.photos || [])
+const lbPhoto = computed(() => lbPhotos.value[lbIndex.value] || { url: '', caption: '' })
 let lastFocus = null
 
 function showLb(i) {
@@ -83,10 +128,10 @@ function onKeydown(e) {
 }
 
 watch(
-  () => note.value.id,
+  () => note.value?.slug,
   () => {
     closeLb()
-    document.title = `${note.value.title} · 小记 · 墨堆`
+    document.title = `${note.value?.title || '小记'} · 小记 · 墨堆`
     nextTick(() => window.scrollTo({ top: 0 }))
     onScroll()
   },
@@ -109,9 +154,10 @@ function fallbackImg(e) {
 <template>
   <div class="progress" ref="progressEl" aria-hidden="true"></div>
 
-  <AppHeader active-key="notes" />
+  <AppHeader active-key="" />
 
   <main class="page">
+    <template v-if="note">
     <div class="container">
       <RouterLink class="back-link" to="/xiaoji">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -139,13 +185,6 @@ function fallbackImg(e) {
           </svg>
           {{ note.date }}
         </span>
-        <span v-if="note.duration" class="meta-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-          </svg>
-          {{ note.duration }}
-        </span>
-        <span v-if="note.readTime" class="meta-item">{{ note.readTime }}</span>
         <span class="d-tags">
           <span v-for="t in note.tags" :key="t" class="chip">{{ t }}</span>
         </span>
@@ -153,12 +192,12 @@ function fallbackImg(e) {
 
       <template v-if="note.type === 'album'">
         <div class="d-cover">
-          <img :src="img(coverSeed, 1200, 520)" :alt="note.title" @error="fallbackImg" />
+          <img :src="note.cover" :alt="note.title" @error="fallbackImg" />
         </div>
       </template>
       <div v-else class="d-cover essay-quote">
         <span class="j-quote-mark">&ldquo;</span>
-        <p class="j-quote">{{ note.quote || note.excerpt }}</p>
+        <p class="j-quote">{{ note.quote || note.excerpt || note.title }}</p>
       </div>
 
       <!-- 相册 -->
@@ -170,17 +209,17 @@ function fallbackImg(e) {
         <div class="gallery">
           <div
             v-for="(p, i) in note.photos"
-            :key="p.s"
+            :key="p.url"
             class="g-thumb"
             tabindex="0"
             role="button"
-            :aria-label="`查看照片：${p.c}`"
+            :aria-label="`查看照片：${p.caption}`"
             @click="openLb(i, $event.currentTarget)"
             @keydown.enter.prevent="openLb(i, $event.currentTarget)"
             @keydown.space.prevent="openLb(i, $event.currentTarget)"
           >
-            <img :src="img(p.s, 600, 450)" :alt="p.c" loading="lazy" @error="fallbackImg" />
-            <span class="g-cap">{{ p.c }}</span>
+            <img :src="p.url" :alt="p.caption" loading="lazy" @error="fallbackImg" />
+            <span class="g-cap">{{ p.caption }}</span>
           </div>
         </div>
       </template>
@@ -189,21 +228,22 @@ function fallbackImg(e) {
       <section class="d-section">
         <h2>旅行感受</h2>
       </section>
-      <!-- eslint-disable-next-line vue/no-v-html —— 正文为项目内静态数据 -->
-      <div class="d-prose" v-html="note.body"></div>
+      <!-- eslint-disable-next-line vue/no-v-html —— markdown 经 DOMPurify 清洗 -->
+      <div class="d-prose" v-html="bodyHtml"></div>
 
       <!-- 上一篇 / 下一篇 -->
       <div class="d-nav">
-        <RouterLink :to="`/xiaoji/${prev.id}`">
+        <RouterLink v-if="prev" :to="`/xiaoji/${prev.slug}`">
           <span class="dir">← 上一篇</span>
           <span class="nt">{{ prev.title }}</span>
         </RouterLink>
-        <RouterLink class="next" :to="`/xiaoji/${next.id}`">
+        <RouterLink v-if="next" class="next" :to="`/xiaoji/${next.slug}`">
           <span class="dir">下一篇 →</span>
           <span class="nt">{{ next.title }}</span>
         </RouterLink>
       </div>
     </div>
+    </template>
   </main>
 
   <AppFooter />
@@ -224,7 +264,7 @@ function fallbackImg(e) {
       </svg>
     </button>
     <div class="lightbox__inner">
-      <img class="lightbox__img" :src="img(lbPhoto.s, 1280, 860)" :alt="lbPhoto.c" @error="fallbackImg" />
+      <img class="lightbox__img" :src="lbPhoto.url" :alt="lbPhoto.caption" @error="fallbackImg" />
       <div class="lightbox__bar">
         <button class="lightbox__btn" aria-label="上一张" @click="showLb(lbIndex - 1)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -240,7 +280,7 @@ function fallbackImg(e) {
           </svg>
         </button>
       </div>
-      <div class="lightbox__cap">{{ lbPhoto.c }}</div>
+      <div class="lightbox__cap">{{ lbPhoto.caption }}</div>
     </div>
   </div>
 </template>

@@ -1,0 +1,15 @@
+import { CategoryService } from './category.service';
+import { CreateCategoryDto } from './dto/create-category.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
+export declare class CategoryController {
+    private categoryService;
+    constructor(categoryService: CategoryService);
+    findAll(): Promise<any>;
+    findTree(): Promise<any[]>;
+    findOne(id: string): Promise<any>;
+    create(dto: CreateCategoryDto): Promise<any>;
+    update(id: string, dto: UpdateCategoryDto): Promise<any>;
+    remove(id: string): Promise<{
+        message: string;
+    }>;
+}

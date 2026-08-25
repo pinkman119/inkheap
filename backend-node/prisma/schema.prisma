@@ -1,10 +1,9 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -38,6 +37,8 @@ model Article {
   viewCount   Int      @default(0) @map("view_count")
   // 内容类型：article = 知识库文章，note = 小记（为后续小记接入预留，本次仅使用 article）
   type        String   @default("article") @map("type")
+  // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练
+  trainType   Int      @default(0) @map("train_type")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -80,6 +81,8 @@ model Resume {
   name      String   @default("默认版本") // 版本名称，便于后台区分
   content   String   @default("{}") // 完整简历 JSON 字符串（结构对齐新原型各区块）
   isActive  Boolean  @default(false) // 是否为当前生效版本（前台展示）
+  // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练（仅 isActive 版本参与训练）
+  trainType Int      @default(0) @map("train_type")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -100,3 +103,210 @@ model Category {
 
   @@map("categories")
 }
+
+// ==================== 小记 ====================
+
+model Blog {
+  id        String   @id @default(uuid())
+  slug      String   @unique
+  title     String
+  // 类型：album = 相册，essay = 随笔
+  type      String   @default("album")
+  // 分类 key 数组（JSON 字符串），如 ["登山","citywalk"]
+  tags      String   @default("[]")
+  // markdown 正文
+  content   String   @default("")
+  summary   String? // 摘要（列表副标题）
+  quote     String? // 随笔引文（essay 列表/封面使用）
+  location  String? // 地点
+  date      String? // 日期
+  // 照片数组（JSON 字符串）：[{"url":"/files/...","caption":"..."}]
+  photos    String   @default("[]")
+  published Boolean  @default(false)
+  viewCount Int      @default(0) @map("view_count")
+  // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练
+  trainType Int      @default(0) @map("train_type")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("blogs")
+}
+
+// ==================== 小记分类 ====================
+
+model BlogCategory {
+  id        String   @id @default(uuid())
+  key       String   @unique // 与 name 一致（去空格），同名即复用
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("blog_categories")
+}
+
+// ==================== 关于我 ====================
+
+// 关于我 - 个人资料（单条全局，id 固定为 "about"）
+// 头像与署名（name）不在此表：头像取自 HomePage.avatar，署名取自 HomePage.siteName
+model AboutProfile {
+  id              String   @id @default("about")
+  kicker          String   @default("About Me")
+  lede            String   @default("")
+  evaluationQuote String   @default("") @map("evaluation_quote")
+  evaluationBy    String   @default("") @map("evaluation_by")
+  // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练
+  trainType       Int      @default(0) @map("train_type")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("about_profile")
+}
+
+// 关于我 - 年轮（按年份归档的人生经历）
+model AboutRing {
+  id        String   @id @default(uuid())
+  year      String
+  title     String
+  desc      String
+  sortOrder Int      @default(0) @map("sort_order")
+  // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练
+  trainType Int      @default(0) @map("train_type")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("about_rings")
+}
+
+// 关于我 - 足迹（省份 → 多条记录）
+model AboutFootprint {
+  id        String   @id @default(uuid())
+  province  String
+  place     String
+  time      String
+  location  String
+  elevation String   @default("—")
+  note      String
+  sortOrder Int      @default(0) @map("sort_order")
+  // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练
+  trainType Int      @default(0) @map("train_type")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("about_footprints")
+}
+
+// 关于我 - 旅行卡片
+model AboutTravel {
+  id        String   @id @default(uuid())
+  glyph     String
+  place     String
+  meta      String
+  note      String
+  sortOrder Int      @default(0) @map("sort_order")
+  // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练
+  trainType Int      @default(0) @map("train_type")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("about_travels")
+}
+
+// 关于我 - 事件日历（date 存 ISO，返回前端转 YYYY-MM-DD）
+model AboutEvent {
+  id        String   @id @default(uuid())
+  date      DateTime
+  title     String
+  desc      String
+  sortOrder Int      @default(0) @map("sort_order")
+  // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练
+  trainType Int      @default(0) @map("train_type")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("about_events")
+}
+
+// ==================== 站点访问 ====================
+
+// 站点每日访问量（前台 PV，按天聚合；来源：前台路由切换时上报 POST /api/visit）
+model SiteVisit {
+  id        String   @id @default(uuid())
+  day       DateTime @unique // 当天零点（仅日期语义，服务器本地时区）
+  count     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_visits")
+}
+
+// ==================== 联系我 ====================
+
+// 前台「联系我」提交的消息（访客来信 / 收信箱）
+model ContactMessage {
+  id        String   @id @default(uuid())
+  name      String? // 来信人称呼（可空，匿名来信）
+  email     String? // 邮箱（可空，但填写时做格式校验）
+  phone     String? // 电话（可空）
+  subject   String? @map("subject") // 主题
+  contact   String? @map("contact") // 回信方式（自由文本：邮箱 / 微信 / 手机）
+  message   String // 正文
+  read      Boolean  @default(false) // 是否已读（后台收信箱用）
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([createdAt])
+  @@map("contact_messages")
+}
+
+// ==================== 数字生命 ====================
+
+// 微信访客用户（数字生命聊天对象）
+// Mock 阶段 openid 形如 "mock-<随机串>"；接入真实微信扫码后为微信 openid
+model WechatUser {
+  id        String   @id @default(uuid())
+  openid    String   @unique
+  nickname  String   @default("微信用户")
+  avatar    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("wechat_users")
+}
+
+// 数字生命聊天记录（单一持续会话：按 userId 时间线追加）
+model ChatMessage {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  // "user" = 访客提问，"assistant" = 数字生命回复
+  role      String
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("chat_messages")
+}
+
+// 数字生命模型配置（单条全局，id 固定 "default"）
+model DlModelConfig {
+  id             String   @id @default("default")
+  // GLM 系模型名（后台可切换，支持自定义输入）
+  chatModel      String   @default("glm-4.6") @map("chat_model")
+  embeddingModel String   @default("embedding-3") @map("embedding_model")
+  // 智谱 API Key 密文（AES-256-GCM，密钥来自 env APP_ENCRYPTION_KEY）
+  apiKeyEnc      String?  @map("api_key_enc")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("dl_model_config")
+}
+
+// 数字生命人格（单条全局，id 固定 "default"；初始值 = muztagh-cat skill 全文）
+model DlPersona {
+  id        String   @id @default("default")
+  content   String // 人格 prompt 全文（后台人格编写页可编辑）
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("dl_persona")
+}
+
+// 说明：pgvector 向量表 dl_vectors 由 prisma/pgvector-init.ts 以原生 SQL 管理
+// （Prisma 不支持 vector 列类型），包含 ref_type/ref_id/chunk_index/content/embedding(1024) 列与 HNSW 索引

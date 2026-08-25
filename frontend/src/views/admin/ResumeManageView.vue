@@ -351,39 +351,59 @@ const hasVersions = computed(() => versions.value.length > 0)
 
 <template>
   <div class="resume-manage">
-    <transition name="fade">
-      <div v-if="toastMsg" class="toast" :class="toastType">{{ toastMsg }}</div>
+    <transition name="toast-pop">
+      <div v-if="toastMsg" class="toast" :class="toastType" role="status" aria-live="polite">
+        <svg v-if="toastType === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+        <span>{{ toastMsg }}</span>
+      </div>
     </transition>
 
-    <div class="page-head">
-      <div>
-        <h2>简历管理</h2>
-        <p class="page-desc">管理多个简历版本：编辑内容、切换前台生效版本，保存后即时生效</p>
-        <span class="autosave-status" :class="{ dirty }" :title="'每 20 秒自动保存 · Ctrl + S 手动保存'">
-          {{ saving ? '保存中…' : dirty ? '未保存' : lastSavedAt ? '已自动保存 ' + new Date(lastSavedAt).toLocaleTimeString() : '' }}
-        </span>
+    <!-- ===== Hero ===== -->
+    <section class="page-hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="page-hero-inner">
+        <div class="hero-row">
+          <div class="hero-copy">
+            <span class="kicker">Resume · 简历</span>
+            <h1>简历管理</h1>
+          </div>
+          <div class="hero-side">
+            <span class="autosave-status" :class="{ dirty }" title="每 20 秒自动保存 · Ctrl + S 手动保存">
+              {{ saving ? '保存中…' : dirty ? '未保存修改' : lastSavedAt ? '已保存 · ' + new Date(lastSavedAt).toLocaleTimeString() : '' }}
+            </span>
+            <button class="btn btn--ghost" :disabled="actionLoading" @click="openCreate">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              新建版本
+            </button>
+            <a class="btn btn--ghost" href="#/resume" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              打开前台
+            </a>
+            <button class="btn btn--primary" :disabled="saving || !currentId" @click="save()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+              {{ saving ? '保存中…' : '保存当前版本' }}
+            </button>
+          </div>
+        </div>
+        <p class="lede">管理多个简历版本：编辑内容、切换前台生效版本，保存后即时生效。</p>
+        <p class="hero-note">每 20s 自动保存 · Ctrl + S 立即保存 · 切换版本前请注意保存未完成的修改</p>
       </div>
-      <div class="head-actions">
-        <button class="btn-ghost" :disabled="actionLoading" @click="openCreate">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          新建版本
-        </button>
-        <a class="btn-ghost" href="#/resume" target="_blank" rel="noopener">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          打开前台
-        </a>
-        <button class="btn-primary" :disabled="saving || !currentId" @click="save()">
-          {{ saving ? '保存中…' : '保存当前版本' }}
-        </button>
-      </div>
+    </section>
+
+    <!-- ===== Loading / Empty ===== -->
+    <div v-if="loading && !versions.length" class="empty">
+      <span class="spinner" aria-hidden="true"></span>
+      <span>加载中…</span>
     </div>
 
-    <div v-if="loading && !versions.length" class="empty">加载中…</div>
-
-    <div v-else-if="!hasVersions" class="empty">暂无简历版本，请先新建。</div>
+    <div v-else-if="!hasVersions" class="empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 9h5M7 13h10M7 17h7"/></svg>
+      <span>暂无简历版本，点击右上角「新建版本」开始。</span>
+    </div>
 
     <template v-else>
-      <!-- 版本列表 -->
+      <!-- ===== 版本列表 ===== -->
       <section class="version-bar">
         <div
           v-for="v in versions"
@@ -419,175 +439,240 @@ const hasVersions = computed(() => versions.value.length > 0)
         </div>
       </section>
 
-      <!-- 编辑区 -->
-      <div class="edit-main">
-        <!-- 表单 -->
-        <section class="panel form-panel">
-          <div class="panel-title panel-title-row">
-            <span>版本信息</span>
-            <button class="btn-ghost" :disabled="!currentId" @click="previewOpen = true">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              实时预览
-            </button>
-          </div>
-          <div class="form-field">
-            <label>版本名称</label>
+      <!-- ===== 编辑区 ===== -->
+      <div class="settings-wrap">
+        <section class="settings-card">
+          <!-- 版本信息 -->
+          <div class="field">
+            <div class="field-head">
+              <span class="section-title">版本信息</span>
+              <button class="btn btn--link" :disabled="!currentId" @click="previewOpen = true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path></svg>
+                实时预览
+              </button>
+            </div>
             <div class="version-name-row">
-              <input v-model="versionName" type="text" maxlength="120" placeholder="如：默认版本 / 2026 夏季版" />
+              <input
+                v-model="versionName"
+                class="form-input"
+                type="text"
+                maxlength="120"
+                placeholder="如：默认版本 / 2026 夏季版"
+              />
               <span v-if="currentVersion" class="edit-status" :class="{ active: currentVersion.isActive }">
                 {{ currentVersion.isActive ? '● 生效中 · 前台展示此版本' : '○ 未生效 · 前台不展示' }}
               </span>
             </div>
           </div>
 
-          <div class="panel-title">基本信息</div>
-          <div class="form-field">
-            <label>姓名</label>
-            <input v-model="form.profile.name" type="text" maxlength="60" placeholder="姓名" />
-          </div>
-          <div class="form-row">
-            <div class="form-field">
-              <label>头像文字</label>
-              <input v-model="form.profile.avatarText" type="text" maxlength="4" placeholder="如：墨" />
+          <!-- 基本信息 -->
+          <div class="field">
+            <div class="field-head">
+              <span class="section-title">基本信息</span>
             </div>
             <div class="form-field">
-              <label>Handle</label>
-              <input v-model="form.profile.handle" type="text" maxlength="120" placeholder="如：AI 全栈工程师（偏后端）" />
+              <label class="field-label" for="rName">姓名</label>
+              <input id="rName" v-model="form.profile.name" class="form-input" type="text" maxlength="60" placeholder="姓名" />
             </div>
-          </div>
-          <div class="form-field">
-            <label>Tagline</label>
-            <textarea v-model="form.profile.tagline" rows="2" maxlength="300" placeholder="一句话介绍"></textarea>
-          </div>
-          <div class="form-field">
-            <label>隐私提示（hero 问号 tooltip）</label>
-            <textarea v-model="form.profile.heroInfo" rows="2" maxlength="200" placeholder="如：为保护个人隐私，网页简历信息已做脱敏处理…"></textarea>
-          </div>
-
-          <div class="panel-title">关于我</div>
-          <div v-for="(lead, i) in (form.about?.leads || [])" :key="'lead' + i" class="form-field">
-            <label>段落 {{ i + 1 }}</label>
-            <textarea v-model="form.about.leads[i]" rows="2" placeholder="支持 &lt;strong&gt; 强调文本"></textarea>
-            <button class="btn-ghost small" @click="removeItem(form.about.leads, i)">删除该段</button>
-          </div>
-          <button class="btn-ghost" @click="addLead">+ 添加段落</button>
-          <div class="form-field" style="margin-top: 14px">
-            <label>Callout 金句</label>
-            <textarea v-model="form.about.callout" rows="2" placeholder="一段引用/金句"></textarea>
-          </div>
-
-          <div class="panel-title">个人信息（侧栏）</div>
-          <div v-for="(item, i) in (form.info || [])" :key="'info' + i" class="repeat-row">
-            <select v-model="item.icon">
-              <option value="mail">邮箱</option>
-              <option value="chat">微信</option>
-              <option value="location">地址</option>
-              <option value="user">用户</option>
-              <option value="badge">徽章</option>
-            </select>
-            <input v-model="item.label" type="text" placeholder="标签" style="width: 90px" />
-            <input v-model="item.value" type="text" placeholder="内容" />
-            <input v-model="item.href" type="text" placeholder="链接(可选)" style="width: 160px" />
-            <button class="mini-btn danger" @click="removeItem(form.info, i)">删</button>
-          </div>
-          <button class="btn-ghost" @click="addInfo">+ 添加信息项</button>
-
-          <div class="panel-title">教育背景</div>
-          <div class="form-row">
-            <div class="form-field">
-              <label>学校</label>
-              <input v-model="form.education.school" type="text" placeholder="学校" />
+            <div class="form-row">
+              <div class="form-field">
+                <label class="field-label" for="rAvatar">头像文字</label>
+                <input id="rAvatar" v-model="form.profile.avatarText" class="form-input" type="text" maxlength="4" placeholder="如：墨" />
+              </div>
+              <div class="form-field">
+                <label class="field-label" for="rHandle">Handle</label>
+                <input id="rHandle" v-model="form.profile.handle" class="form-input" type="text" maxlength="120" placeholder="如：AI 全栈工程师（偏后端）" />
+              </div>
             </div>
             <div class="form-field">
-              <label>时间</label>
-              <input v-model="form.education.period" type="text" placeholder="2019 — 2023" />
-            </div>
-          </div>
-          <div class="form-field">
-            <label>专业</label>
-            <input v-model="form.education.major" type="text" placeholder="专业" />
-          </div>
-
-          <div class="panel-title">资质 / 证书</div>
-          <div v-for="(cert, i) in (form.certificates || [])" :key="'cert' + i" class="repeat-row">
-            <input v-model="cert.label" type="text" placeholder="证书名称" style="flex: 1" />
-            <label class="check-label">
-              <input v-model="cert.accent" type="checkbox" /> 高亮
-            </label>
-            <button class="mini-btn danger" @click="removeItem(form.certificates, i)">删</button>
-          </div>
-          <button class="btn-ghost" @click="addCertificate">+ 添加证书</button>
-
-          <div class="panel-title">技术与能力</div>
-          <div v-for="(cat, ci) in (form.techCategories || [])" :key="'cat' + ci" class="repeat-block">
-            <div class="repeat-head">
-              <input v-model="cat.title" type="text" placeholder="分类名称" style="flex: 1" />
-              <button class="mini-btn danger" @click="removeItem(form.techCategories, ci)">删分类</button>
-            </div>
-            <div v-for="(item, ii) in cat.items" :key="'item' + ci + '-' + ii" class="repeat-row">
-              <input v-model="item.name" type="text" placeholder="能力名" style="width: 140px" />
-              <textarea v-model="item.desc" rows="2" placeholder="描述"></textarea>
-              <button class="mini-btn danger" @click="removeItem(cat.items, ii)">删</button>
-            </div>
-            <button class="btn-ghost small" @click="addTechItem(cat)">+ 添加能力</button>
-          </div>
-          <button class="btn-ghost" @click="addCategory">+ 添加分类</button>
-
-          <div class="panel-title">项目经历</div>
-          <div v-for="(proj, pi) in (form.projects || [])" :key="'proj' + pi" class="repeat-block">
-            <div class="repeat-head">
-              <input v-model="proj.title" type="text" placeholder="项目名" style="flex: 1" />
-              <input v-model="proj.year" type="text" placeholder="年份" style="width: 90px" />
-              <button class="mini-btn danger" @click="removeItem(form.projects, pi)">删</button>
+              <label class="field-label" for="rTagline">Tagline</label>
+              <textarea id="rTagline" v-model="form.profile.tagline" class="form-input form-textarea" rows="2" maxlength="300" placeholder="一句话介绍"></textarea>
             </div>
             <div class="form-field">
-              <textarea v-model="proj.desc" rows="2" placeholder="项目描述"></textarea>
+              <label class="field-label" for="rHeroInfo">隐私提示（hero 问号 tooltip）</label>
+              <textarea id="rHeroInfo" v-model="form.profile.heroInfo" class="form-input form-textarea" rows="2" maxlength="200" placeholder="如：为保护个人隐私，网页简历信息已做脱敏处理…"></textarea>
             </div>
-            <div v-for="(tag, ti) in proj.tags" :key="'tag' + pi + '-' + ti" class="repeat-row">
-              <input v-model="tag.label" type="text" placeholder="标签" style="flex: 1" />
+          </div>
+
+          <!-- 关于我 -->
+          <div class="field">
+            <div class="field-head">
+              <span class="section-title">关于我</span>
+            </div>
+            <div v-for="(lead, i) in (form.about?.leads || [])" :key="'lead' + i" class="form-field">
+              <div class="field-head-inline">
+                <label class="field-label">段落 {{ i + 1 }}</label>
+                <button class="btn btn--link btn--danger" @click="removeItem(form.about.leads, i)">删除该段</button>
+              </div>
+              <textarea v-model="form.about.leads[i]" class="form-input form-textarea" rows="2" placeholder="支持 &lt;strong&gt; 强调文本"></textarea>
+            </div>
+            <button class="btn btn--ghost add-btn" @click="addLead">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              添加段落
+            </button>
+            <div class="form-field">
+              <label class="field-label" for="rCallout">Callout 金句</label>
+              <textarea id="rCallout" v-model="form.about.callout" class="form-input form-textarea" rows="2" placeholder="一段引用/金句"></textarea>
+            </div>
+          </div>
+
+          <!-- 个人信息（侧栏） -->
+          <div class="field">
+            <div class="field-head">
+              <span class="section-title">个人信息（侧栏）</span>
+            </div>
+            <div v-for="(item, i) in (form.info || [])" :key="'info' + i" class="repeat-row">
+              <select v-model="item.icon" class="form-input" title="图标">
+                <option value="mail">邮箱</option>
+                <option value="chat">微信</option>
+                <option value="location">地址</option>
+                <option value="user">用户</option>
+                <option value="badge">徽章</option>
+              </select>
+              <input v-model="item.label" class="form-input w-sm" type="text" placeholder="标签" />
+              <input v-model="item.value" class="form-input flex-1" type="text" placeholder="内容" />
+              <input v-model="item.href" class="form-input w-lg" type="text" placeholder="链接(可选)" />
+              <button class="mini-btn danger" title="删除" @click="removeItem(form.info, i)">删</button>
+            </div>
+            <button class="btn btn--ghost add-btn" @click="addInfo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              添加信息项
+            </button>
+          </div>
+
+          <!-- 教育背景 -->
+          <div class="field">
+            <div class="field-head">
+              <span class="section-title">教育背景</span>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label class="field-label" for="rSchool">学校</label>
+                <input id="rSchool" v-model="form.education.school" class="form-input" type="text" placeholder="学校" />
+              </div>
+              <div class="form-field">
+                <label class="field-label" for="rPeriod">时间</label>
+                <input id="rPeriod" v-model="form.education.period" class="form-input" type="text" placeholder="2019 — 2023" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label class="field-label" for="rMajor">专业</label>
+              <input id="rMajor" v-model="form.education.major" class="form-input" type="text" placeholder="专业" />
+            </div>
+          </div>
+
+          <!-- 资质 / 证书 -->
+          <div class="field">
+            <div class="field-head">
+              <span class="section-title">资质 / 证书</span>
+            </div>
+            <div v-for="(cert, i) in (form.certificates || [])" :key="'cert' + i" class="repeat-row">
+              <input v-model="cert.label" class="form-input flex-1" type="text" placeholder="证书名称" />
               <label class="check-label">
-                <input v-model="tag.accent" type="checkbox" /> 高亮
+                <input v-model="cert.accent" type="checkbox" /> 高亮
               </label>
-              <button class="mini-btn danger" @click="removeItem(proj.tags, ti)">删</button>
+              <button class="mini-btn danger" title="删除" @click="removeItem(form.certificates, i)">删</button>
             </div>
-            <button class="btn-ghost small" @click="addProjectTag(proj)">+ 添加标签</button>
+            <button class="btn btn--ghost add-btn" @click="addCertificate">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              添加证书
+            </button>
           </div>
-          <button class="btn-ghost" @click="addProject">+ 添加项目</button>
 
-          <div class="panel-title">工作经历</div>
-          <div v-for="(exp, ei) in (form.experiences || [])" :key="'exp' + ei" class="repeat-block">
-            <div class="repeat-head">
-              <input v-model="exp.role" type="text" placeholder="职位" style="flex: 1" />
-              <input v-model="exp.period" type="text" placeholder="时间" style="width: 150px" />
-              <button class="mini-btn danger" @click="removeItem(form.experiences, ei)">删</button>
+          <!-- 技术与能力 -->
+          <div class="field">
+            <div class="field-head">
+              <span class="section-title">技术与能力</span>
             </div>
-            <div class="form-field">
-              <input v-model="exp.org" type="text" placeholder="组织/公司" />
+            <div v-for="(cat, ci) in (form.techCategories || [])" :key="'cat' + ci" class="repeat-block">
+              <div class="repeat-head">
+                <input v-model="cat.title" class="form-input flex-1" type="text" placeholder="分类名称" />
+                <button class="mini-btn danger" @click="removeItem(form.techCategories, ci)">删分类</button>
+              </div>
+              <div v-for="(item, ii) in cat.items" :key="'item' + ci + '-' + ii" class="repeat-row">
+                <input v-model="item.name" class="form-input w-md" type="text" placeholder="能力名" />
+                <textarea v-model="item.desc" class="form-input flex-1" rows="2" placeholder="描述"></textarea>
+                <button class="mini-btn danger" title="删除" @click="removeItem(cat.items, ii)">删</button>
+              </div>
+              <button class="btn btn--link add-btn" @click="addTechItem(cat)">+ 添加能力</button>
             </div>
-            <div v-for="(point, pi2) in exp.points" :key="'p' + ei + '-' + pi2" class="repeat-row">
-              <textarea v-model="exp.points[pi2]" rows="2" placeholder="工作内容描述"></textarea>
-              <button class="mini-btn danger" @click="removeItem(exp.points, pi2)">删</button>
-            </div>
-            <button class="btn-ghost small" @click="addPoint(exp)">+ 添加描述</button>
+            <button class="btn btn--ghost add-btn" @click="addCategory">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              添加分类
+            </button>
           </div>
-          <button class="btn-ghost" @click="addExperience">+ 添加工作经历</button>
+
+          <!-- 项目经历 -->
+          <div class="field">
+            <div class="field-head">
+              <span class="section-title">项目经历</span>
+            </div>
+            <div v-for="(proj, pi) in (form.projects || [])" :key="'proj' + pi" class="repeat-block">
+              <div class="repeat-head">
+                <input v-model="proj.title" class="form-input flex-1" type="text" placeholder="项目名" />
+                <input v-model="proj.year" class="form-input w-sm" type="text" placeholder="年份" />
+                <button class="mini-btn danger" @click="removeItem(form.projects, pi)">删</button>
+              </div>
+              <div class="form-field">
+                <textarea v-model="proj.desc" class="form-input form-textarea" rows="2" placeholder="项目描述"></textarea>
+              </div>
+              <div v-for="(tag, ti) in proj.tags" :key="'tag' + pi + '-' + ti" class="repeat-row">
+                <input v-model="tag.label" class="form-input flex-1" type="text" placeholder="标签" />
+                <label class="check-label">
+                  <input v-model="tag.accent" type="checkbox" /> 高亮
+                </label>
+                <button class="mini-btn danger" title="删除" @click="removeItem(proj.tags, ti)">删</button>
+              </div>
+              <button class="btn btn--link add-btn" @click="addProjectTag(proj)">+ 添加标签</button>
+            </div>
+            <button class="btn btn--ghost add-btn" @click="addProject">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              添加项目
+            </button>
+          </div>
+
+          <!-- 工作经历 -->
+          <div class="field">
+            <div class="field-head">
+              <span class="section-title">工作经历</span>
+            </div>
+            <div v-for="(exp, ei) in (form.experiences || [])" :key="'exp' + ei" class="repeat-block">
+              <div class="repeat-head">
+                <input v-model="exp.role" class="form-input flex-1" type="text" placeholder="职位" />
+                <input v-model="exp.period" class="form-input w-lg" type="text" placeholder="时间" />
+                <button class="mini-btn danger" @click="removeItem(form.experiences, ei)">删</button>
+              </div>
+              <div class="form-field">
+                <input v-model="exp.org" class="form-input" type="text" placeholder="组织/公司" />
+              </div>
+              <div v-for="(point, pi2) in exp.points" :key="'p' + ei + '-' + pi2" class="repeat-row">
+                <textarea v-model="exp.points[pi2]" class="form-input flex-1" rows="2" placeholder="工作内容描述"></textarea>
+                <button class="mini-btn danger" title="删除" @click="removeItem(exp.points, pi2)">删</button>
+              </div>
+              <button class="btn btn--link add-btn" @click="addPoint(exp)">+ 添加描述</button>
+            </div>
+            <button class="btn btn--ghost add-btn" @click="addExperience">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              添加工作经历
+            </button>
+          </div>
         </section>
       </div>
     </template>
 
-    <!-- 实时预览抽屉 -->
+    <!-- ===== 实时预览抽屉 ===== -->
     <transition name="drawer-fade">
       <div v-if="previewOpen" class="drawer-mask" @click="previewOpen = false"></div>
     </transition>
     <transition name="drawer-slide">
       <aside v-if="previewOpen" class="preview-drawer">
         <div class="drawer-head">
-          <span>实时预览</span>
+          <span class="drawer-title">实时预览</span>
           <button class="drawer-close" title="关闭预览" @click="previewOpen = false">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
-        <div class="drawer-body" ref="drawerBodyRef">
+        <div ref="drawerBodyRef" class="drawer-body">
           <div class="preview-scale" :style="previewScaleStyle">
             <ResumeContent :content="form" />
           </div>
@@ -595,21 +680,23 @@ const hasVersions = computed(() => versions.value.length > 0)
       </aside>
     </transition>
 
-    <!-- 新建版本弹窗 -->
+    <!-- ===== 新建版本弹窗 ===== -->
     <transition name="modal-fade">
       <div v-if="createOpen" class="modal-mask" @click.self="closeCreate">
         <div class="create-modal" role="dialog" aria-modal="true" aria-label="新建简历版本">
           <div class="modal-head">
-            <span>新建简历版本</span>
+            <span class="modal-title">新建简历版本</span>
             <button class="modal-close" title="关闭" :disabled="creating" @click="closeCreate">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
           <div class="modal-body">
             <div class="form-field">
-              <label>版本名称</label>
+              <label class="field-label" for="createName">版本名称</label>
               <input
+                id="createName"
                 v-model="createName"
+                class="form-input"
                 type="text"
                 maxlength="120"
                 placeholder="如：默认版本 / 2026 夏季版"
@@ -626,8 +713,8 @@ const hasVersions = computed(() => versions.value.length > 0)
             </label>
           </div>
           <div class="modal-foot">
-            <button class="btn-ghost" :disabled="creating" @click="closeCreate">取消</button>
-            <button class="btn-primary" :disabled="creating" @click="confirmCreate">
+            <button class="btn btn--ghost" :disabled="creating" @click="closeCreate">取消</button>
+            <button class="btn btn--primary" :disabled="creating" @click="confirmCreate">
               {{ creating ? '创建中…' : '创建版本' }}
             </button>
           </div>
@@ -635,14 +722,14 @@ const hasVersions = computed(() => versions.value.length > 0)
       </div>
     </transition>
 
-    <!-- 删除版本确认弹窗 -->
+    <!-- ===== 删除版本确认弹窗 ===== -->
     <transition name="modal-fade">
       <div v-if="deleteOpen" class="modal-mask" @click.self="closeDelete">
         <div class="create-modal confirm-modal" role="dialog" aria-modal="true" aria-label="删除简历版本">
           <div class="modal-head">
-            <span>删除简历版本</span>
+            <span class="modal-title">删除简历版本</span>
             <button class="modal-close" title="关闭" :disabled="deleting" @click="closeDelete">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
           <div class="modal-body">
@@ -656,8 +743,8 @@ const hasVersions = computed(() => versions.value.length > 0)
             </div>
           </div>
           <div class="modal-foot">
-            <button class="btn-ghost" :disabled="deleting" @click="closeDelete">取消</button>
-            <button class="btn-danger" :disabled="deleting" @click="confirmDelete">
+            <button class="btn btn--ghost" :disabled="deleting" @click="closeDelete">取消</button>
+            <button class="btn btn--danger" :disabled="deleting" @click="confirmDelete">
               {{ deleting ? '删除中…' : '删除版本' }}
             </button>
           </div>
@@ -670,209 +757,289 @@ const hasVersions = computed(() => versions.value.length > 0)
 <style scoped>
 .resume-manage { position: relative; }
 
-.page-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  gap: 16px;
+/* ===== Hero ===== */
+.page-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 28px 28px 26px;
+  border-bottom: 1px solid var(--border-light);
 }
-.page-head h2 { font-size: 22px; font-weight: 700; margin: 0; color: var(--text-primary); }
-.page-desc { font-size: 14px; color: var(--text-tertiary); margin: 4px 0 0; }
-.head-actions { display: flex; align-items: center; gap: 10px; }
-
+.hero-glow {
+  position: absolute; top: -80px; right: -60px;
+  width: 440px; height: 440px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(45, 130, 100, 0.14), transparent 65%);
+  filter: blur(48px); pointer-events: none;
+}
+:global([data-theme='dark']) .hero-glow {
+  background: radial-gradient(circle, rgba(95, 197, 154, 0.13), transparent 65%);
+}
+.page-hero-inner { position: relative; z-index: 1; }
+.kicker {
+  display: inline-block; font-family: var(--font-mono); font-size: 12.5px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent);
+  padding: 4px 12px; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 100px; background-color: var(--accent-light); margin-bottom: 16px;
+}
+.hero-row {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+}
+.page-hero h1 {
+  font-family: var(--font-serif); font-size: 38px; font-weight: 700;
+  color: var(--text-primary); letter-spacing: 0.02em; margin: 0;
+}
+.lede { font-size: 15px; color: var(--text-secondary); max-width: 680px; margin: 10px 0 0; }
+.hero-note {
+  font-size: 12.5px; color: var(--text-tertiary); margin: 8px 0 0;
+  font-family: var(--font-mono); letter-spacing: 0.02em;
+}
+.hero-side {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
 .autosave-status {
-  font-size: 12px;
-  color: var(--text-tertiary);
+  font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary);
   white-space: nowrap;
 }
-.page-head .autosave-status { display: block; margin-top: 6px; }
-.autosave-status.dirty {
-  color: var(--text-secondary);
-  font-weight: 600;
-}
+.autosave-status.dirty { color: var(--accent); font-weight: 500; }
 
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 16px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity var(--transition);
-  white-space: nowrap;
+/* ===== Buttons ===== */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-sans); font-size: 14px; font-weight: 500;
+  padding: 10px 18px; border-radius: 10px; cursor: pointer;
+  text-decoration: none; border: 1px solid transparent;
+  transition: all var(--transition); white-space: nowrap;
 }
-.btn-primary:hover { opacity: 0.9; }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-tertiary);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all var(--transition);
+.btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.btn--primary {
+  background-color: var(--accent); color: #fff;
+  border-color: var(--accent); box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 30%, transparent);
 }
-.btn-ghost:hover { color: var(--accent); border-color: var(--accent); }
-.btn-ghost.small { padding: 4px 8px; font-size: 12px; margin-top: 6px; }
-.btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn--primary:hover:not(:disabled) {
+  background-color: var(--accent-hover); border-color: var(--accent-hover);
+  transform: translateY(-1px); box-shadow: var(--shadow-md);
+}
+.btn--primary:disabled { opacity: 0.6; cursor: not-allowed; }
+:global([data-theme='dark']) .btn--primary { color: #0f0f0f; }
+.btn--ghost {
+  background: transparent; color: var(--text-secondary);
+  border-color: var(--border); padding: 8px 14px; font-size: 13px;
+}
+.btn--ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background-color: var(--accent-light); }
+.btn--ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn--link {
+  background: transparent; color: var(--accent);
+  padding: 4px 10px; font-size: 13px; border-color: transparent;
+}
+.btn--link:hover:not(:disabled) { background-color: var(--accent-light); }
+.btn--link:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn--link.btn--danger { color: #e0533d; }
+.btn--link.btn--danger:hover:not(:disabled) { background-color: #fdf1ef; color: #c7442f; }
+:global([data-theme='dark']) .btn--link.btn--danger:hover:not(:disabled) { background-color: #33211e; }
+.btn--danger {
+  background-color: #e0533d; color: #fff; border-color: #e0533d;
+  box-shadow: 0 1px 0 rgba(224, 83, 61, 0.3);
+}
+.btn--danger:hover:not(:disabled) {
+  background-color: #c7442f; border-color: #c7442f;
+  transform: translateY(-1px); box-shadow: var(--shadow-md);
+}
+.btn--danger:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.empty { padding: 48px; text-align: center; color: var(--text-tertiary); }
+/* ===== Loading / Empty ===== */
+.empty {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 64px 24px; color: var(--text-tertiary); font-size: 14px;
+}
+.empty svg { width: 22px; height: 22px; flex-shrink: 0; color: var(--text-tertiary); }
+.spinner {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ===== Version bar ===== */
 .version-bar {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 20px;
+  margin: 22px 0 8px;
 }
 .version-item {
   flex: 1 1 220px;
   max-width: 300px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
   cursor: pointer;
   transition: all var(--transition);
 }
-.version-item:hover { border-color: var(--accent); }
-.version-item.selected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent); }
-.version-name { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
-.version-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.active-tag {
-  font-size: 11px;
-  font-weight: 600;
-  color: #fff;
-  background: var(--accent);
-  padding: 2px 8px;
-  border-radius: 100px;
+.version-item:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
-.version-time { font-size: 12px; color: var(--text-tertiary); }
-.version-actions { display: flex; gap: 8px; }
+.version-item.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.version-item.selected .version-name { color: var(--accent); }
+.version-name {
+  font-family: var(--font-serif); font-size: 15.5px; font-weight: 600;
+  color: var(--text-primary); letter-spacing: 0.02em;
+  margin-bottom: 8px; word-break: break-all;
+}
+.version-meta {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.active-tag {
+  font-size: 11px; font-weight: 600; color: #fff;
+  background: var(--accent); padding: 2px 10px;
+  border-radius: 100px; white-space: nowrap;
+}
+:global([data-theme='dark']) .active-tag { color: #0f0f0f; }
+.version-time {
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--text-tertiary);
+}
+.version-actions { display: flex; gap: 6px; }
 .mini-btn {
   padding: 4px 10px;
   border: 1px solid var(--border);
   background: transparent;
-  color: var(--text-tertiary);
-  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  border-radius: 100px;
   font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   transition: all var(--transition);
+  white-space: nowrap;
 }
-.mini-btn:hover { color: var(--accent); border-color: var(--accent); }
-.mini-btn.danger:hover { color: #e03131; border-color: #e03131; }
-.mini-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.mini-btn:hover:not(:disabled) {
+  color: var(--accent); border-color: var(--accent);
+  background-color: var(--accent-light);
+}
+.mini-btn.danger:hover:not(:disabled) {
+  color: #e0533d; border-color: #e0533d; background-color: #fdf1ef;
+}
+:global([data-theme='dark']) .mini-btn.danger:hover:not(:disabled) { background-color: #33211e; }
+.mini-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-/* ===== Edit main ===== */
-.edit-main {
-  display: block;
-  max-width: 1100px;
+/* ===== Settings card ===== */
+.settings-wrap { margin: 22px 0 8px; }
+.settings-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 8px 4px;
+}
+.field {
+  padding: 22px 26px; border-bottom: 1px solid var(--border-light);
+}
+.field:last-child { border-bottom: none; }
+.field-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
+}
+.field-head-inline {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 6px;
+}
+.section-title {
+  font-family: var(--font-serif); font-size: 16px; font-weight: 600;
+  color: var(--text-primary); letter-spacing: 0.02em;
+  padding-left: 14px; position: relative;
+}
+.section-title::before {
+  content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 4px; height: 16px; border-radius: 4px; background-color: var(--accent);
 }
 
-.panel {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
-}
-
-.panel-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: 0.04em;
-  margin: 22px 0 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border-light);
-}
-.panel-title:first-child { margin-top: 0; }
-
+/* Inputs */
 .form-field { margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
-.form-field label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-@media (max-width: 720px) {
-  .form-row { grid-template-columns: 1fr; }
+.form-field:last-child { margin-bottom: 0; }
+.field-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-input {
+  display: block; width: 100%;
+  font-family: var(--font-sans); font-size: 14px; color: var(--text-primary);
+  background-color: var(--bg-soft); border: 1px solid transparent;
+  border-radius: var(--radius-sm); padding: 11px 13px;
+  transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
+  outline: none;
 }
-.form-field input,
-.form-field textarea,
-.repeat-row input,
-.repeat-row textarea,
-.repeat-row select {
-  padding: 9px 11px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-body);
-  color: var(--text-primary);
-  font-size: 13.5px;
-  font-family: inherit;
-  resize: vertical;
+.form-input::placeholder { color: var(--text-tertiary); }
+.form-input:hover { background-color: color-mix(in srgb, var(--bg-soft) 70%, var(--accent-light) 30%); }
+.form-input:focus {
+  background-color: var(--bg-card); border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
-.form-field input:focus,
-.form-field textarea:focus,
-.repeat-row input:focus,
-.repeat-row textarea:focus,
-.repeat-row select:focus { outline: none; border-color: var(--accent); }
-.form-field textarea { min-height: 40px; }
+.form-textarea {
+  font-size: 13.5px; line-height: 1.7;
+  resize: vertical; min-height: 44px;
+}
+select.form-input {
+  width: auto; flex: 0 0 auto; cursor: pointer;
+  appearance: none; -webkit-appearance: none;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
 
+/* 宽度工具类（repeat 行内布局） */
+.w-sm { width: 90px; flex: 0 0 auto; }
+.w-md { width: 140px; flex: 0 0 auto; }
+.w-lg { width: 160px; flex: 0 0 auto; }
+.flex-1 { flex: 1; min-width: 0; }
+
+/* 添加按钮 */
+.add-btn { margin-top: 10px; }
+
+/* Repeat 结构 */
 .repeat-block {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
-  padding: 12px;
+  padding: 14px;
   margin-bottom: 12px;
   background: var(--bg-soft);
 }
-.repeat-head { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
-.repeat-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
-.repeat-row input { flex: 1; min-width: 0; }
-.repeat-row select { width: 90px; }
-.check-label { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
-
-/* ===== Panel title with action ===== */
-.panel-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+.repeat-block .add-btn { margin-top: 2px; }
+.repeat-head {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;
 }
-.panel-title-row .btn-ghost { margin: 0; white-space: nowrap; }
+.repeat-row {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap;
+}
+.repeat-row:last-child { margin-bottom: 0; }
+.repeat-row .form-input,
+.repeat-head .form-input { padding: 8px 12px; font-size: 13.5px; }
+.repeat-row .form-input:focus,
+.repeat-head .form-input:focus {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.repeat-row textarea.form-input { min-height: 40px; }
+.repeat-row .mini-btn { flex: 0 0 auto; }
+.check-label {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: var(--text-secondary);
+  white-space: nowrap; cursor: pointer;
+}
+.check-label input { accent-color: var(--accent); width: auto; margin: 0; }
 
-/* ===== Version name + active status ===== */
+/* 版本名称 + 生效状态 */
 .version-name-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
 }
-.version-name-row input { flex: 1; }
+.version-name-row .form-input { flex: 1; min-width: 220px; }
 .edit-status {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  white-space: nowrap;
+  font-family: var(--font-mono); font-size: 12px;
+  color: var(--text-tertiary); white-space: nowrap;
 }
-.edit-status.active {
-  color: var(--accent);
-  font-weight: 600;
-}
+.edit-status.active { color: var(--accent); font-weight: 500; }
 
-/* ===== a as ghost button ===== */
-a.btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  text-decoration: none;
-}
-
-/* ===== Preview drawer ===== */
+/* ===== Preview Drawer ===== */
 .drawer-mask {
   position: fixed;
   inset: 0;
@@ -886,7 +1053,7 @@ a.btn-ghost {
   bottom: 0;
   width: min(720px, 92vw);
   background: var(--bg-body);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
   z-index: 1001;
   display: flex;
   flex-direction: column;
@@ -897,25 +1064,46 @@ a.btn-ghost {
   justify-content: space-between;
   padding: 14px 20px;
   background: var(--bg-card);
-  border-bottom: 1px solid var(--border);
-  font-size: 15px;
-  font-weight: 700;
+  border-bottom: 1px solid var(--border-light);
+}
+.drawer-title {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--text-primary);
+  padding-left: 14px;
+  position: relative;
+}
+.drawer-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 16px;
+  border-radius: 4px;
+  background-color: var(--accent);
 }
 .drawer-close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: 50%;
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
   transition: all var(--transition);
 }
-.drawer-close:hover { color: var(--accent); border-color: var(--accent); }
+.drawer-close:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background-color: var(--accent-light);
+}
 .drawer-body {
   flex: 1;
   overflow-y: auto;
@@ -930,11 +1118,12 @@ a.btn-ghost {
 .drawer-slide-enter-active, .drawer-slide-leave-active { transition: transform 0.25s ease; }
 .drawer-slide-enter-from, .drawer-slide-leave-to { transform: translateX(100%); }
 
-/* ===== 新建版本弹窗 ===== */
+/* ===== 弹窗 ===== */
 .modal-mask {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
   z-index: 1100;
   display: flex;
   align-items: center;
@@ -946,8 +1135,8 @@ a.btn-ghost {
   max-width: 460px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -957,25 +1146,46 @@ a.btn-ghost {
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
-  font-size: 15px;
-  font-weight: 700;
+  border-bottom: 1px solid var(--border-light);
+}
+.modal-title {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--text-primary);
+  padding-left: 14px;
+  position: relative;
+}
+.modal-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 16px;
+  border-radius: 4px;
+  background-color: var(--accent);
 }
 .modal-close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: 50%;
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
   transition: all var(--transition);
 }
-.modal-close:hover { color: var(--accent); border-color: var(--accent); }
+.modal-close:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+  background-color: var(--accent-light);
+}
 .modal-close:disabled { opacity: 0.5; cursor: not-allowed; }
 .modal-body {
   padding: 20px;
@@ -987,18 +1197,20 @@ a.btn-ghost {
 .radio-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 13.5px;
   color: var(--text-secondary);
   cursor: pointer;
+  padding: 4px 0;
 }
-.radio-row input { width: auto; accent-color: var(--accent); }
+.radio-row input { width: auto; accent-color: var(--accent); margin: 0; }
+.radio-row:hover { color: var(--text-primary); }
 .modal-foot {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   padding: 14px 20px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-light);
   background: var(--bg-soft);
 }
 .modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s; }
@@ -1014,15 +1226,19 @@ a.btn-ghost {
   gap: 12px;
   padding: 14px 16px;
   border-radius: var(--radius-sm);
-  background: var(--bg-soft);
-  border: 1px solid var(--border);
+  background: #fdf1ef;
+  border: 1px solid #f3c9c2;
   color: var(--text-secondary);
   font-size: 13.5px;
   line-height: 1.6;
 }
+:global([data-theme='dark']) .confirm-warn {
+  background: #2a1a17;
+  border-color: #4a2a24;
+}
 .confirm-warn svg {
   flex-shrink: 0;
-  color: #e5484d;
+  color: #e0533d;
   margin-top: 1px;
 }
 .confirm-warn p { margin: 0; }
@@ -1031,37 +1247,48 @@ a.btn-ghost {
   font-weight: 700;
   word-break: break-all;
 }
-.btn-danger {
-  padding: 9px 18px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: #e5484d;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--transition);
-  white-space: nowrap;
-}
-.btn-danger:hover:not(:disabled) { background: #d7363b; }
-.btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* ===== Toast ===== */
 .toast {
   position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 9999;
-  padding: 10px 18px;
-  border-radius: var(--radius-sm);
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  color: var(--accent);
   font-size: 14px;
   font-weight: 500;
-  color: #fff;
-  box-shadow: var(--shadow-md);
-  max-width: 360px;
+  padding: 10px 22px;
+  border-radius: 100px;
+  box-shadow: var(--shadow-lg);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 4000;
+  max-width: min(480px, 90vw);
 }
-.toast.success { background: #2d8264; }
-.toast.error { background: #e03131; }
-.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+.toast svg { width: 16px; height: 16px; flex-shrink: 0; }
+.toast.error { border-color: #e0533d; color: #e0533d; }
+.toast-pop-enter-active, .toast-pop-leave-active {
+  transition: opacity 0.35s cubic-bezier(0.22, 1, 0.36, 1), transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.toast-pop-enter-from, .toast-pop-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(20px);
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .page-hero { padding: 20px 18px 20px; }
+  .page-hero h1 { font-size: 30px; }
+  .hero-side { width: 100%; }
+  .field { padding: 18px; }
+  .form-row { grid-template-columns: 1fr; }
+  .version-item { flex: 1 1 100%; max-width: none; }
+  .drawer-body { padding: 14px; }
+  .repeat-row .w-sm, .repeat-row .w-md, .repeat-row .w-lg { width: 100%; flex: 1 1 100%; }
+  .repeat-row .flex-1 { flex: 1 1 100%; }
+  .repeat-row .mini-btn { margin-left: auto; }
+}
 </style>

@@ -9,6 +9,12 @@ import { HomePageModule } from './modules/homepage/homepage.module';
 import { ResumeModule } from './modules/resume/resume.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { ProxyModule } from './modules/proxy/proxy.module';
+import { XiaojiModule } from './modules/xiaoji/xiaoji.module';
+import { AboutModule } from './modules/about/about.module';
+import { DigitalLifeModule } from './modules/digitallife/digital-life.module';
+import { ContactModule } from './modules/contact/contact.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { VisitModule } from './modules/visit/visit.module';
 
 @Module({
   imports: [
@@ -26,6 +32,12 @@ import { ProxyModule } from './modules/proxy/proxy.module';
     ResumeModule,
     UploadModule,
     ProxyModule,
+    XiaojiModule,
+    AboutModule,
+    DigitalLifeModule,
+    ContactModule,
+    DashboardModule,
+    VisitModule,
   ],
   controllers: [],
   providers: [],

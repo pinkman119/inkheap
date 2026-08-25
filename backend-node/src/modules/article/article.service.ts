@@ -1,12 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TrainingService } from '../digitallife/training.service';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { QueryArticleDto } from './dto/query-article.dto';
 
 @Injectable()
 export class ArticleService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private trainingService: TrainingService,
+  ) {}
 
   async findAll(query: QueryArticleDto) {
     const { page = 1, pageSize = 20, search, categoryKey, status } = query;
@@ -96,6 +100,10 @@ export class ArticleService {
     if (!article || !article.published) {
       throw new NotFoundException('文章不存在或未发布');
     }
+    // 阅读量 +1（异步，不阻塞响应）
+    this.prisma.article
+      .update({ where: { id: article.id }, data: { viewCount: { increment: 1 } } })
+      .catch(() => {});
     return this.transformArticle(article);
   }
 
@@ -123,11 +131,15 @@ export class ArticleService {
       data.tags = JSON.stringify(dto.tags);
     }
     const article = await this.prisma.article.update({ where: { id }, data });
+    // 数字生命：已训练数据被编辑 → 删向量 + trainType 重置 0（需重新训练）
+    await this.trainingService.invalidateIfTrained('article', id);
     return this.transformArticle(article);
   }
 
   async remove(id: string) {
     await this.findOne(id);
+    // 数字生命：删除源数据时同步清除其向量
+    await this.trainingService.invalidateByRef('article', id);
     await this.prisma.article.delete({ where: { id } });
     return { message: '删除成功' };
   }

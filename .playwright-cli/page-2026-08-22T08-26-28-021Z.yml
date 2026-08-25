@@ -1,0 +1,153 @@
+- generic [ref=f3e1]:
+  - generic [ref=f3e1196]:
+    - complementary [ref=f3e1197]:
+      - generic [ref=f3e1198]:
+        - generic [ref=f3e1200]: 墨堆
+        - generic [ref=f3e1201]: 后台
+      - navigation [ref=f3e1202]:
+        - generic [ref=f3e1203]:
+          - generic [ref=f3e1204]: 概览
+          - link "仪表盘" [ref=f3e1205] [cursor=pointer]:
+            - /url: "#/admin/dashboard"
+        - generic [ref=f3e1212]:
+          - generic [ref=f3e1213]: 内容运营
+          - link "首页管理" [ref=f3e1214] [cursor=pointer]:
+            - /url: "#/admin/home-page"
+          - link "简历管理" [ref=f3e1217] [cursor=pointer]:
+            - /url: "#/admin/resume"
+          - link "收信箱" [ref=f3e1222] [cursor=pointer]:
+            - /url: "#/admin/contact"
+          - link "文章管理" [ref=f3e1227] [cursor=pointer]:
+            - /url: "#/admin/articles"
+          - link "分类管理" [ref=f3e1232] [cursor=pointer]:
+            - /url: "#/admin/categories"
+          - link "小记管理" [ref=f3e1236] [cursor=pointer]:
+            - /url: "#/admin/xiaoji"
+        - generic [ref=f3e1240]:
+          - generic [ref=f3e1241]: 关于我
+          - link "个人资料" [ref=f3e1242] [cursor=pointer]:
+            - /url: "#/admin/about/profile"
+          - link "年轮" [ref=f3e1247] [cursor=pointer]:
+            - /url: "#/admin/about/rings"
+          - link "足迹" [ref=f3e1252] [cursor=pointer]:
+            - /url: "#/admin/about/footprints"
+          - link "事件日历" [ref=f3e1257] [cursor=pointer]:
+            - /url: "#/admin/about/events"
+        - generic [ref=f3e1261]:
+          - generic [ref=f3e1262]: 数字生命
+          - link "模型管理" [ref=f3e1263] [cursor=pointer]:
+            - /url: "#/admin/digital-life/model"
+          - link "人格编写" [ref=f3e1269] [cursor=pointer]:
+            - /url: "#/admin/digital-life/persona"
+          - link "训练管理" [ref=f3e1276] [cursor=pointer]:
+            - /url: "#/admin/digital-life/training"
+        - generic [ref=f3e1280]:
+          - generic [ref=f3e1281]: 系统
+          - link "返回站点" [ref=f3e1282] [cursor=pointer]:
+            - /url: "#/"
+      - generic [ref=f3e1288]: 墨堆 · Admin v0.1
+    - generic [ref=f3e1289]:
+      - banner [ref=f3e1290]:
+        - generic [ref=f3e1291]:
+          - button "切换菜单" [ref=f3e1292] [cursor=pointer]
+          - generic [ref=f3e1294]:
+            - generic [ref=f3e1295]: 后台
+            - generic [ref=f3e1296]: /
+            - generic [ref=f3e1297]: 分类管理
+        - generic [ref=f3e1298]:
+          - link "返回站点" [ref=f3e1299] [cursor=pointer]:
+            - /url: "#/"
+          - button "切换主题" [ref=f3e1305] [cursor=pointer]
+          - button "a" [ref=f3e1313] [cursor=pointer]
+      - main [ref=f3e1314]:
+        - generic [ref=f3e1375]:
+          - generic [ref=f3e1377]:
+            - generic [ref=f3e1378]:
+              - generic [ref=f3e1379]:
+                - generic [ref=f3e1380]: Categories · 分类
+                - heading "分类管理" [level=1] [ref=f3e1381]
+              - button "新建一级分类" [ref=f3e1383] [cursor=pointer]
+            - paragraph [ref=f3e1385]: 维护知识库分类树，支持多级嵌套。
+            - paragraph [ref=f3e1386]: 8 个分类 · 子分类可无限嵌套 · 分类下存在文章时不可删除
+          - list [ref=f3e1388]:
+            - listitem [ref=f3e1389]:
+              - button "收起" [ref=f3e1390] [cursor=pointer]
+              - generic [ref=f3e1393]: code
+              - generic [ref=f3e1394]: 前端开发
+              - generic [ref=f3e1395]: / frontend
+              - generic [ref=f3e1396]: "0"
+              - generic [ref=f3e1397]:
+                - button "子级" [ref=f3e1398] [cursor=pointer]
+                - button "编辑" [ref=f3e1400] [cursor=pointer]
+                - button "删除" [ref=f3e1401] [cursor=pointer]
+            - listitem [ref=f3e1402]:
+              - generic [ref=f3e1403]: Vue.js
+              - generic [ref=f3e1404]: / frontend/vue
+              - generic [ref=f3e1405]: "1"
+              - generic [ref=f3e1406]:
+                - button "子级" [ref=f3e1407] [cursor=pointer]
+                - button "编辑" [ref=f3e1409] [cursor=pointer]
+                - button "删除" [disabled] [ref=f3e1410]
+            - listitem [ref=f3e1411]:
+              - generic [ref=f3e1412]: React
+              - generic [ref=f3e1413]: / frontend/react
+              - generic [ref=f3e1414]: "1"
+              - generic [ref=f3e1415]:
+                - button "子级" [ref=f3e1416] [cursor=pointer]
+                - button "编辑" [ref=f3e1418] [cursor=pointer]
+                - button "删除" [disabled] [ref=f3e1419]
+            - listitem [ref=f3e1420]:
+              - button "收起" [ref=f3e1421] [cursor=pointer]
+              - generic [ref=f3e1424]: server
+              - generic [ref=f3e1425]: 后端开发
+              - generic [ref=f3e1426]: / backend
+              - generic [ref=f3e1427]: "0"
+              - generic [ref=f3e1428]:
+                - button "子级" [ref=f3e1429] [cursor=pointer]
+                - button "编辑" [ref=f3e1431] [cursor=pointer]
+                - button "删除" [active] [ref=f3e1432] [cursor=pointer]
+            - listitem [ref=f3e1433]:
+              - generic [ref=f3e1434]: Node.js
+              - generic [ref=f3e1435]: / backend/node
+              - generic [ref=f3e1436]: "1"
+              - generic [ref=f3e1437]:
+                - button "子级" [ref=f3e1438] [cursor=pointer]
+                - button "编辑" [ref=f3e1440] [cursor=pointer]
+                - button "删除" [disabled] [ref=f3e1441]
+            - listitem [ref=f3e1442]:
+              - generic [ref=f3e1443]: Java
+              - generic [ref=f3e1444]: / backend/java
+              - generic [ref=f3e1445]: "1"
+              - generic [ref=f3e1446]:
+                - button "子级" [ref=f3e1447] [cursor=pointer]
+                - button "编辑" [ref=f3e1449] [cursor=pointer]
+                - button "删除" [disabled] [ref=f3e1450]
+            - listitem [ref=f3e1451]:
+              - generic [ref=f3e1452]: link
+              - generic [ref=f3e1453]: 区块链
+              - generic [ref=f3e1454]: / blockchain
+              - generic [ref=f3e1455]: "1"
+              - generic [ref=f3e1456]:
+                - button "子级" [ref=f3e1457] [cursor=pointer]
+                - button "编辑" [ref=f3e1459] [cursor=pointer]
+                - button "删除" [disabled] [ref=f3e1460]
+            - listitem [ref=f3e1461]:
+              - generic [ref=f3e1462]: brain
+              - generic [ref=f3e1463]: AI & 机器学习
+              - generic [ref=f3e1464]: / ai
+              - generic [ref=f3e1465]: "1"
+              - generic [ref=f3e1466]:
+                - button "子级" [ref=f3e1467] [cursor=pointer]
+                - button "编辑" [ref=f3e1469] [cursor=pointer]
+                - button "删除" [disabled] [ref=f3e1470]
+  - dialog "确认删除" [ref=f3e1500]:
+    - generic [ref=f3e1501]:
+      - generic [ref=f3e1502]: 删除分类
+      - button "关闭" [ref=f3e1503] [cursor=pointer]
+    - paragraph [ref=f3e1511]:
+      - text: 确定要删除「
+      - strong [ref=f3e1512]: 后端开发
+      - text: 」吗？此操作不可撤销。
+    - generic [ref=f3e1513]:
+      - button "取消" [ref=f3e1514] [cursor=pointer]
+      - button "删除" [ref=f3e1515] [cursor=pointer]

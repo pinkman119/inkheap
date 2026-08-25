@@ -1,0 +1,214 @@
+- generic [ref=f4e2]:
+  - banner [ref=f4e3]:
+    - generic [ref=f4e4]:
+      - link "墨堆" [ref=f4e5] [cursor=pointer]:
+        - /url: "#/"
+      - navigation [ref=f4e13]:
+        - generic [ref=f4e14]:
+          - link "首页" [ref=f4e15] [cursor=pointer]:
+            - /url: "#/"
+          - link "知识库" [ref=f4e16] [cursor=pointer]:
+            - /url: "#/articles"
+          - link "简历" [ref=f4e17] [cursor=pointer]:
+            - /url: "#/resume"
+          - link "数字生命" [ref=f4e18] [cursor=pointer]:
+            - /url: "#/digital-life"
+        - generic [ref=f4e19]:
+          - button "切换到生活模式" [ref=f4e20] [cursor=pointer]:
+            - generic [ref=f4e24]: 工作模式
+          - button "切换到黑夜模式" [ref=f4e25] [cursor=pointer]
+  - main [ref=f4e28]:
+    - generic [ref=f4e30]:
+      - generic [ref=f4e31]: Travel · 旅行小记
+      - heading "小记" [level=1] [ref=f4e32]
+      - paragraph [ref=f4e33]: 相册与随笔。这里有登山的喘息、徒步的泥泞、City walk 的悠闲，也有一碗面里的城市脾气。 不追求宏大，只记录路上那些让我停下来的瞬间。
+      - generic [ref=f4e34]:
+        - generic [ref=f4e35]:
+          - generic [ref=f4e36]: "9"
+          - generic [ref=f4e37]: 篇小记
+        - generic [ref=f4e38]:
+          - generic [ref=f4e39]: "4"
+          - generic [ref=f4e40]: 组相册
+        - generic [ref=f4e41]:
+          - generic [ref=f4e42]: 45+
+          - generic [ref=f4e43]: 张照片
+    - generic [ref=f4e44]:
+      - navigation "小记分类" [ref=f4e45]:
+        - button "全部" [ref=f4e46] [cursor=pointer]
+        - button "登山" [ref=f4e47] [cursor=pointer]
+        - button "日出" [ref=f4e48] [cursor=pointer]
+        - button "徒步" [ref=f4e49] [cursor=pointer]
+        - button "雨崩" [ref=f4e50] [cursor=pointer]
+        - button "City walk" [ref=f4e51] [cursor=pointer]
+        - button "泉州" [ref=f4e52] [cursor=pointer]
+        - button "美食" [ref=f4e53] [cursor=pointer]
+        - button "成都" [ref=f4e54] [cursor=pointer]
+        - button "杂谈" [ref=f4e55] [cursor=pointer]
+        - button "上海" [ref=f4e56] [cursor=pointer]
+        - button "高反" [ref=f4e57] [cursor=pointer]
+        - button "武功山" [ref=f4e58] [cursor=pointer]
+        - button "兰州" [ref=f4e59] [cursor=pointer]
+        - button "TestTag" [ref=f4e60] [cursor=pointer]
+        - button "TestTag2" [ref=f4e61] [cursor=pointer]
+        - generic [ref=f4e62]: 9 / 9 篇
+      - generic [ref=f4e63]:
+        - link "四姑娘山大峰：4400 米的日出 相册 8 张 四姑娘山 2025.10.03 四姑娘山大峰：4400 米的日出 凌晨四点摸黑出发，等到第一缕光打在幺妹峰上的瞬间，所有的喘都值了。一组高海拔的清晨影像。 查看相册" [ref=f4e64] [cursor=pointer]:
+          - /url: "#/xiaoji/四姑娘山大峰4400-米的日出"
+          - generic [ref=f4e65]:
+            - img "四姑娘山大峰：4400 米的日出" [ref=f4e66]
+            - generic [ref=f4e67]: 相册
+            - generic [ref=f4e68]: 8 张
+          - generic [ref=f4e69]:
+            - generic [ref=f4e70]:
+              - generic [ref=f4e71]: 四姑娘山
+              - time [ref=f4e73]: 2025.10.03
+            - heading "四姑娘山大峰：4400 米的日出" [level=3] [ref=f4e74]
+            - paragraph [ref=f4e75]: 凌晨四点摸黑出发，等到第一缕光打在幺妹峰上的瞬间，所有的喘都值了。一组高海拔的清晨影像。
+            - generic [ref=f4e76]: 查看相册
+        - link "雨崩：神瀑下的七天 雨崩 2025.09.12 雨崩：神瀑下的七天 进山要徒步六小时，出山坐越野车十分钟的落差里，藏着一个被时间遗忘的村庄。神瀑、冰湖、笑农大本营。 阅读全文" [ref=f4e79] [cursor=pointer]:
+          - /url: "#/xiaoji/雨崩神瀑下的七天2"
+          - paragraph [ref=f4e81]: 雨崩：神瀑下的七天
+          - generic [ref=f4e82]:
+            - generic [ref=f4e83]:
+              - generic [ref=f4e84]: 雨崩
+              - time [ref=f4e86]: 2025.09.12
+            - heading "雨崩：神瀑下的七天" [level=3] [ref=f4e87]
+            - paragraph [ref=f4e88]: 进山要徒步六小时，出山坐越野车十分钟的落差里，藏着一个被时间遗忘的村庄。神瀑、冰湖、笑农大本营。
+            - generic [ref=f4e89]: 阅读全文
+        - link "“ 一座老城最好的打开方式，是把自己走丢在巷子里，再让香气把你找回来。 泉州 2025.08.20 在泉州，走了三天的老城 开元寺的东西塔、蟳埔女的簪花围、半夜还在排队的面线糊。没有打卡清单，只是沿着红砖厝慢慢走。 阅读全文" [ref=f4e92] [cursor=pointer]:
+          - /url: "#/xiaoji/在泉州走了三天的老城"
+          - generic [ref=f4e93]:
+            - generic [ref=f4e94]: “
+            - paragraph [ref=f4e95]: 一座老城最好的打开方式，是把自己走丢在巷子里，再让香气把你找回来。
+          - generic [ref=f4e96]:
+            - generic [ref=f4e97]:
+              - generic [ref=f4e98]: 泉州
+              - time [ref=f4e100]: 2025.08.20
+            - heading "在泉州，走了三天的老城" [level=3] [ref=f4e101]
+            - paragraph [ref=f4e102]: 开元寺的东西塔、蟳埔女的簪花围、半夜还在排队的面线糊。没有打卡清单，只是沿着红砖厝慢慢走。
+            - generic [ref=f4e103]: 阅读全文
+        - link "成都苍蝇馆子地图 相册 8 张 成都 2025.07.15 成都苍蝇馆子地图 没有环境，只有味道。一家家破旧小店，拼出这座城市最诚实的脾气。附上我吃到撑的那几顿。 查看相册" [ref=f4e106] [cursor=pointer]:
+          - /url: "#/xiaoji/成都苍蝇馆子地图"
+          - generic [ref=f4e107]:
+            - img "成都苍蝇馆子地图" [ref=f4e108]
+            - generic [ref=f4e109]: 相册
+            - generic [ref=f4e110]: 8 张
+          - generic [ref=f4e111]:
+            - generic [ref=f4e112]:
+              - generic [ref=f4e113]: 成都
+              - time [ref=f4e115]: 2025.07.15
+            - heading "成都苍蝇馆子地图" [level=3] [ref=f4e116]
+            - paragraph [ref=f4e117]: 没有环境，只有味道。一家家破旧小店，拼出这座城市最诚实的脾气。附上我吃到撑的那几顿。
+            - generic [ref=f4e118]: 查看相册
+        - link "“ 旅行为什么让人上瘾？大概是因为它短暂地，把\"日常\"从你身上抽走了。 广州 2025.06.30 旅行为什么让人上瘾 不是因为风景，而是因为出发那一刻，你终于允许自己什么都不做，只是去感受。一些关于出走的零碎思考。 阅读全文" [ref=f4e121] [cursor=pointer]:
+          - /url: "#/xiaoji/旅行为什么让人上瘾"
+          - generic [ref=f4e122]:
+            - generic [ref=f4e123]: “
+            - paragraph [ref=f4e124]: 旅行为什么让人上瘾？大概是因为它短暂地，把"日常"从你身上抽走了。
+          - generic [ref=f4e125]:
+            - generic [ref=f4e126]:
+              - generic [ref=f4e127]: 广州
+              - time [ref=f4e129]: 2025.06.30
+            - heading "旅行为什么让人上瘾" [level=3] [ref=f4e130]
+            - paragraph [ref=f4e131]: 不是因为风景，而是因为出发那一刻，你终于允许自己什么都不做，只是去感受。一些关于出走的零碎思考。
+            - generic [ref=f4e132]: 阅读全文
+        - link "上海武康路：梧桐与洋房 相册 8 张 上海 2025.05.22 上海武康路：梧桐与洋房 一条路，半部近代史。梧桐影子里藏着咖啡馆、老公寓和慢下来的下午。一组明亮的街拍。 查看相册" [ref=f4e135] [cursor=pointer]:
+          - /url: "#/xiaoji/上海武康路梧桐与洋房"
+          - generic [ref=f4e136]:
+            - img "上海武康路：梧桐与洋房" [ref=f4e137]
+            - generic [ref=f4e138]: 相册
+            - generic [ref=f4e139]: 8 张
+          - generic [ref=f4e140]:
+            - generic [ref=f4e141]:
+              - generic [ref=f4e142]: 上海
+              - time [ref=f4e144]: 2025.05.22
+            - heading "上海武康路：梧桐与洋房" [level=3] [ref=f4e145]
+            - paragraph [ref=f4e146]: 一条路，半部近代史。梧桐影子里藏着咖啡馆、老公寓和慢下来的下午。一组明亮的街拍。
+            - generic [ref=f4e147]: 查看相册
+        - link "“ 第一次高反教会我的，不是怎么登顶，而是怎么认输、然后慢下来。 贡嘎 2025.04.10 第一次高反，和学会慢下来 在海拔 4000 米被身体按了暂停键。那次之后我才懂，山不急着被征服，它只是等你准备好。 阅读全文" [ref=f4e150] [cursor=pointer]:
+          - /url: "#/xiaoji/第一次高反和学会慢下来"
+          - generic [ref=f4e151]:
+            - generic [ref=f4e152]: “
+            - paragraph [ref=f4e153]: 第一次高反教会我的，不是怎么登顶，而是怎么认输、然后慢下来。
+          - generic [ref=f4e154]:
+            - generic [ref=f4e155]:
+              - generic [ref=f4e156]: 贡嘎
+              - time [ref=f4e158]: 2025.04.10
+            - heading "第一次高反，和学会慢下来" [level=3] [ref=f4e159]
+            - paragraph [ref=f4e160]: 在海拔 4000 米被身体按了暂停键。那次之后我才懂，山不急着被征服，它只是等你准备好。
+            - generic [ref=f4e161]: 阅读全文
+        - link "武功山：云海上的草甸 相册 8 张 武功山 2025.03.18 武功山：云海上的草甸 十万亩高山草甸铺到天边，夜里帐篷外是银河，早上醒来云在脚下游。一组治愈系的风光大片。 查看相册" [ref=f4e164] [cursor=pointer]:
+          - /url: "#/xiaoji/武功山云海上的草甸"
+          - generic [ref=f4e165]:
+            - img "武功山：云海上的草甸" [ref=f4e166]
+            - generic [ref=f4e167]: 相册
+            - generic [ref=f4e168]: 8 张
+          - generic [ref=f4e169]:
+            - generic [ref=f4e170]:
+              - generic [ref=f4e171]: 武功山
+              - time [ref=f4e173]: 2025.03.18
+            - heading "武功山：云海上的草甸" [level=3] [ref=f4e174]
+            - paragraph [ref=f4e175]: 十万亩高山草甸铺到天边，夜里帐篷外是银河，早上醒来云在脚下游。一组治愈系的风光大片。
+            - generic [ref=f4e176]: 查看相册
+        - link "“ 一碗面里，往往住着一整座城市的性格。 兰州 2025.02.14 一碗面里的城市性格 清汤、白萝卜、红辣油、绿蒜苗、黄面条——兰州人用一碗牛肉面，把讲究和豪爽熬进了一锅。 阅读全文" [ref=f4e179] [cursor=pointer]:
+          - /url: "#/xiaoji/一碗面里的城市性格"
+          - generic [ref=f4e180]:
+            - generic [ref=f4e181]: “
+            - paragraph [ref=f4e182]: 一碗面里，往往住着一整座城市的性格。
+          - generic [ref=f4e183]:
+            - generic [ref=f4e184]:
+              - generic [ref=f4e185]: 兰州
+              - time [ref=f4e187]: 2025.02.14
+            - heading "一碗面里的城市性格" [level=3] [ref=f4e188]
+            - paragraph [ref=f4e189]: 清汤、白萝卜、红辣油、绿蒜苗、黄面条——兰州人用一碗牛肉面，把讲究和豪爽熬进了一锅。
+            - generic [ref=f4e190]: 阅读全文
+  - contentinfo [ref=f4e193]:
+    - button "回到顶部" [ref=f4e194] [cursor=pointer]
+    - generic [ref=f4e197]:
+      - generic [ref=f4e198]:
+        - generic [ref=f4e199]:
+          - link "墨堆" [ref=f4e200] [cursor=pointer]:
+            - /url: "#/"
+          - generic [ref=f4e206]:
+            - generic [ref=f4e207]: 墨堆
+            - generic [ref=f4e208]: 以设计记录思考
+        - generic [ref=f4e209]:
+          - link "GitHub" [ref=f4e210] [cursor=pointer]:
+            - /url: https://github.com
+          - link "邮箱" [ref=f4e213] [cursor=pointer]:
+            - /url: mailto:hi@modui.design
+          - link "语雀" [ref=f4e217] [cursor=pointer]:
+            - /url: https://www.yuque.com
+      - generic [ref=f4e221]:
+        - generic [ref=f4e222]:
+          - heading "导航" [level=4] [ref=f4e223]
+          - generic [ref=f4e224]:
+            - link "首页" [ref=f4e225] [cursor=pointer]:
+              - /url: "#/"
+            - link "知识库" [ref=f4e226] [cursor=pointer]:
+              - /url: "#/articles"
+            - link "数字生命" [ref=f4e227] [cursor=pointer]:
+              - /url: "#/digital-life"
+            - link "小记" [ref=f4e228] [cursor=pointer]:
+              - /url: "#/xiaoji"
+            - link "关于我" [ref=f4e229] [cursor=pointer]:
+              - /url: "#/about"
+            - link "简历" [ref=f4e230] [cursor=pointer]:
+              - /url: "#/resume"
+        - generic [ref=f4e231]:
+          - heading "友链" [level=4] [ref=f4e232]
+          - generic [ref=f4e233]:
+            - link "少数派" [ref=f4e234] [cursor=pointer]:
+              - /url: https://sspai.com
+            - link "阮一峰的网络日志" [ref=f4e235] [cursor=pointer]:
+              - /url: https://www.ruanyifeng.com/blog/
+            - link "利器" [ref=f4e236] [cursor=pointer]:
+              - /url: https://liqi.io
+            - link "V2EX" [ref=f4e237] [cursor=pointer]:
+              - /url: https://www.v2ex.com
+      - generic [ref=f4e238]:
+        - generic [ref=f4e239]: 文章内容 CC BY-NC 4.0（署名·非商用） · 网站源码可查看 · 禁止用于商业用途
+        - generic [ref=f4e243]:
+          - generic [ref=f4e244]: © 2024–2026 墨堆
+          - link "苏ICP备2024125779号" [ref=f4e245] [cursor=pointer]:
+            - /url: https://beian.miit.gov.cn

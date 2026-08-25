@@ -1,0 +1,69 @@
+- generic [ref=f3e271]:
+  - complementary [ref=f3e272]:
+    - generic [ref=f3e273]:
+      - generic [ref=f3e280]: 墨堆
+      - generic [ref=f3e281]: 后台
+    - navigation [ref=f3e282]:
+      - generic [ref=f3e283]:
+        - generic [ref=f3e284]: 概览
+        - link "仪表盘" [ref=f3e285] [cursor=pointer]:
+          - /url: "#/admin/dashboard"
+      - generic [ref=f3e292]:
+        - generic [ref=f3e293]: 内容运营
+        - link "首页管理" [ref=f3e294] [cursor=pointer]:
+          - /url: "#/admin/home-page"
+        - link "简历管理" [ref=f3e297] [cursor=pointer]:
+          - /url: "#/admin/resume"
+        - link "收信箱" [ref=f3e302] [cursor=pointer]:
+          - /url: "#/admin/contact"
+        - link "文章管理" [ref=f3e307] [cursor=pointer]:
+          - /url: "#/admin/articles"
+        - link "分类管理" [ref=f3e312] [cursor=pointer]:
+          - /url: "#/admin/categories"
+        - link "小记管理" [ref=f3e316] [cursor=pointer]:
+          - /url: "#/admin/xiaoji"
+      - generic [ref=f3e320]:
+        - generic [ref=f3e321]: 关于我
+        - link "个人资料" [ref=f3e322] [cursor=pointer]:
+          - /url: "#/admin/about/profile"
+        - link "年轮" [ref=f3e327] [cursor=pointer]:
+          - /url: "#/admin/about/rings"
+        - link "足迹" [ref=f3e332] [cursor=pointer]:
+          - /url: "#/admin/about/footprints"
+        - link "事件日历" [ref=f3e337] [cursor=pointer]:
+          - /url: "#/admin/about/events"
+      - generic [ref=f3e341]:
+        - generic [ref=f3e342]: 数字生命
+        - link "模型管理" [ref=f3e343] [cursor=pointer]:
+          - /url: "#/admin/digital-life/model"
+        - link "人格编写" [ref=f3e349] [cursor=pointer]:
+          - /url: "#/admin/digital-life/persona"
+        - link "训练管理" [ref=f3e356] [cursor=pointer]:
+          - /url: "#/admin/digital-life/training"
+      - generic [ref=f3e360]:
+        - generic [ref=f3e361]: 系统
+        - link "返回站点" [ref=f3e362] [cursor=pointer]:
+          - /url: "#/"
+    - generic [ref=f3e368]: 墨堆 · Admin v0.1
+  - generic [ref=f3e369]:
+    - banner [ref=f3e370]:
+      - generic [ref=f3e371]:
+        - button "切换菜单" [ref=f3e372] [cursor=pointer]
+        - generic [ref=f3e374]:
+          - generic [ref=f3e375]: 后台
+          - generic [ref=f3e376]: /
+          - generic [ref=f3e377]: 数字生命·模型管理
+      - generic [ref=f3e378]:
+        - link "返回站点" [ref=f3e379] [cursor=pointer]:
+          - /url: "#/"
+        - button "切换主题" [ref=f3e385] [cursor=pointer]
+        - button "a" [ref=f3e393] [cursor=pointer]
+    - main [ref=f3e394]:
+      - generic [ref=f3e451]:
+        - generic [ref=f3e453]:
+          - generic [ref=f3e455]:
+            - generic [ref=f3e456]: Digital Life · 模型
+            - heading "模型管理" [level=1] [ref=f3e457]
+          - paragraph [ref=f3e458]: 管理数字人生的 LLM 接入：启用 / 停用模型、测试连通性。
+          - paragraph [ref=f3e459]: 0 个模型 · 启用 0 个 · 对话按顺序自动切换
+        - generic [ref=f3e460]: 暂无可用模型。

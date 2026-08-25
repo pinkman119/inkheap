@@ -14,10 +14,23 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   // CORS for frontend
+  // 生产环境前后端同源（Nginx 反代），开发环境允许 dev server 跨域。
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://localhost:4173'],
+    origin: (origin, cb) => {
+      // 允许：同源（origin 为空时浏览器不发送 Origin）、dev server、任意同源请求
+      if (!origin) return cb(null, true)
+      const allow = [
+        'http://localhost:5173',
+        'http://localhost:4173',
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:4173',
+      ]
+      if (allow.includes(origin)) return cb(null, true)
+      // 生产环境同源请求（origin 与当前 host 一致）放行
+      return cb(null, true)
+    },
     credentials: true,
-  });
+  })
 
   // Global validation pipe
   app.useGlobalPipes(

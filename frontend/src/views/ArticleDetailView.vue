@@ -245,7 +245,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="progress" :style="{ width: progress + '%' }" />
 
-  <AppHeader active-key="kb" />
+  <AppHeader active-key="" />
 
   <div class="layout">
     <article ref="contentEl" class="article">

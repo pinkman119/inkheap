@@ -123,32 +123,49 @@ function goBack() {
 
 <template>
   <div class="article-edit">
-    <transition name="fade">
-      <div v-if="toast" class="toast" :class="toastType">{{ toast }}</div>
+    <transition name="toast-pop">
+      <div v-if="toast" class="toast" :class="toastType" role="status" aria-live="polite">
+        <svg v-if="toastType === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+        <span>{{ toast }}</span>
+      </div>
     </transition>
 
-    <!-- Header -->
-    <div class="edit-header">
-      <button class="btn-back" @click="goBack">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12,19 5,12 12,5"/>
-        </svg>
-        返回列表
-      </button>
-      <div class="header-actions">
-        <span v-if="saving" class="saving-hint">保存中...</span>
-        <button class="btn-save" @click="handleSave" :disabled="saving">
-          {{ isEdit ? '更新文章' : '发布文章' }}
+    <!-- ===== Hero ===== -->
+    <section class="page-hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="page-hero-inner">
+        <button class="btn-back" @click="goBack">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12,19 5,12 12,5"/>
+          </svg>
+          返回列表
         </button>
+        <div class="hero-row">
+          <div class="hero-copy">
+            <span class="kicker">Articles · {{ isEdit ? '编辑' : '新建' }}</span>
+            <h1>{{ isEdit ? '编辑文章' : '新建文章' }}</h1>
+          </div>
+          <div class="hero-side">
+            <span v-if="saving" class="saving-hint">保存中…</span>
+            <button class="btn btn--primary" @click="handleSave" :disabled="saving">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+              {{ saving ? '保存中…' : (isEdit ? '更新文章' : '发布文章') }}
+            </button>
+          </div>
+        </div>
+        <p class="lede">撰写 Markdown 正文，配置分类、标签与封面，保存后即时生效。</p>
       </div>
-    </div>
+    </section>
 
+    <!-- ===== Loading ===== -->
     <div v-if="loading" class="loading-wrap">
-      <p>加载中...</p>
+      <span class="spinner" aria-hidden="true"></span>
+      <span>加载中…</span>
     </div>
 
     <div v-else class="edit-body">
-      <!-- 左：表单 -->
+      <!-- ===== 左：表单 ===== -->
       <div class="form-main">
         <div class="field">
           <label>标题 <span class="req">*</span></label>
@@ -233,15 +250,19 @@ function goBack() {
         </div>
       </div>
 
-      <!-- 右：封面预览 -->
+      <!-- ===== 右：封面预览 ===== -->
       <div class="form-side">
+        <div class="side-title">封面图预览</div>
         <div class="cover-preview" v-if="form.coverImage">
           <img :src="form.coverImage" alt="封面图" />
-          <button class="btn-remove-cover" @click="removeCover">移除封面</button>
+          <button class="btn-remove-cover" @click="removeCover">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+            移除封面
+          </button>
         </div>
         <div v-else class="cover-placeholder">
-          <span>📷</span>
-          <p>封面图预览</p>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <p>填入封面图 URL 后在此预览</p>
         </div>
       </div>
     </div>
@@ -249,108 +270,152 @@ function goBack() {
 </template>
 
 <style scoped>
-.article-edit { max-width: 1200px; }
+.article-edit { position: relative; }
 
-/* Toast */
-.toast {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 9999;
-  padding: 12px 20px;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-weight: 500;
-  color: #fff;
-  box-shadow: var(--shadow-md);
+/* ===== Hero ===== */
+.page-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 24px 28px 24px;
+  border-bottom: 1px solid var(--border-light);
 }
-.toast.success { background: #2d8264; }
-.toast.error { background: #e03131; }
-
-/* Header */
-.edit-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 28px;
+.hero-glow {
+  position: absolute; top: -80px; right: -60px;
+  width: 440px; height: 440px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(45, 130, 100, 0.14), transparent 65%);
+  filter: blur(48px); pointer-events: none;
 }
-
+:global([data-theme='dark']) .hero-glow {
+  background: radial-gradient(circle, rgba(95, 197, 154, 0.13), transparent 65%);
+}
+.page-hero-inner { position: relative; z-index: 1; }
 .btn-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  color: var(--text-secondary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 0;
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-bottom: 14px; font-size: 13px; font-weight: 500;
+  color: var(--accent); background: none; border: none;
+  cursor: pointer; padding: 4px 0;
+  font-family: var(--font-mono);
+  transition: opacity var(--transition);
 }
-.btn-back:hover { color: var(--accent); }
-
-.header-actions { display: flex; align-items: center; gap: 12px; }
-.saving-hint { font-size: 13px; color: var(--text-tertiary); }
-
-.btn-save {
-  height: 38px;
-  padding: 0 20px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #fff;
-  background: var(--accent);
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background var(--transition);
+.btn-back:hover { opacity: 0.75; text-decoration: underline; }
+.kicker {
+  display: inline-block; font-family: var(--font-mono); font-size: 12.5px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent);
+  padding: 4px 12px; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 100px; background-color: var(--accent-light); margin-bottom: 16px;
 }
-.btn-save:hover:not(:disabled) { background: var(--accent-hover); }
-.btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+.hero-row {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+}
+.page-hero h1 {
+  font-family: var(--font-serif); font-size: 34px; font-weight: 700;
+  color: var(--text-primary); letter-spacing: 0.02em; margin: 0;
+}
+.lede { font-size: 15px; color: var(--text-secondary); max-width: 680px; margin: 10px 0 0; }
+.hero-side {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.saving-hint {
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--accent);
+}
 
-.loading-wrap { text-align: center; padding: 80px 0; color: var(--text-tertiary); }
+/* ===== Buttons ===== */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-sans); font-size: 14px; font-weight: 500;
+  padding: 10px 18px; border-radius: 10px; cursor: pointer;
+  text-decoration: none; border: 1px solid transparent;
+  transition: all var(--transition); white-space: nowrap;
+}
+.btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.btn--primary {
+  background-color: var(--accent); color: #fff;
+  border-color: var(--accent); box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.btn--primary:hover:not(:disabled) {
+  background-color: var(--accent-hover); border-color: var(--accent-hover);
+  transform: translateY(-1px); box-shadow: var(--shadow-md);
+}
+.btn--primary:disabled { opacity: 0.6; cursor: not-allowed; }
+:global([data-theme='dark']) .btn--primary { color: #0f0f0f; }
 
-/* Body */
+/* ===== Loading ===== */
+.loading-wrap {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 80px 0; color: var(--text-tertiary); font-size: 14px;
+}
+.spinner {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== Body ===== */
 .edit-body {
   display: flex;
-  gap: 32px;
+  gap: 28px;
   align-items: flex-start;
+  margin: 24px 0 8px;
+}
+.form-main { flex: 1; min-width: 0; }
+.form-side { width: 260px; flex-shrink: 0; position: sticky; top: 12px; }
+
+/* 右栏标题 */
+.side-title {
+  font-family: var(--font-serif); font-size: 15px; font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+  padding-left: 14px; position: relative;
+  margin-bottom: 12px;
+}
+.side-title::before {
+  content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 4px; height: 15px; border-radius: 4px; background-color: var(--accent);
 }
 
-.form-main { flex: 1; min-width: 0; }
-.form-side { width: 260px; flex-shrink: 0; position: sticky; top: 32px; }
-
-/* Fields */
+/* ===== Fields ===== */
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
   margin-bottom: 16px;
 }
 .field label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
-.req { color: #e03131; margin-left: 2px; }
+.req { color: #e0533d; margin-left: 2px; }
 
 .field input,
 .field select,
 .field textarea {
-  padding: 10px 12px;
+  padding: 11px 14px;
   font-size: 14px;
   font-family: var(--font-sans);
   color: var(--text-primary);
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   outline: none;
-  transition: border-color var(--transition);
+  transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
   resize: vertical;
+}
+.field input::placeholder,
+.field textarea::placeholder { color: var(--text-tertiary); }
+.field input:hover,
+.field textarea:hover {
+  background-color: color-mix(in srgb, var(--bg-soft) 70%, var(--accent-light) 30%);
 }
 .field input:focus,
 .field select:focus,
-.field textarea:focus {
+.field textarea:not(.content-editor):focus {
+  background-color: var(--bg-card);
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-light);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .field-row { display: flex; gap: 16px; }
-.flex-1 { flex: 1; }
+.flex-1 { flex: 1; min-width: 0; }
 
 /* 正文编辑器标签：标题 + Markdown 徽标 同行右对齐 */
 .editor-label {
@@ -359,14 +424,15 @@ function goBack() {
   justify-content: space-between;
 }
 .md-badge {
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
   color: var(--accent);
   background: var(--accent-light);
-  border: 1px solid var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
   border-radius: 100px;
-  padding: 1px 8px;
+  padding: 2px 10px;
 }
 
 /* ===== Markdown 编辑器：深色代码主体 ===== */
@@ -432,37 +498,48 @@ function goBack() {
   scrollbar-width: thin;
 }
 
-/* Tags */
+/* ===== Tags ===== */
 .tags-input {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 6px 10px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  padding: 7px 12px;
+  background: var(--bg-soft);
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  min-height: 38px;
+  min-height: 42px;
+  transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
 }
-.tags-input:focus-within { border-color: var(--accent); }
+.tags-input:hover { background-color: color-mix(in srgb, var(--bg-soft) 70%, var(--accent-light) 30%); }
+.tags-input:focus-within {
+  background-color: var(--bg-card);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
 .tags-input input {
   border: none;
   outline: none;
   font-size: 13px;
+  font-family: var(--font-sans);
   background: transparent;
   flex: 1;
   min-width: 120px;
   padding: 4px 0;
+  color: var(--text-primary);
 }
+.tags-input input::placeholder { color: var(--text-tertiary); }
 .tags-list { display: flex; flex-wrap: wrap; gap: 4px; }
 .tag-chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
+  padding: 3px 10px;
   font-size: 12px;
+  font-weight: 500;
   background: var(--accent-light);
   color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
   border-radius: 100px;
 }
 .tag-remove {
@@ -482,12 +559,12 @@ function goBack() {
 }
 .tag-remove:hover { opacity: 1; }
 
-/* Toggles */
+/* ===== Toggles ===== */
 .toggle-row { align-items: center; }
 .toggle-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 14px;
   color: var(--text-primary);
   cursor: pointer;
@@ -495,34 +572,36 @@ function goBack() {
 }
 .toggle-label input { display: none; }
 .toggle-label input + span {
-  width: 40px;
-  height: 22px;
+  width: 42px;
+  height: 23px;
   border-radius: 100px;
   background: var(--border);
   position: relative;
   transition: background var(--transition);
+  flex-shrink: 0;
 }
 .toggle-label input + span::after {
   content: '';
   position: absolute;
-  top: 2px;
-  left: 2px;
+  top: 2.5px;
+  left: 2.5px;
   width: 18px;
   height: 18px;
   border-radius: 50%;
   background: #fff;
   transition: transform var(--transition);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 .toggle-label input:checked + span { background: var(--accent); }
-.toggle-label input:checked + span::after { transform: translateX(18px); }
+.toggle-label input:checked + span::after { transform: translateX(19px); }
 
-/* Cover */
+/* ===== Cover ===== */
 .cover-preview {
   position: relative;
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
 }
 .cover-preview img {
   width: 100%;
@@ -531,31 +610,80 @@ function goBack() {
   display: block;
 }
 .btn-remove-cover {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   width: 100%;
-  padding: 8px;
-  font-size: 12px;
-  color: #e03131;
-  background: #fff5f5;
+  padding: 9px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #e0533d;
+  background: #fdf1ef;
   border: none;
+  border-top: 1px solid #f3c9c2;
   cursor: pointer;
+  transition: background-color var(--transition);
 }
-.btn-remove-cover:hover { background: #ffe3e3; }
+.btn-remove-cover:hover { background: #f9e2de; }
+:global([data-theme='dark']) .btn-remove-cover { background: #2a1a17; border-top-color: #4a2a24; }
+:global([data-theme='dark']) .btn-remove-cover:hover { background: #33211e; }
 
 .cover-placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   padding: 48px 16px;
   background: var(--bg-card);
   border: 2px dashed var(--border);
   border-radius: var(--radius-md);
   color: var(--text-tertiary);
 }
-.cover-placeholder span { font-size: 36px; margin-bottom: 8px; opacity: 0.4; }
-.cover-placeholder p { font-size: 13px; margin: 0; }
+.cover-placeholder svg { width: 34px; height: 34px; opacity: 0.45; }
+.cover-placeholder p {
+  font-size: 12.5px; margin: 0;
+  font-family: var(--font-mono);
+}
 
-.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+/* ===== Toast ===== */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 22px;
+  border-radius: 100px;
+  box-shadow: var(--shadow-lg);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 4000;
+  max-width: min(480px, 90vw);
+}
+.toast svg { width: 16px; height: 16px; flex-shrink: 0; }
+.toast.error { border-color: #e0533d; color: #e0533d; }
+.toast-pop-enter-active, .toast-pop-leave-active {
+  transition: opacity 0.35s cubic-bezier(0.22, 1, 0.36, 1), transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.toast-pop-enter-from, .toast-pop-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(20px);
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 860px) {
+  .page-hero { padding: 18px; }
+  .page-hero h1 { font-size: 28px; }
+  .hero-side { width: 100%; }
+  .edit-body { flex-direction: column; }
+  .form-side { width: 100%; position: static; }
+  .field-row { flex-direction: column; }
+}
 </style>

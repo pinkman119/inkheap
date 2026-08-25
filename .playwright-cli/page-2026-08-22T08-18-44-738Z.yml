@@ -1,0 +1,150 @@
+- generic [ref=f3e271]:
+  - complementary [ref=f3e272]:
+    - generic [ref=f3e273]:
+      - generic [ref=f3e280]: 墨堆
+      - generic [ref=f3e281]: 后台
+    - navigation [ref=f3e282]:
+      - generic [ref=f3e283]:
+        - generic [ref=f3e284]: 概览
+        - link "仪表盘" [ref=f3e285] [cursor=pointer]:
+          - /url: "#/admin/dashboard"
+      - generic [ref=f3e292]:
+        - generic [ref=f3e293]: 内容运营
+        - link "首页管理" [ref=f3e294] [cursor=pointer]:
+          - /url: "#/admin/home-page"
+        - link "简历管理" [ref=f3e297] [cursor=pointer]:
+          - /url: "#/admin/resume"
+        - link "收信箱" [ref=f3e302] [cursor=pointer]:
+          - /url: "#/admin/contact"
+        - link "文章管理" [ref=f3e307] [cursor=pointer]:
+          - /url: "#/admin/articles"
+        - link "分类管理" [ref=f3e312] [cursor=pointer]:
+          - /url: "#/admin/categories"
+        - link "小记管理" [ref=f3e316] [cursor=pointer]:
+          - /url: "#/admin/xiaoji"
+      - generic [ref=f3e320]:
+        - generic [ref=f3e321]: 关于我
+        - link "个人资料" [ref=f3e322] [cursor=pointer]:
+          - /url: "#/admin/about/profile"
+        - link "年轮" [ref=f3e327] [cursor=pointer]:
+          - /url: "#/admin/about/rings"
+        - link "足迹" [ref=f3e332] [cursor=pointer]:
+          - /url: "#/admin/about/footprints"
+        - link "事件日历" [ref=f3e337] [cursor=pointer]:
+          - /url: "#/admin/about/events"
+      - generic [ref=f3e341]:
+        - generic [ref=f3e342]: 数字生命
+        - link "模型管理" [ref=f3e343] [cursor=pointer]:
+          - /url: "#/admin/digital-life/model"
+        - link "人格编写" [ref=f3e349] [cursor=pointer]:
+          - /url: "#/admin/digital-life/persona"
+        - link "训练管理" [ref=f3e356] [cursor=pointer]:
+          - /url: "#/admin/digital-life/training"
+      - generic [ref=f3e360]:
+        - generic [ref=f3e361]: 系统
+        - link "返回站点" [ref=f3e362] [cursor=pointer]:
+          - /url: "#/"
+    - generic [ref=f3e368]: 墨堆 · Admin v0.1
+  - generic [ref=f3e369]:
+    - banner [ref=f3e370]:
+      - generic [ref=f3e371]:
+        - button "切换菜单" [ref=f3e372] [cursor=pointer]
+        - generic [ref=f3e374]:
+          - generic [ref=f3e375]: 后台
+          - generic [ref=f3e376]: /
+          - generic [ref=f3e377]: 关于我·年轮
+      - generic [ref=f3e378]:
+        - link "返回站点" [ref=f3e379] [cursor=pointer]:
+          - /url: "#/"
+        - button "切换主题" [ref=f3e385] [cursor=pointer]
+        - button "a" [ref=f3e393] [cursor=pointer]
+    - main [ref=f3e394]:
+      - generic [ref=f3e395]:
+        - generic [ref=f3e397]:
+          - generic [ref=f3e398]:
+            - generic [ref=f3e399]:
+              - generic [ref=f3e400]: About · 年轮
+              - heading "年轮管理" [level=1] [ref=f3e401]
+            - generic [ref=f3e402]:
+              - combobox [ref=f3e403] [cursor=pointer]:
+                - option "全部年份" [selected]
+                - option "2027 年"
+                - option "2026 年"
+                - option "2025 年"
+                - option "2024 年"
+                - option "2023 年"
+                - option "2022 年"
+                - option "2021 年"
+                - option "2020 年"
+                - option "2019 年"
+                - option "2018 年"
+                - option "2017 年"
+                - option "2016 年"
+                - option "2015 年"
+                - option "2014 年"
+                - option "2013 年"
+                - option "2012 年"
+                - option "2011 年"
+                - option "2010 年"
+                - option "2009 年"
+                - option "2008 年"
+                - option "2007 年"
+                - option "2006 年"
+                - option "2005 年"
+                - option "2004 年"
+                - option "2003 年"
+                - option "2002 年"
+                - option "2001 年"
+                - option "2000 年"
+              - button "新增年轮" [ref=f3e404] [cursor=pointer]
+          - paragraph [ref=f3e406]: 记录每一年的成长印记，按年份展示在「关于我」页的年轮时间线上。
+          - paragraph [ref=f3e407]: 6 条年轮记录 · 每行一条内容 · 按年份倒序展示
+        - generic [ref=f3e408]:
+          - generic [ref=f3e409]:
+            - generic [ref=f3e410]:
+              - generic [ref=f3e411]: "2015"
+              - generic [ref=f3e412]: 年
+            - list
+            - generic [ref=f3e413]:
+              - button "编辑" [ref=f3e414] [cursor=pointer]
+              - button "删除" [ref=f3e415] [cursor=pointer]
+          - generic [ref=f3e416]:
+            - generic [ref=f3e417]:
+              - generic [ref=f3e418]: "2015"
+              - generic [ref=f3e419]: 年
+            - list
+            - generic [ref=f3e420]:
+              - button "编辑" [ref=f3e421] [cursor=pointer]
+              - button "删除" [ref=f3e422] [cursor=pointer]
+          - generic [ref=f3e423]:
+            - generic [ref=f3e424]:
+              - generic [ref=f3e425]: "2018"
+              - generic [ref=f3e426]: 年
+            - list
+            - generic [ref=f3e427]:
+              - button "编辑" [ref=f3e428] [cursor=pointer]
+              - button "删除" [ref=f3e429] [cursor=pointer]
+          - generic [ref=f3e430]:
+            - generic [ref=f3e431]:
+              - generic [ref=f3e432]: "2020"
+              - generic [ref=f3e433]: 年
+            - list
+            - generic [ref=f3e434]:
+              - button "编辑" [ref=f3e435] [cursor=pointer]
+              - button "删除" [ref=f3e436] [cursor=pointer]
+          - generic [ref=f3e437]:
+            - generic [ref=f3e438]:
+              - generic [ref=f3e439]: "2022"
+              - generic [ref=f3e440]: 年
+            - list
+            - generic [ref=f3e441]:
+              - button "编辑" [ref=f3e442] [cursor=pointer]
+              - button "删除" [ref=f3e443] [cursor=pointer]
+          - generic [ref=f3e444]:
+            - generic [ref=f3e445]:
+              - generic [ref=f3e446]: "2024"
+              - generic [ref=f3e447]: 年
+            - list
+            - generic [ref=f3e448]:
+              - button "编辑" [ref=f3e449] [cursor=pointer]
+              - button "删除" [ref=f3e450] [cursor=pointer]

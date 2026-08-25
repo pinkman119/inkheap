@@ -1,40 +1,53 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
-import { fallbackReply, quickQuestions, replyRules, welcome } from '@/data/digitalLife'
+import { quickQuestions, welcomeDesc, loginCard } from '@/data/digitalLife'
+import { useUserAuth } from '@/composables/useUserAuth'
 
 /* =========================================================
-   数字生命 · 对话逻辑（原型）
-   - 当前回复为模拟数据（generateReply）
-   - 后续接入点：用 RAG 检索「林深」知识库 + 提示词工程，
-     替换 generateReply 为真实 LLM 调用即可，UI 无需改动。
+   数字生命 · 对话逻辑（已接入后端）
+   - 登录：mock 微信登录（WECHAT_MOCK 开关），发送时弹登录卡片
+   - 回复：POST /user/digital-life/chat，SSE 流式渲染（delta/done/error）
+   - 历史：GET /user/digital-life/messages，单一持续会话
+   - 限流：429 时按钮倒计时禁用
    ========================================================= */
 
-// 单一持续会话：不暴露会话管理，用户始终在一个对话里与「数字林深」交流
+const { token, user, isLoggedIn, clearAuth, mockLogin } = useUserAuth()
+
+// 单一持续会话：不暴露会话管理，用户始终在一个对话里与「数字生命」交流
 const messages = reactive([])
 const isTyping = ref(false)
 const draft = ref('')
 const jumpVisible = ref(false)
 
+// 站点称呼（HomePage.siteName，与关于我署名同源）
+const siteName = ref('慕士塔格猫')
+
+// 登录卡片
+const loginCardVisible = ref(false)
+const loginLoading = ref(false)
+const loginError = ref('')
+let pendingMessage = '' // 被登录拦截的消息，登录后自动发送
+
+// 限流倒计时（秒）
+const rateLimitWait = ref(0)
+let countdownTimer = null
+
 const chatMessagesEl = ref(null)
 const textareaEl = ref(null)
 
-const canSend = computed(() => draft.value.trim().length > 0)
+const canSend = computed(
+  () => draft.value.trim().length > 0 && !isTyping.value && rateLimitWait.value <= 0,
+)
 
 let seed = 0
 const nextId = () => (seed += 1)
 
-/* ---- 定时器统一登记，路由切走时清理 ---- */
-let cancelled = false
-const timers = new Set()
-function later(fn, ms) {
-  const id = setTimeout(() => {
-    timers.delete(id)
-    if (!cancelled) fn()
-  }, ms)
-  timers.add(id)
-  return id
-}
+/* ---- API 基址（与 useApi 一致：dev 绝对地址 / 生产同源） ---- */
+const isDev =
+  typeof window !== 'undefined' &&
+  (window.location.port === '5173' || window.location.port === '4173')
+const BASE = isDev ? 'http://localhost:3000/api' : '/api'
 
 /* ---- 滚动策略：头部与输入栏固定，仅消息区滚动；滚动条隐藏，新内容平滑定位底部 ---- */
 function isNearBottom() {
@@ -56,7 +69,7 @@ function showJump() {
 function hideJump() {
   jumpVisible.value = false
 }
-// 流式打字时即时跟随（贴近底部时直接贴底）
+// 流式输出时即时跟随（贴近底部时直接贴底）
 function followStream() {
   if (isNearBottom()) stickBottom()
   else showJump()
@@ -74,52 +87,223 @@ function onJumpClick() {
   smoothBottom()
 }
 
-/* ---- 逐字打字（原型 appendMessage 的 animate 分支，16ms/字） ---- */
-function typeOut(message, text) {
-  let i = 0
-  const step = () => {
-    message.display = text.slice(0, i)
-    i += 1
-    if (i <= text.length) {
-      nextTick(followStream)
-      later(step, 16)
+/* ---- 初始化：拉称呼 + 历史 ---- */
+onMounted(async () => {
+  try {
+    const res = await fetch(`${BASE}/public/home-page`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data.siteName) siteName.value = data.siteName
     }
+  } catch {
+    // 称呼拉取失败时使用默认
   }
-  step()
+  if (isLoggedIn()) {
+    await loadHistory()
+  }
+})
+
+async function loadHistory() {
+  try {
+    const res = await fetch(`${BASE}/user/digital-life/messages`, {
+      headers: { Authorization: `Bearer ${token.value}` },
+    })
+    if (!res.ok) {
+      if (res.status === 401) clearAuth() // token 过期，回到未登录态
+      return
+    }
+    const data = await res.json()
+    messages.length = 0
+    for (const m of data.items || []) {
+      messages.push({
+        id: m.id,
+        role: m.role === 'assistant' ? 'ai' : 'user',
+        display: m.content,
+      })
+    }
+    if (messages.length) {
+      await nextTick()
+      stickBottom()
+    }
+  } catch {
+    // 历史加载失败不阻断页面
+  }
 }
 
-/* ---- 模拟回复生成（接入点：替换为 RAG + LLM） ---- */
-function generateReply(text) {
-  const hit = replyRules.find((rule) => rule.pattern.test(text))
-  return hit ? hit.reply : fallbackReply
+/* ---- 限流倒计时 ---- */
+function startCountdown(seconds) {
+  rateLimitWait.value = seconds
+  if (countdownTimer) clearInterval(countdownTimer)
+  countdownTimer = setInterval(() => {
+    rateLimitWait.value -= 1
+    if (rateLimitWait.value <= 0) {
+      clearInterval(countdownTimer)
+      countdownTimer = null
+    }
+  }, 1000)
 }
 
+/* ---- 发送（含登录拦截） ---- */
 async function sendMessage(raw) {
   const text = (raw || '').trim()
-  if (!text) return
+  if (!text || isTyping.value || rateLimitWait.value > 0) return
+
+  // 未登录：拦截并弹登录卡片
+  if (!isLoggedIn()) {
+    pendingMessage = text
+    draft.value = ''
+    loginError.value = ''
+    loginCardVisible.value = true
+    return
+  }
 
   // 记录用户消息
   messages.push({ id: nextId(), role: 'user', display: text })
   draft.value = ''
   await nextTick()
   autoGrow()
-  followStream()
+  scrollNew()
 
-  // AI 打字 + 回复
+  // AI 气泡（流式填充）
   isTyping.value = true
   await nextTick()
   scrollNew()
+  await streamChat(text)
+}
 
-  const reply = generateReply(text)
-  later(async () => {
+/* ---- SSE 流式聊天 ---- */
+async function streamChat(text) {
+  let message = null
+  try {
+    const res = await fetch(`${BASE}/user/digital-life/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token.value}`,
+      },
+      body: JSON.stringify({ content: text }),
+    })
+
+    // 非 SSE 的错误响应（409 未配 Key / 429 限流 / 401 过期）
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      if (res.status === 429) {
+        startCountdown(data.retryAfterSeconds || 60)
+        pushSystemError(`提问过于频繁，请等待 ${data.retryAfterSeconds || 60} 秒后再试`)
+      } else if (res.status === 401) {
+        clearAuth()
+        pendingMessage = text
+        loginCardVisible.value = true
+      } else {
+        pushSystemError(data.message || '服务暂时不可用，请稍后再试')
+      }
+      isTyping.value = false
+      return
+    }
+
+    // 进入 SSE 流：创建 AI 气泡并逐段填充
     isTyping.value = false
     messages.push({ id: nextId(), role: 'ai', display: '' })
-    const message = messages[messages.length - 1]
+    message = messages[messages.length - 1]
     await nextTick()
-    if (cancelled) return
-    typeOut(message, reply)
     followStream()
-  }, 900 + Math.random() * 500)
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+
+      // SSE 事件以空行分隔：event: xxx\ndata: {...}\n\n
+      let sep
+      while ((sep = buffer.indexOf('\n\n')) !== -1) {
+        const block = buffer.slice(0, sep)
+        buffer = buffer.slice(sep + 2)
+        handleEventBlock(block, message)
+      }
+    }
+    // 处理尾部残余
+    if (buffer.trim()) handleEventBlock(buffer, message)
+  } catch (e) {
+    isTyping.value = false
+    if (message && message.display) {
+      // 已有部分内容：保留
+    } else {
+      pushSystemError('网络异常，请稍后再试')
+    }
+  } finally {
+    isTyping.value = false
+  }
+}
+
+function handleEventBlock(block, message) {
+  let event = 'message'
+  let data = ''
+  for (const line of block.split('\n')) {
+    if (line.startsWith('event:')) event = line.slice(6).trim()
+    else if (line.startsWith('data:')) data += line.slice(5).trim()
+  }
+  if (!data) return
+  let payload
+  try {
+    payload = JSON.parse(data)
+  } catch {
+    return
+  }
+
+  if (event === 'delta' && payload.text) {
+    message.display += payload.text
+    followStream()
+  } else if (event === 'done') {
+    message.display = payload.content || message.display
+    followStream()
+  } else if (event === 'error') {
+    if (!message.display && payload.message) {
+      message.display = payload.message
+    }
+  }
+}
+
+/* ---- 系统错误气泡（以 AI 身份展示可读错误） ---- */
+function pushSystemError(text) {
+  messages.push({ id: nextId(), role: 'ai', display: `（${text}）` })
+  scrollNew()
+}
+
+/* ---- 登录卡片 ---- */
+async function onMockLogin() {
+  loginLoading.value = true
+  loginError.value = ''
+  try {
+    await mockLogin()
+    loginCardVisible.value = false
+    await loadHistory()
+    // 自动继续被拦截的发送
+    if (pendingMessage) {
+      const text = pendingMessage
+      pendingMessage = ''
+      await sendMessage(text)
+    }
+  } catch (e) {
+    loginError.value = e.message || '登录失败，请稍后再试'
+  } finally {
+    loginLoading.value = false
+  }
+}
+
+function closeLoginCard() {
+  loginCardVisible.value = false
+  pendingMessage = ''
+}
+
+/* ---- 退出登录 ---- */
+function onLogout() {
+  clearAuth()
+  messages.length = 0
+  pendingMessage = ''
 }
 
 /* ---- 输入框自动增高 ---- */
@@ -138,9 +322,7 @@ function onKeydown(event) {
 }
 
 onBeforeUnmount(() => {
-  cancelled = true
-  timers.forEach(clearTimeout)
-  timers.clear()
+  if (countdownTimer) clearInterval(countdownTimer)
 })
 </script>
 
@@ -167,8 +349,8 @@ onBeforeUnmount(() => {
                   <rect x="7.5" y="19" width="13" height="2.8" rx="1.4" fill="#ffffff" />
                 </svg>
               </div>
-              <h2>{{ welcome.title }}</h2>
-              <p>{{ welcome.desc }}</p>
+              <h2>你好，我是{{ siteName }}</h2>
+              <p>{{ welcomeDesc.replace('{name}', siteName) }}</p>
               <div class="chips">
                 <button
                   v-for="question in quickQuestions"
@@ -231,15 +413,59 @@ onBeforeUnmount(() => {
           <span>新消息</span>
         </button>
 
+        <!-- 登录卡片（未登录发送时弹出） -->
+        <div v-if="loginCardVisible" class="login-overlay" @click.self="closeLoginCard">
+          <div class="login-card">
+            <button class="login-close" type="button" aria-label="关闭" @click="closeLoginCard">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+            <h3>{{ loginCard.title }}</h3>
+            <p>{{ loginCard.desc }}</p>
+            <button
+              class="login-btn"
+              type="button"
+              :disabled="loginLoading"
+              @click="onMockLogin"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+              </svg>
+              {{ loginLoading ? loginCard.loading : loginCard.button }}
+            </button>
+            <p v-if="loginError" class="login-error">{{ loginError }}</p>
+          </div>
+        </div>
+
         <div class="chat-input">
+          <!-- 已登录：昵称 + 退出 -->
+          <div v-if="isLoggedIn() && user" class="user-bar">
+            <span class="user-chip">{{ user.nickname }}</span>
+            <button class="logout-btn" type="button" @click="onLogout">退出</button>
+          </div>
           <div class="input-inner">
             <textarea
               ref="textareaEl"
               v-model="draft"
               class="chat-textarea"
               rows="1"
-              placeholder="和「数字林深」聊聊…（回车发送）"
-              aria-label="给「数字林深」发消息"
+              :placeholder="`和「${siteName}」聊聊…（回车发送）`"
+              aria-label="发消息"
               @input="autoGrow"
               @keydown="onKeydown"
             />
@@ -263,7 +489,10 @@ onBeforeUnmount(() => {
               </svg>
             </button>
           </div>
-          <p class="input-hint">回车发送 · Shift+回车换行 · 当前为原型，回复为模拟数据，后续接入真实知识库</p>
+          <p v-if="rateLimitWait > 0" class="input-hint rate-limit">
+            提问过于频繁，请等待 {{ rateLimitWait }} 秒后再试
+          </p>
+          <p v-else class="input-hint">回车发送 · Shift+回车换行 · 每分钟最多 5 次提问</p>
         </div>
       </main>
     </div>
@@ -478,6 +707,148 @@ onBeforeUnmount(() => {
   transform: translateY(-1px);
 }
 
+/* ===== 登录卡片 ===== */
+.login-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  padding: 20px;
+}
+
+.login-card {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 30px 28px 26px;
+  box-shadow: var(--shadow-lg, 0 18px 40px rgba(0, 0, 0, 0.2));
+  text-align: center;
+}
+
+.login-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+
+.login-close:hover {
+  background-color: var(--bg-page, #f5f5f5);
+  color: var(--text-secondary);
+}
+
+.login-close svg {
+  width: 16px;
+  height: 16px;
+}
+
+.login-card h3 {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  color: var(--text-brand);
+  margin-bottom: 10px;
+}
+
+.login-card p {
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.login-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: none;
+  background-color: var(--accent);
+  color: #ffffff;
+  font-size: 14.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.login-btn:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.login-error {
+  margin: 14px 0 0 !important;
+  color: #e5484d !important;
+  font-size: 13px !important;
+}
+
+/* ===== 已登录用户栏 ===== */
+.user-bar {
+  max-width: 820px;
+  margin: 0 auto 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 100px;
+  background-color: var(--accent-light);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.logout-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: all var(--transition);
+}
+
+.logout-btn:hover {
+  color: var(--text-secondary);
+  background-color: var(--bg-card);
+}
+
 /* Input bar */
 .chat-input {
   flex-shrink: 0;
@@ -561,6 +932,10 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
+.input-hint.rate-limit {
+  color: #e5484d;
+}
+
 /* Jump to latest (appears only when user scrolls up during new content) */
 .jump-bottom {
   position: absolute;
@@ -629,8 +1004,4 @@ onBeforeUnmount(() => {
     flex-direction: column;
   }
 }
-
-/* 原型 @media (max-width: 480px) 内只有 .nav-links { display:none }，属顶栏样式，
-   已在 AppHeader.vue 中还原，此处不再重复。
-   同理 768px 断点内的 .header-inner / .nav-links a / .brand-name / .brand-mark 也在 AppHeader.vue。 */
 </style>

@@ -1,0 +1,55 @@
+- generic [ref=f2e3]:
+  - complementary [ref=f2e4]:
+    - generic [ref=f2e10]:
+      - generic [ref=f2e16]:
+        - paragraph [ref=f2e17]: 墨堆 Admin
+        - paragraph [ref=f2e18]: InkHeap Console
+      - generic [ref=f2e19]:
+        - heading "以设计记录思考 让内容自由生长" [level=1] [ref=f2e20]: 以设计记录思考让内容自由生长
+        - paragraph [ref=f2e21]: 墨堆管理后台 · 一站式撰写文章、整理小记、洞察灵感轨迹。基于墨绿设计语言打造。
+        - generic [ref=f2e22]:
+          - generic [ref=f2e28]:
+            - paragraph [ref=f2e29]: 内容创作
+            - paragraph [ref=f2e30]: Markdown 流畅撰写
+          - generic [ref=f2e35]:
+            - paragraph [ref=f2e36]: 小记灵感
+            - paragraph [ref=f2e37]: 生活杂谈随手记
+          - generic [ref=f2e41]:
+            - paragraph [ref=f2e42]: 数据洞察
+            - paragraph [ref=f2e43]: 实时运营指标
+          - generic [ref=f2e48]:
+            - paragraph [ref=f2e49]: 护眼暗色
+            - paragraph [ref=f2e50]: 夜观星河模式
+      - paragraph [ref=f2e51]: © 2026 InkHeap · 管理后台 v1.0
+  - main [ref=f2e52]:
+    - button "切换主题" [ref=f2e53] [cursor=pointer]
+    - generic [ref=f2e56]:
+      - generic [ref=f2e57]:
+        - heading "欢迎回来 👋" [level=2] [ref=f2e59]
+        - paragraph [ref=f2e60]: 登录以管理墨堆内容
+      - generic [ref=f2e87]: 请输入用户名和密码
+      - generic [ref=f2e61]:
+        - generic [ref=f2e62]:
+          - generic [ref=f2e63]: 用户名
+          - textbox "用户名" [ref=f2e65]:
+            - /placeholder: admin
+        - generic [ref=f2e66]:
+          - generic [ref=f2e67]: 密码
+          - generic [ref=f2e69]:
+            - textbox "密码" [ref=f2e70]:
+              - /placeholder: ••••••
+              - text: admin123
+            - button "显示密码" [ref=f2e71] [cursor=pointer]
+        - generic [ref=f2e75]:
+          - generic [ref=f2e76] [cursor=pointer]:
+            - checkbox "记住我" [checked] [ref=f2e77]
+            - generic [ref=f2e78]: 记住我
+          - generic [ref=f2e79]: 管理员登录
+        - button "登录管理后台" [active] [ref=f2e80] [cursor=pointer]
+      - generic [ref=f2e84]:
+        - text: 登录即表示您同意
+        - link "服务条款" [ref=f2e85] [cursor=pointer]:
+          - /url: "#"
+        - text: 与
+        - link "隐私政策" [ref=f2e86] [cursor=pointer]:
+          - /url: "#"

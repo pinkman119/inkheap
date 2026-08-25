@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAdminAuth } from '@/composables/useAdminAuth'
 import { useApi } from '@/composables/useApi'
 import { useTheme } from '@/composables/useTheme'
+import logoUrl from '@/assets/logo.png'
 
 const router = useRouter()
 const route = useRoute()
@@ -55,9 +56,7 @@ async function handleLogin() {
         <!-- Logo -->
         <div class="brand-logo">
           <span class="logo-mark">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 3a9 9 0 1 0 9 9" /><path d="M12 7v5l3 3" />
-            </svg>
+            <img :src="logoUrl" alt="墨堆 Logo" />
           </span>
           <div>
             <p class="logo-title">墨堆 Admin</p>
@@ -274,10 +273,14 @@ async function handleLogin() {
   border-radius: 12px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #2d8264, #5fc59a);
-  box-shadow: 0 12px 40px rgba(45, 130, 100, 0.45);
+  overflow: hidden;
 }
-.logo-mark svg { width: 24px; height: 24px; color: #fff; }
+.logo-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
 .logo-title { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
 .logo-sub { font-size: 12px; color: rgba(255, 255, 255, 0.55); letter-spacing: 0.04em; }
 

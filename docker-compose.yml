@@ -1,31 +1,27 @@
-# INKHEAP 外部依赖一键启动
+# INKHEAP 一键部署
 #
-# 当前说明：
-#   项目默认使用 SQLite（DATABASE_URL="file:./dev.db"）。本 compose 用于一键
-#   启动外部依赖 PostgreSQL（以及可选的 pgAdmin 管理界面）。
+# 服务编排：PostgreSQL + 后端(NestJS) + 前端(Nginx)
+# 前端 Nginx 反代 /api 和 /files 到后端，对外只暴露 80 端口。
 #
-# 若要后端真正接入 PostgreSQL，需额外两步（破坏性，请先备份）：
-#   1) backend-node/prisma/schema.prisma 中 datasource 的 provider 由 "sqlite" 改为 "postgresql"；
-#   2) backend-node/.env 的 DATABASE_URL 改为下方连接串，然后执行：
-#        cd backend-node && npx prisma generate && npx prisma db push
+# 使用：
+#   docker compose up -d          启动
+#   docker compose logs -f        查看日志
+#   docker compose down           停止（-v 同时删数据卷）
 #
-# 连接串示例（对应下方 postgres 服务）：
-#   postgresql://postgres:postgres@localhost:5432/personal_profile?schema=public
-#
-# 启动：docker compose up -d
-# 停止：docker compose down      （加 -v 可同时删除数据卷）
+# 首次启动后端会自动执行 prisma db push 建表 + seed 写入演示数据。
+# 后台管理入口：http://服务器IP/#/admin/login  账号 admin / admin123
 
 services:
   postgres:
-    image: postgres:16-alpine
+    # pgvector 镜像：同 PG16 大版本，自带 vector 扩展（数字生命 RAG 向量存储）
+    # 注意：从 postgres:16-alpine 切换镜像，部署前请备份 pgdata 卷
+    image: pgvector/pgvector:pg16
     container_name: inkheap-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: personal_profile
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -33,22 +29,76 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: inkheap-pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@inkheap.local
-      PGADMIN_DEFAULT_PASSWORD: admin123
+    # 对外暴露端口，便于本地 npm start 直接连 localhost:5432 调试
     ports:
-      - "5050:80"
+      - "5432:5432"
+
+  # Redis：数字生命聊天限流（令牌桶）
+  redis:
+    image: redis:7-alpine
+    container_name: inkheap-redis
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # 对外暴露端口，便于本地 npm start 直接连 localhost:6379 调试
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ./backend-node
+      dockerfile: Dockerfile
+    image: inkheap-backend:latest
+    container_name: inkheap-backend
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://postgres:${DB_PASSWORD:-postgres}@postgres:5432/personal_profile?schema=public"
+      JWT_SECRET: ${JWT_SECRET:-inkheap-admin-secret-key-2026}
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      # 数字生命：Redis 限流
+      REDIS_URL: "redis://redis:6379"
+      # 数字生命：Mock 微信登录开关（备案完成后接入真实微信扫码时改为 false）
+      WECHAT_MOCK: "true"
+      # 数字生命：API Key 加密密钥（32 字节 hex，生产环境务必覆盖）
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
     volumes:
-      - pgadmin-data:/var/lib/pgadmin
+      # 上传文件持久化（Docker volume）
+      - upload-files:/app/files
+    # 后端不直接对外暴露，由 frontend 的 Nginx 反代
+    # 如需本地调试可取消注释下一行
+    # ports:
+    #   - "3000:3000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: inkheap-frontend:latest
+    container_name: inkheap-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # SSL 证书：从宿主机挂载到容器内
+      # 证书文件放在宿主机的 /etc/inkheap-certs/ 目录下（见 DEPLOY.md）
+      - /etc/inkheap-certs:/etc/inkheap-certs:ro
 
 volumes:
   pgdata:
-  pgadmin-data:
+  upload-files:
+  redisdata:

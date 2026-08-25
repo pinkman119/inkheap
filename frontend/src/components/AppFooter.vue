@@ -1,5 +1,9 @@
 <script setup>
 import { computed } from 'vue'
+import { useMode } from '../composables/useMode'
+import logoUrl from '../assets/logo.png'
+
+const { isWork } = useMode()
 
 const props = defineProps({
   /** 上下内边距（原型：64px 上 / 32px 下） */
@@ -10,26 +14,13 @@ const props = defineProps({
   brand: { type: String, default: '墨堆' },
   /** 一句站点 slogan */
   slogan: { type: String, default: '以设计记录思考' },
-  /** 站内导航链接 */
-  links: {
-    type: Array,
-    default: () => [
-      { label: '首页', to: '/' },
-      { label: '知识库', to: '/articles' },
-      { label: '数字生命', to: '/digital-life' },
-      { label: '小记', to: '/xiaoji' },
-      { label: '关于我', to: '/about' },
-      { label: '简历', to: '/resume' },
-    ],
-  },
+  /** 站内导航链接（默认按模式动态计算） */
+  links: { type: Array, default: null },
   /** 友链（外链），留空则不展示该列 */
   friendLinks: {
     type: Array,
     default: () => [
-      { label: '少数派', href: 'https://sspai.com' },
-      { label: '阮一峰的网络日志', href: 'https://www.ruanyifeng.com/blog/' },
-      { label: '利器', href: 'https://liqi.io' },
-      { label: 'V2EX', href: 'https://www.v2ex.com' },
+      { label: '源码', href: 'https://github.com/pinkman119/inkheap.git' },
     ],
   },
   /** 社交 / 联系方式：icon 支持 github / mail / doc */
@@ -41,10 +32,13 @@ const props = defineProps({
       { label: '语雀', href: 'https://www.yuque.com', icon: 'doc' },
     ],
   },
-  /** 版权声明，留空则不展示 */
+  /** 版权声明（可传字符串数组，每项一行），留空则不展示 */
   license: {
-    type: String,
-    default: '文章内容 CC BY-NC 4.0（署名·非商用） · 网站源码可查看 · 禁止用于商业用途',
+    type: [Array, String],
+    default: () => [
+      '项目代码：MIT Commons Clause（开源 · 非商用）',
+      '项目知识库：CC BY-NC 4.0（署名 · 非商用）',
+    ],
   },
   /** 备案号，留空则不展示 */
   icp: { type: String, default: '苏ICP备2024125779号' },
@@ -52,11 +46,30 @@ const props = defineProps({
   since: { type: [String, Number], default: 2024 },
 })
 
+// 导航链接：全模式显示「联系我」；工作模式额外显示 关于我 / 小记；生活模式额外显示 知识库 / 简历
+const navLinks = computed(() => {
+  if (props.links && props.links.length) return props.links
+  const base = [{ label: '联系我', to: '/contact' }]
+  const modeLinks = isWork.value
+    ? [
+        { label: '关于我', to: '/about' },
+        { label: '小记', to: '/xiaoji' },
+      ]
+    : [
+        { label: '知识库', to: '/articles' },
+        { label: '简历', to: '/resume' },
+      ]
+  return [...modeLinks, ...base]
+})
+
 const year = new Date().getFullYear()
 const copyright = computed(() =>
   props.since && Number(props.since) < year
     ? `© ${props.since}–${year}`
     : `© ${year}`,
+)
+const licenseItems = computed(() =>
+  Array.isArray(props.license) ? props.license : props.license ? [props.license] : [],
 )
 
 function scrollTop() {
@@ -79,12 +92,7 @@ function scrollTop() {
       <div class="footer-row">
         <div class="footer-brand">
           <RouterLink to="/" class="footer-brand__logo" aria-label="墨堆">
-            <svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
-              <rect width="28" height="28" rx="8" fill="var(--accent)" />
-              <circle cx="14" cy="9" r="3.2" fill="#ffffff" />
-              <rect x="7.5" y="14.5" width="13" height="2.8" rx="1.4" fill="#ffffff" />
-              <rect x="7.5" y="19" width="13" height="2.8" rx="1.4" fill="#ffffff" />
-            </svg>
+            <img :src="logoUrl" alt="墨堆" />
           </RouterLink>
           <div class="footer-brand__text">
             <span class="footer-brand__name">{{ brand }}</span>
@@ -126,11 +134,11 @@ function scrollTop() {
         <div class="footer-nav__col">
           <h4>导航</h4>
           <div class="footer-links">
-            <RouterLink v-for="link in links" :key="link.to" class="footer-link" :to="link.to">{{ link.label }}</RouterLink>
+            <RouterLink v-for="link in navLinks" :key="link.to" class="footer-link" :to="link.to">{{ link.label }}</RouterLink>
           </div>
         </div>
         <div v-if="friendLinks.length" class="footer-nav__col">
-          <h4>友链</h4>
+          <h4>扩展</h4>
           <div class="footer-links">
             <a
               v-for="f in friendLinks"
@@ -146,14 +154,8 @@ function scrollTop() {
 
       <!-- 底部版权行 -->
       <div class="footer-bottom">
-        <span v-if="license" class="footer-license">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-          </svg>
-          {{ license }}
-        </span>
         <div class="footer-meta">
+          <span v-if="licenseItems.length">{{ licenseItems.join(' · ') }}</span>
           <span><slot>{{ copyright }} {{ brand }}</slot></span>
           <a
             v-if="icp"
@@ -239,10 +241,12 @@ function scrollTop() {
   display: block;
 }
 
-.footer-brand__logo svg {
+.footer-brand__logo svg,
+.footer-brand__logo img {
   width: 100%;
   height: 100%;
   display: block;
+  object-fit: contain;
 }
 
 .footer-brand__text {
@@ -335,31 +339,15 @@ function scrollTop() {
 .footer-bottom {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 14px;
+  justify-content: center;
   padding-top: 22px;
   border-top: 1px solid var(--border-light);
-}
-
-.footer-license {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  color: var(--text-tertiary);
-}
-
-.footer-license svg {
-  width: 15px;
-  height: 15px;
-  color: var(--accent);
-  flex-shrink: 0;
 }
 
 .footer-meta {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 18px;
   font-size: 12.5px;
   color: var(--text-tertiary);

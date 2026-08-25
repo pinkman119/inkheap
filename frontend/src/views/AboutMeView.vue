@@ -1,26 +1,45 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import FootprintMap from '@/components/FootprintMap.vue'
 import {
-  profile,
+  loadAboutData,
   sections,
-  selfEvaluation,
-  rings,
-  travels,
-  visitedProvinces,
-  footprintData,
-  eventCalendar,
-  eventCalendarYears,
+  PROVINCE_SHORT,
+  letterToTravelers,
 } from '@/data/about'
+
+/* ===== 异步加载数据 ===== */
+const loaded = ref(false)
+const profile = ref({})
+const selfEvaluation = ref({})
+const rings = ref([])
+const footprintData = ref([])
+const visitedProvinces = ref([])
+const eventCalendar = ref({})
+
+/* ===== 事件日历涉及的年份（从 eventCalendar 的 key 与 rings 的 year 合并去重，倒序） ===== */
+const eventCalendarYears = computed(() => {
+  return [...new Set([
+    ...Object.keys(eventCalendar.value).map((k) => k.slice(0, 4)),
+    ...rings.value.map((r) => r.year),
+  ])].sort((a, b) => b - a)
+})
 
 /* ===== 年轮：与事件日历同一年份联动 ===== */
 // 当前所选年份下的年轮条目（融合进事件日历）
-const ringsOfYear = computed(() => rings.filter((r) => r.year === calYear.value))
+const ringsOfYear = computed(() => {
+  // 按年份分组：同一年份的多条记录聚合成一个 ring 块（兼容原 rings 结构）
+  const list = rings.value.filter((r) => r.year === calYear.value)
+  if (!list.length) return []
+  // 聚合成 { year, items: [{title, desc}] }
+  const items = list.map((r) => ({ title: r.title, desc: r.desc }))
+  return [{ year: calYear.value, items }]
+})
 
 /* ===== 事件日历（GitHub 风格热力块） ===== */
-const calYear = ref(eventCalendarYears[0] ?? String(new Date().getFullYear()))
+const calYear = ref('')
 
 // 某天事件数量对应的等级（0~4，越大越绿）
 function levelOf(count) {
@@ -34,6 +53,7 @@ function levelOf(count) {
 // 生成所选年份的 53 周 × 7 天网格（每周一列，周日在上）
 const calWeeks = computed(() => {
   const year = Number(calYear.value)
+  if (!year) return []
   const first = new Date(year, 0, 1)
   const start = new Date(first)
   start.setDate(first.getDate() - first.getDay()) // 回退到所在周的周日
@@ -44,12 +64,16 @@ const calWeeks = computed(() => {
     for (let d = 0; d < 7; d++) {
       const date = new Date(cursor)
       const inYear = date.getFullYear() === year
-      const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
-      const events = inYear ? eventCalendar[key] || [] : []
+      // 前端 grid 的 key 用「YYYY-M-D」（不带前导零），与历史实现保持一致；
+      // 后端返回的 date 是「YYYY-MM-DD」，需在 groupEventsByDate 里做归一化。
+      const m = date.getMonth() + 1
+      const d2 = date.getDate()
+      const key = `${date.getFullYear()}-${m}-${d2}`
+      const events = inYear ? eventCalendar.value[key] || [] : []
       days.push({
         key,
         inYear,
-        dateStr: `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`,
+        dateStr: `${date.getFullYear()}-${m}-${d2}`,
         events,
         level: levelOf(events.length),
       })
@@ -81,23 +105,59 @@ function setSectionRef(el, index) {
 
 let io = null
 
-onMounted(() => {
-  if ('IntersectionObserver' in window) {
-    io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            const index = sectionEls.value.indexOf(e.target)
-            if (index > -1) revealed.value[index] = true
-            io.unobserve(e.target)
-          }
-        })
-      },
-      { threshold: 0.12 },
-    )
-    sectionEls.value.forEach((el) => el && io.observe(el))
-  } else {
+function initReveal() {
+  if (!('IntersectionObserver' in window)) {
     revealed.value = revealed.value.map(() => true)
+    return
+  }
+  // 兜底：若 observer 尚未触发的 section 已经在视口内（如首屏前几个 section），
+  // 直接置为已展示，避免「白屏」。
+  for (let i = 0; i < sectionEls.value.length; i++) {
+    const el = sectionEls.value[i]
+    if (!el) continue
+    const rect = el.getBoundingClientRect()
+    if (rect.top < window.innerHeight * 0.9) {
+      revealed.value[i] = true
+    }
+  }
+  io = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          const index = sectionEls.value.indexOf(e.target)
+          if (index > -1) revealed.value[index] = true
+          io.unobserve(e.target)
+        }
+      })
+    },
+    { threshold: 0.12 },
+  )
+  sectionEls.value.forEach((el) => el && !revealed.value[sectionEls.value.indexOf(el)] && io.observe(el))
+}
+
+// 监听 loaded：数据加载完成、section 挂载后初始化 reveal 观察器
+watch(loaded, async (val) => {
+  if (!val) return
+  await nextTick()
+  initReveal()
+})
+
+onMounted(async () => {
+  // 拉取关于我页全部数据
+  try {
+    const data = await loadAboutData()
+    Object.assign(profile.value, data.profile)
+    Object.assign(selfEvaluation.value, data.selfEvaluation)
+    rings.value = data.rings
+    footprintData.value = data.footprintData
+    visitedProvinces.value = data.visitedProvinces
+    eventCalendar.value = data.eventCalendar
+    calYear.value = eventCalendarYears.value[0] ?? String(new Date().getFullYear())
+  } catch (e) {
+    // 拉取失败时仍展示页面，年份回退到当前年
+    calYear.value = String(new Date().getFullYear())
+  } finally {
+    loaded.value = true
   }
 })
 
@@ -110,11 +170,29 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <AppHeader active-key="about" />
+  <AppHeader active-key="" />
 
   <main class="page">
+    <!-- 骨架屏：数据加载完成前展示 -->
+    <div v-if="!loaded" class="about-skeleton">
+      <div class="sk-hero">
+        <div class="sk-avatar"></div>
+        <div class="sk-hero-text">
+          <div class="sk-line sk-kicker"></div>
+          <div class="sk-line sk-title"></div>
+          <div class="sk-line sk-lede"></div>
+        </div>
+      </div>
+      <div class="container">
+        <div class="sk-section" v-for="n in 4" :key="n">
+          <div class="sk-line sk-section-head"></div>
+          <div class="sk-block"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Hero -->
-    <section class="page-hero">
+    <section v-if="loaded" class="page-hero">
       <div class="hero-glow" />
       <div class="page-hero-inner">
         <div class="avatar">
@@ -128,8 +206,8 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <div class="container">
-      <!-- 写给自己 -->
+    <div v-if="loaded" class="container">
+      <!-- 你好，陌生人 -->
       <section
         :ref="(el) => setSectionRef(el, 0)"
         class="section reveal"
@@ -140,10 +218,14 @@ onBeforeUnmount(() => {
           <h2 class="section-title">{{ sections[0].title }}</h2>
           <span class="section-sub">{{ sections[0].sub }}</span>
         </div>
-        <div class="quote-card">
-          <span class="quote-mark" aria-hidden="true">“</span>
-          <blockquote>{{ selfEvaluation.quote }}</blockquote>
-          <div class="by">{{ selfEvaluation.by }}</div>
+        <div class="letter-card">
+          <span class="letter-tag" aria-hidden="true">{{ letterToTravelers.tag }}</span>
+          <p class="letter-greeting">{{ letterToTravelers.greeting }}</p>
+          <div class="letter-body">
+            <p v-for="(p, i) in letterToTravelers.body" :key="i">{{ p }}</p>
+          </div>
+          <div class="letter-signoff">{{ letterToTravelers.signoff }}</div>
+          <div class="letter-time">{{ letterToTravelers.time }}</div>
         </div>
       </section>
 
@@ -247,10 +329,14 @@ onBeforeUnmount(() => {
           <h2 class="section-title">{{ sections[2].title }}</h2>
           <span class="section-sub">{{ sections[2].sub }}</span>
         </div>
-        <FootprintMap :visited-provinces="visitedProvinces" :footprint-data="footprintData" />
+        <FootprintMap
+          :visited-provinces="visitedProvinces"
+          :footprint-data="footprintData"
+          :province-short="PROVINCE_SHORT"
+        />
       </section>
 
-      <!-- 旅行介绍 -->
+      <!-- 写给自己 -->
       <section
         :ref="(el) => setSectionRef(el, 3)"
         class="section reveal"
@@ -261,17 +347,10 @@ onBeforeUnmount(() => {
           <h2 class="section-title">{{ sections[3].title }}</h2>
           <span class="section-sub">{{ sections[3].sub }}</span>
         </div>
-        <div class="travel-grid">
-          <article v-for="travel in travels" :key="travel.place" class="travel-card">
-            <div class="travel-cover">
-              <span class="glyph">{{ travel.glyph }}</span>
-            </div>
-            <div class="travel-body">
-              <div class="travel-place">{{ travel.place }}</div>
-              <div class="travel-meta">{{ travel.meta }}</div>
-              <div class="travel-note">{{ travel.note }}</div>
-            </div>
-          </article>
+        <div class="quote-card">
+          <span class="quote-mark" aria-hidden="true">“</span>
+          <blockquote>{{ selfEvaluation.quote }}</blockquote>
+          <div class="by">{{ selfEvaluation.by }}</div>
         </div>
       </section>
     </div>
@@ -537,75 +616,71 @@ onBeforeUnmount(() => {
   line-height: 1.6;
 }
 
-/* Travel grid */
-.travel-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-
-.travel-card {
+/* Letter to travelers */
+.letter-card {
   position: relative;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  padding: 40px 48px 44px;
   background-color: var(--bg-card);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  transition:
-    transform var(--transition),
-    box-shadow var(--transition),
-    border-color var(--transition);
 }
 
-.travel-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-md);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
-}
-
-.travel-cover {
-  height: 120px;
-  display: flex;
-  align-items: flex-end;
-  padding: 14px 16px;
-  color: #ffffff;
-  background:
-    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.18), transparent 45%),
-    linear-gradient(135deg, #2d8264, #143f30);
-}
-
-[data-theme='dark'] .travel-cover {
-  background:
-    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.14), transparent 45%),
-    linear-gradient(135deg, #2f6b54, #0e2a20);
-}
-
-.travel-cover .glyph {
+.letter-tag {
+  position: absolute;
+  top: 20px;
+  right: 26px;
   font-family: var(--font-mono);
-  font-size: 13px;
-  letter-spacing: 0.1em;
-  opacity: 0.9;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  opacity: 0.45;
 }
 
-.travel-body {
-  padding: 16px 18px 20px;
-}
-
-.travel-place {
-  font-size: 17px;
+.letter-greeting {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-serif);
+  font-size: 19px;
   font-weight: 600;
   color: var(--text-primary);
+  margin: 0 0 18px;
 }
 
-.travel-meta {
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  color: var(--accent);
-  margin: 4px 0 8px;
-}
-
-.travel-note {
-  font-size: 14px;
+.letter-body p {
+  position: relative;
+  z-index: 1;
+  font-size: 15.5px;
+  line-height: 1.95;
   color: var(--text-secondary);
+  margin: 0 0 14px;
+}
+
+.letter-body p:last-child {
+  margin-bottom: 0;
+}
+
+.letter-signoff {
+  position: relative;
+  z-index: 1;
+  margin-top: 22px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.letter-time {
+  position: relative;
+  z-index: 1;
+  margin-top: 6px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
 }
 
 /* Quote (self evaluation) */
@@ -856,12 +931,6 @@ onBeforeUnmount(() => {
 }
 
 /* Responsive */
-@media (max-width: 1024px) {
-  .travel-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 @media (max-width: 768px) {
   .page-hero {
     padding: 44px 16px 40px;
@@ -891,12 +960,26 @@ onBeforeUnmount(() => {
     margin-left: 0;
   }
 
-  .travel-grid {
-    grid-template-columns: 1fr;
-  }
-
   .cal-grid {
     min-width: 728px;
+  }
+
+  .letter-card {
+    padding: 28px 22px 32px;
+  }
+
+  .letter-card .letter-tag {
+    right: 18px;
+    top: 16px;
+  }
+
+  .letter-greeting {
+    font-size: 17px;
+  }
+
+  .letter-body p {
+    font-size: 14.5px;
+    line-height: 1.85;
   }
 
   .quote-card {
@@ -907,4 +990,60 @@ onBeforeUnmount(() => {
     font-size: 19px;
   }
 }
+
+/* ===== 骨架屏 ===== */
+.about-skeleton {
+  animation: sk-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes sk-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.sk-hero {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 72px 24px 56px;
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.sk-avatar {
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  background: var(--bg-soft);
+  flex-shrink: 0;
+}
+
+.sk-hero-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sk-line {
+  height: 14px;
+  border-radius: 6px;
+  background: var(--bg-soft);
+}
+
+.sk-kicker { width: 90px; height: 22px; }
+.sk-title { width: 220px; height: 32px; }
+.sk-lede { width: 360px; height: 16px; }
+
+.sk-section {
+  padding: 56px 0;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.sk-section-head { width: 280px; height: 26px; }
+.sk-block { width: 100%; height: 120px; border-radius: var(--radius-lg); background: var(--bg-soft); }
 </style>

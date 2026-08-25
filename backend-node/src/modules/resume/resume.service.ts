@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TrainingService } from '../digitallife/training.service';
 import { CreateResumeDto, UpdateResumeDto } from './dto/resume.dto';
 import { DEFAULT_RESUME_CONTENT, DEFAULT_RESUME_NAME } from './resume.defaults';
 
@@ -23,7 +24,10 @@ function safeParse(content: string): Record<string, unknown> {
 
 @Injectable()
 export class ResumeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly trainingService: TrainingService,
+  ) {}
 
   /** 当前生效版本（前台展示）；无生效版本时返回含默认内容的占位数据 */
   async findActive() {
@@ -94,6 +98,8 @@ export class ResumeService {
         content: dto.content !== undefined ? JSON.stringify(dto.content) : existing.content,
       },
     });
+    // 数字生命：已训练版本被编辑 → 删向量 + trainType 重置 0（需重新训练）
+    await this.trainingService.invalidateIfTrained('resume', id);
     return this.findById(resume.id);
   }
 
@@ -101,6 +107,12 @@ export class ResumeService {
   async activate(id: string) {
     const target = await this.prisma.resume.findUnique({ where: { id } });
     if (!target) throw new NotFoundException('简历版本不存在');
+
+    // 数字生命：旧激活版本若已训练 → 删向量 + 置 0（仅 isActive 版本可存在于向量库）
+    const prevActive = await this.prisma.resume.findFirst({ where: { isActive: true } });
+    if (prevActive && prevActive.id !== id) {
+      await this.trainingService.invalidateIfTrained('resume', prevActive.id);
+    }
 
     await this.prisma.$transaction([
       this.prisma.resume.updateMany({ where: { isActive: true }, data: { isActive: false } }),
@@ -120,6 +132,8 @@ export class ResumeService {
         throw new BadRequestException('不能删除当前唯一的生效版本，请先切换其他版本为生效');
       }
     }
+    // 数字生命：删除源数据时同步清除其向量
+    await this.trainingService.invalidateByRef('resume', id);
     await this.prisma.resume.delete({ where: { id } });
     return { success: true };
   }
