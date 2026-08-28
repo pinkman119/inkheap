@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTheme } from '@/composables/useTheme'
 import { useMode } from '@/composables/useMode'
-import logoUrl from '@/assets/logo.png'
+import BrandMark from '@/components/BrandMark.vue'
 
 const props = defineProps({
   /** 显式指定高亮的导航项 key：home / kb / resume / digital / notes / about；留空时自动按路由 meta.navKey 匹配 */
@@ -158,10 +158,9 @@ function onToggleMode(mode) {
 <template>
   <header class="header" :class="{ 'header--narrow': narrow }">
     <div class="header-inner" :style="{ '--header-max': maxWidth }">
+      <div class="nav-bar">
       <RouterLink to="/" class="brand" aria-label="墨堆">
-        <span class="brand-mark" aria-hidden="true">
-          <img :src="logoUrl" alt="" />
-        </span>
+        <BrandMark />
         <span class="brand-text">
           <span class="brand-name">墨堆</span>
           <span class="brand-divider" aria-hidden="true"></span>
@@ -169,7 +168,7 @@ function onToggleMode(mode) {
         </span>
       </RouterLink>
 
-      <nav class="nav">
+      <nav class="nav" aria-label="主导航">
         <div class="nav-wrap">
           <div ref="navLinksEl" class="nav-links" @mouseleave="onLeave">
             <RouterLink
@@ -197,8 +196,10 @@ function onToggleMode(mode) {
             }"
           />
         </div>
+      </nav>
 
-        <!-- 工作 / 生活模式 — 滑块式切换（原型 mode-toggle） -->
+      <!-- 控件区：模式切换 + 主题切换（原型 controls，卡片右侧） -->
+      <div class="controls">
         <div
           class="mode-toggle"
           :data-mode="isWork ? 'work' : 'life'"
@@ -272,7 +273,8 @@ function onToggleMode(mode) {
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
           </svg>
         </button>
-      </nav>
+      </div>
+      </div>
     </div>
   </header>
 
@@ -319,15 +321,15 @@ function onToggleMode(mode) {
 </template>
 
 <style scoped>
-/* ===== Header — 严格按原型 index.html 逐条还原 ===== */
+/* ===== Header — 固定吸顶通栏（毛玻璃）+ 设计 A 居中导航 ===== */
 .header {
   position: sticky;
   top: 0;
   z-index: 100;
-  background-color: color-mix(in srgb, var(--bg-body) 90%, transparent);
+  background-color: color-mix(in srgb, var(--bg-body) 75%, transparent);
   border-bottom: 1px solid var(--border-light);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 /* 底部品牌色渐变装饰线 */
@@ -349,10 +351,19 @@ function onToggleMode(mode) {
   height: 72px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
 }
 
-/* Brand — 渐变印章式 logo + 衬线站名 + 编辑感标语 */
+/* 通栏内容行：品牌 | 居中导航 | 控件（无卡片样式，撑满 header-inner 宽度） */
+.nav-bar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+/* Brand — 品牌印记（BrandMark 组件）+ 衬线站名 + 编辑感标语。
+   方块基础样式 / 夜间配色在组件内维护，此处仅保留 header 特有的 hover 微动效 */
 .brand {
   display: inline-flex;
   align-items: center;
@@ -362,25 +373,21 @@ function onToggleMode(mode) {
   color: var(--text-primary);
 }
 
-.brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
-  transition: transform var(--transition);
-}
-
-.brand-mark img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-}
-
 .brand:hover .brand-mark {
   transform: translateY(-1px) rotate(-2deg);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.36),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.06),
+    0 2px 0 rgba(0, 0, 0, 0.05),
+    0 6px 14px rgba(45, 130, 100, 0.28);
+}
+
+[data-theme='dark'] .brand:hover .brand-mark {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.4),
+    0 2px 0 rgba(0, 0, 0, 0.5),
+    0 6px 16px rgba(0, 0, 0, 0.55);
 }
 
 .brand-text {
@@ -411,11 +418,12 @@ function onToggleMode(mode) {
   white-space: nowrap;
 }
 
-/* Nav — 文字链接 + 滑动描边框 */
+/* Nav — 文字链接 + 滑动下划线，在卡片中居中 */
 .nav {
+  flex: 1;
   display: flex;
-  align-items: center;
-  gap: 18px;
+  justify-content: center;
+  min-width: 0;
 }
 
 .nav-wrap {
@@ -426,8 +434,9 @@ function onToggleMode(mode) {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 22px;
-  height: 36px;
+  gap: 30px;
+  height: 38px;
+  padding-bottom: 6px;
 }
 
 .nav-links a {
@@ -435,15 +444,13 @@ function onToggleMode(mode) {
   z-index: 1;
   display: inline-flex;
   align-items: center;
-  height: 36px;
-  padding: 0 13px;
+  height: 32px;
   font-size: 15px;
   font-weight: 500;
   color: var(--text-secondary);
   text-decoration: none;
   letter-spacing: 0.04em;
   white-space: nowrap;
-  border-radius: 999px;
   transition:
     color var(--transition),
     opacity 0.22s ease,
@@ -471,20 +478,29 @@ function onToggleMode(mode) {
   outline-offset: 2px;
 }
 
-/* 滑动描边框：包裹激活 / 悬停项 */
+/* 当前项指示：细下划线，跟随激活 / 悬停项滑动 */
 .nav-outline {
   position: absolute;
-  top: 0;
-  height: 36px;
+  left: 0;
+  bottom: 0;
+  height: 2px;
   width: 0;
-  border: 1.5px solid var(--accent);
-  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  border-radius: 2px;
   opacity: 0;
   transition:
     transform var(--transition),
     width var(--transition),
     opacity 0.2s ease;
   pointer-events: none;
+}
+
+/* 控件区：模式切换 + 主题切换（卡片右侧） */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
 }
 
 /* 工作 / 生活模式 — 滑块式切换 */
@@ -586,61 +602,91 @@ function onToggleMode(mode) {
   transform: rotate(360deg);
 }
 
-/* 常规断点 768px（首页 / 知识库 / 详情 / 数字生命 / 关于我 / 小记，数值来自原型） */
-@media (max-width: 768px) {
-  .header:not(.header--narrow) .header-inner {
-    height: 62px;
-    padding: 0 16px;
+/* ─────────────── 响应式（原型 860 / 720 / 480） ─────────────── */
+@media (max-width: 860px) {
+  .nav-links {
+    gap: 20px;
   }
 
-  .header:not(.header--narrow) .nav-links a {
-    font-size: 13.5px;
+  .nav-links a {
+    font-size: 14px;
   }
 
-  .header:not(.header--narrow) .brand-name {
+  .brand-name {
     font-size: 19px;
   }
 
-  .header:not(.header--narrow) .brand-mark {
-    width: 30px;
-    height: 30px;
+  .brand-mark {
+    --mark-size: 32px;
   }
 
-  .header:not(.header--narrow) .brand-tag,
-  .header:not(.header--narrow) .brand-divider {
+  .brand-tag,
+  .brand-divider {
     display: none;
+  }
+
+  .controls {
+    gap: 12px;
   }
 }
 
-/* 简历页原型的顶栏断点是 720px，单独还原 */
 @media (max-width: 720px) {
-  .header--narrow .header-inner {
-    height: 62px;
-    padding: 0 16px;
+  .header-inner {
+    height: auto;
+    padding: 10px 16px;
   }
 
-  .header--narrow .nav-links a {
-    font-size: 13.5px;
+  .nav-bar {
+    flex-wrap: wrap;
+    gap: 12px;
   }
 
-  .header--narrow .brand-name {
-    font-size: 19px;
+  .nav {
+    flex: 1 1 100%;
+    order: 3;
+    justify-content: center;
   }
 
-  .header--narrow .brand-mark {
-    width: 30px;
-    height: 30px;
+  .controls {
+    flex: 1 1 auto;
+    justify-content: flex-end;
   }
 
-  .header--narrow .brand-tag,
-  .header--narrow .brand-divider {
-    display: none;
+  .nav-links {
+    gap: 18px;
   }
 }
 
 @media (max-width: 480px) {
-  .nav-wrap {
+  .header-inner {
+    padding: 8px 12px;
+  }
+
+  .nav-links {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .nav-links::-webkit-scrollbar {
     display: none;
+  }
+
+  .nav-links a {
+    font-size: 13.5px;
+  }
+}
+
+/* 尊重「减少动态效果」偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .nav-bar,
+  .nav-links a,
+  .nav-outline,
+  .mode-toggle__thumb,
+  .mode-toggle__opt,
+  .theme-toggle,
+  .theme-toggle svg {
+    transition: none;
   }
 }
 

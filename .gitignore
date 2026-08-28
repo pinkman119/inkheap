@@ -8,3 +8,11 @@
 /backend-node/files
 /backend-node/node_modules
 /deploy
+
+# 调试临时产物（截图/快照/日志）
+/.playwright-cli/
+backend.log
+backend.err
+snapshot.txt
+*_tmp.json
+*.tar

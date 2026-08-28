@@ -12,19 +12,17 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModelConfigService } from './model-config.service';
 import { PersonaService } from './persona.service';
-import { ChatService } from './chat.service';
 import { TrainingService, REF_TYPES, RefType } from './training.service';
 import {
-  PersonaTestChatDto,
   QueryTrainingDto,
-  UpdateModelConfigDto,
+  UpdateDlModelDto,
   UpdatePersonaDto,
 } from './dto/digital-life.dto';
 
 /**
  * 数字生命后台管理接口（管理员 JWT 鉴权）：
- * - 模型配置：GET/PUT /api/admin/digital-life/model、POST …/model/test
- * - 人格：GET/PUT /api/admin/digital-life/persona、POST …/persona/reset、POST …/persona/test-chat
+ * - 模型：GET …/models、PUT …/models/:id（更新）、PUT …/models/:id/toggle、POST …/models/:id/test
+ * - 人格：GET …/personas、GET …/personas/:id、PUT …/personas/:id
  * - 训练：GET …/training/:refType、POST …/training/:refType/:refId/train|remove
  */
 @Controller('admin/digital-life')
@@ -33,56 +31,46 @@ export class DigitalLifeAdminController {
   constructor(
     private readonly modelConfigService: ModelConfigService,
     private readonly personaService: PersonaService,
-    private readonly chatService: ChatService,
     private readonly trainingService: TrainingService,
   ) {}
 
   // ==================== 模型管理 ====================
 
   @Get('models')
-  getModelConfig() {
-    return this.modelConfigService.getConfig();
+  listModels() {
+    return this.modelConfigService.list();
   }
 
-  @Put('models')
-  updateModelConfig(@Body() dto: UpdateModelConfigDto) {
-    return this.modelConfigService.updateConfig(dto);
+  @Put('models/:id')
+  updateModel(@Param('id') id: string, @Body() dto: UpdateDlModelDto) {
+    return this.modelConfigService.update(id, dto);
   }
 
-  @Post('models/test')
-  testModelConnection() {
-    return this.modelConfigService.testConnection();
+  @Put('models/:id/toggle')
+  toggleModel(@Param('id') id: string) {
+    return this.modelConfigService.toggle(id);
+  }
+
+  @Post('models/:id/test')
+  testModel(@Param('id') id: string) {
+    return this.modelConfigService.test(id);
   }
 
   // ==================== 人格管理 ====================
 
-  @Get('persona')
-  async getPersona() {
-    const content = await this.personaService.getContent();
-    return { content };
+  @Get('personas')
+  listPersonas() {
+    return this.personaService.list();
   }
 
-  @Put('persona')
-  updatePersona(@Body() dto: UpdatePersonaDto) {
-    return this.personaService.update(dto);
+  @Get('personas/:id')
+  getPersona(@Param('id') id: string) {
+    return this.personaService.detail(id);
   }
 
-  @Post('persona/reset')
-  resetPersona() {
-    return this.personaService.resetToDefault();
-  }
-
-  /** 试聊：useDraft=true 时以草稿人格验证效果（不落库、不入聊天记录） */
-  @Post('persona/test-chat')
-  async personaTestChat(@Body() dto: PersonaTestChatDto) {
-    try {
-      return await this.chatService.testChat(dto.content, !!dto.useDraft, dto.draftPersona);
-    } catch (e: any) {
-      throw new HttpException(
-        e?.response?.data?.error?.message || e?.message || '试聊失败',
-        e?.status ?? 500,
-      );
-    }
+  @Put('personas/:id')
+  updatePersona(@Param('id') id: string, @Body() dto: UpdatePersonaDto) {
+    return this.personaService.update(id, dto);
   }
 
   // ==================== 训练管理 ====================

@@ -208,3 +208,44 @@ export const ZHIPU_BASE_URL = 'https://open.bigmodel.cn/api/paas/v4';
 
 /** embedding 维度（智谱 embedding-3 支持 256/512/1024/2048，本项目固定 1024） */
 export const EMBEDDING_DIMENSIONS = 1024;
+
+/**
+ * provider → OpenAI 兼容端点映射。
+ * 五家均提供 OpenAI 兼容 chat/completions；embedding 固定走智谱 embedding-3。
+ */
+export const PROVIDER_BASE_URLS: Record<string, string> = {
+  zhipu: 'https://open.bigmodel.cn/api/paas/v4',
+  openai: 'https://api.openai.com/v1',
+  deepseek: 'https://api.deepseek.com/v1',
+  qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  anthropic: 'https://api.anthropic.com/v1',
+};
+
+/** 默认模型种子（多模型启停列表；仅 GLM-4.6 启用，其余停用供随时切换） */
+export const DEFAULT_MODELS: Array<{
+  name: string;
+  provider: string;
+  modelId: string;
+  enabled: boolean;
+  sortOrder: number;
+}> = [
+  { name: 'GLM-4.6', provider: 'zhipu', modelId: 'glm-4.6', enabled: true, sortOrder: 0 },
+  { name: 'GLM-4.5-Air', provider: 'zhipu', modelId: 'glm-4.5-air', enabled: false, sortOrder: 1 },
+  { name: 'GLM-4-Flash', provider: 'zhipu', modelId: 'glm-4-flash', enabled: false, sortOrder: 2 },
+  { name: 'DeepSeek Chat', provider: 'deepseek', modelId: 'deepseek-chat', enabled: false, sortOrder: 3 },
+  { name: 'GPT-4o mini', provider: 'openai', modelId: 'gpt-4o-mini', enabled: false, sortOrder: 4 },
+  { name: 'Qwen Plus', provider: 'qwen', modelId: 'qwen-plus', enabled: false, sortOrder: 5 },
+  { name: 'Claude Sonnet', provider: 'anthropic', modelId: 'claude-sonnet-4-20250514', enabled: false, sortOrder: 6 },
+];
+
+/** 默认人格种子（muztagh-cat 结构化） */
+export const DEFAULT_PERSONA = {
+  name: '慕士塔格猫',
+  greeting: '你好呀，我是慕士塔格猫——这座墨堆的主人。想聊登山、聊代码，还是随便说说话？我都接得住。',
+  description: DEFAULT_PERSONA_CONTENT,
+  styleHint:
+    '热忱而有画面感，喜欢用具体的场景和比喻表达；先照顾对方情绪再表达自己；信息不足时诚实说「这块我还没有告诉过你」，不编造细节；聊登山时带着那玛峰的亲历感，聊项目时以 inkheap 维护者的口吻。',
+  accentColor: '#2d8264',
+  avatarEmoji: '🐾',
+  personalityType: 'ENFJ',
+};

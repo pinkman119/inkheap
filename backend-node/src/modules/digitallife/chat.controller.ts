@@ -46,8 +46,8 @@ export class ChatController {
       return;
     }
 
-    // 2. Key 预检查：未配置 API Key 时 409 JSON（必须在开启 SSE 之前）
-    await this.modelConfigService.ensureApiKey();
+    // 2. 模型预检查：无可用模型（未启用/未配 Key）时 409 JSON（必须在开启 SSE 之前）
+    await this.modelConfigService.ensureActiveModel();
 
     // 2. 开启 SSE 流
     res.status(200);

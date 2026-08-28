@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { AIMessage, AIMessageChunk, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { PrismaService } from '../prisma/prisma.service';
 import { ModelConfigService } from './model-config.service';
@@ -19,8 +19,8 @@ const RAG_TOP_K = 5;
 
 /**
  * 数字生命聊天服务：
- * 用户消息入库 → RAG 检索 top-5 → system prompt（人格 + 称呼 + 资料 + 反编造规则）
- * + 最近 10 轮历史 → GLM 流式生成 → 完整回复入库。
+ * 用户消息入库 → RAG 检索 top-5 → system prompt（结构化人格 + 资料 + 反编造规则）
+ * + 最近 10 轮历史 → 启用模型按顺序流式生成（失败自动切换下一个）→ 完整回复入库。
  */
 @Injectable()
 export class ChatService {
@@ -53,26 +53,31 @@ export class ChatService {
     return desc.reverse();
   }
 
-  /** 动态称呼：首页配置 siteName（与关于我署名同源） */
-  private async getSiteName(): Promise<string> {
-    const home = await this.prisma.homePage.findUnique({ where: { id: 'home' } });
-    return home?.siteName || '慕士塔格猫';
-  }
-
   /**
-   * 组装 system prompt：人格 + 补充规则（称呼 / RAG 资料 / 反编造）。
-   * personaOverride：人格编写页试聊时传入草稿人格。
+   * 组装 system prompt：结构化人格（description 为核心）+ 补充规则（自称 / RAG 资料 / 反编造）。
    */
-  private async buildSystemPrompt(personaOverride: string | undefined, chunksBlock: string): Promise<string> {
-    const persona =
-      personaOverride !== undefined ? personaOverride : await this.personaService.getContent();
-    const siteName = await this.getSiteName();
-    return `${persona}
+  private async buildSystemPrompt(chunksBlock: string): Promise<string> {
+    const persona = await this.personaService.getActivePersona();
+    if (!persona) {
+      throw new ConflictException('尚未配置数字生命人格，请前往「数字生命 → 人格编写」');
+    }
 
-【补充规则】
-- 你的对外称呼是「${siteName}」，这是你在墨堆站点上的名字。
-${chunksBlock}
-- 资料未覆盖的信息，按你的人格规则诚实说明「这块我还没有告诉过你」，不要编造细节。`;
+    const sections: string[] = [];
+    // 核心人格（description 可承载完整人格文本）
+    if (persona.description.trim()) {
+      sections.push(persona.description.trim());
+    }
+    // 人格设定摘要
+    const settings: string[] = [`- 你的名字：「${persona.name}」，对话中以此自称`];
+    if (persona.personalityType.trim()) settings.push(`- 人格类型：${persona.personalityType}`);
+    if (persona.styleHint.trim()) settings.push(`- 回复风格：${persona.styleHint}`);
+    if (persona.greeting.trim()) settings.push(`- 你的问候语参考：${persona.greeting}`);
+    sections.push(`【人格设定】\n${settings.join('\n')}`);
+
+    // RAG 资料与反编造规则
+    sections.push(`【补充规则】\n${chunksBlock}\n- 资料未覆盖的信息，按你的人格规则诚实说明「这块我还没有告诉过你」，不要编造细节。`);
+
+    return sections.join('\n\n');
   }
 
   /** RAG 检索并渲染资料片段块（检索异常时返回空资料占位） */
@@ -97,7 +102,8 @@ ${chunksBlock}
 
   /**
    * 完整聊天流程（SSE 回调驱动）。
-   * 流程：限流检查在 controller 层完成 → 用户消息入库 → 检索 → 流式生成 → 回复入库。
+   * 流程：限流/模型预检在 controller 层完成 → 用户消息入库 → 检索 →
+   * 启用模型按顺序流式生成（首个 chunk 前失败自动切换下一个，已输出后失败则终止）→ 回复入库。
    */
   async run(userId: string, content: string, callbacks: ChatStreamCallbacks): Promise<void> {
     // 1. 用户消息先入库（生成失败也保留提问）
@@ -109,7 +115,7 @@ ${chunksBlock}
     const chunksBlock = await this.renderChunksBlock(content);
 
     // 3. 组装 messages（system + 最近 10 轮历史）
-    const systemPrompt = await this.buildSystemPrompt(undefined, chunksBlock);
+    const systemPrompt = await this.buildSystemPrompt(chunksBlock);
     const history = await this.getContext(userId);
     const messages: (SystemMessage | HumanMessage | AIMessage)[] = [
       new SystemMessage(systemPrompt),
@@ -118,50 +124,51 @@ ${chunksBlock}
       ),
     ];
 
-    // 4. 流式生成
-    const llm = await this.modelConfig.getLlm();
+    // 4. 启用模型按顺序尝试（自动 fallback）
+    const llms = await this.modelConfig.getActiveLlms();
     let full = '';
-    try {
-      const stream = await llm.stream(messages);
-      for await (const chunk of stream) {
-        const text = this.extractText(chunk);
-        if (text) {
-          full += text;
-          callbacks.onDelta(text);
+    let lastError = '';
+
+    for (const { llm, modelName } of llms) {
+      try {
+        const stream = await llm.stream(messages);
+        for await (const chunk of stream) {
+          const text = this.extractText(chunk);
+          if (text) {
+            full += text;
+            callbacks.onDelta(text);
+          }
         }
+        // 本模型完整输出 → 结束
+        lastError = '';
+        break;
+      } catch (e: any) {
+        lastError = e?.response?.data?.error?.message || e?.message || '生成失败';
+        this.logger.warn(`模型「${modelName}」生成失败: ${lastError}`);
+        if (full) {
+          // 已有输出（流中断）：不再切换模型，保留已生成部分
+          break;
+        }
+        // 尚无输出：切换下一个模型重试
+        continue;
       }
-    } catch (e: any) {
-      // 已生成部分入库后发 error
-      if (full) {
-        await this.prisma.chatMessage.create({
-          data: { userId, role: 'assistant', content: full },
-        });
-      }
-      this.logger.error(`聊天生成失败: ${e?.message}`);
-      callbacks.onError(e?.response?.data?.error?.message || e?.message || '生成回复失败，请稍后再试');
+    }
+
+    // 5. 结果处理
+    if (!full) {
+      this.logger.error(`全部模型生成失败: ${lastError}`);
+      callbacks.onError(
+        lastError
+          ? `生成回复失败：${lastError}（已尝试 ${llms.length} 个启用的模型）`
+          : '生成回复失败，请稍后再试',
+      );
       return;
     }
 
-    // 5. 完整回复入库
     const saved = await this.prisma.chatMessage.create({
       data: { userId, role: 'assistant', content: full },
     });
     callbacks.onDone(saved.id, full);
-  }
-
-  /**
-   * 人格试聊（后台人格编写页）：草稿人格 + RAG + 称呼，一次性返回（不流式、不入库）。
-   */
-  async testChat(content: string, useDraft: boolean, draftPersona?: string): Promise<{ reply: string }> {
-    const chunksBlock = await this.renderChunksBlock(content);
-    const systemPrompt = await this.buildSystemPrompt(
-      useDraft && draftPersona !== undefined ? draftPersona : undefined,
-      chunksBlock,
-    );
-
-    const llm = await this.modelConfig.getLlm();
-    const res = await llm.invoke([new SystemMessage(systemPrompt), new HumanMessage(content)]);
-    return { reply: this.extractText(res) || String(res.content ?? '') };
   }
 
   /** 从 AIMessageChunk / AIMessage 提取文本（content 可能为 string 或 parts 数组） */

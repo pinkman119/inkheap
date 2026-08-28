@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { REF_TYPES, RefType } from '../training.service';
 
@@ -16,43 +16,62 @@ export class ChatDto {
   content!: string;
 }
 
-/** 模型配置更新 */
-export class UpdateModelConfigDto {
+/** 模型更新（name / modelId / apiKey） */
+export class UpdateDlModelDto {
   @IsOptional()
   @IsString()
-  chatModel?: string;
+  @MaxLength(60)
+  name?: string;
 
   @IsOptional()
   @IsString()
-  embeddingModel?: string;
+  @MaxLength(120)
+  modelId?: string;
 
   /** 提供则更新密文（空串清除）；不提供保留原值 */
   @IsOptional()
   @IsString()
+  @MaxLength(300)
   apiKey?: string;
 }
 
-/** 人格更新 */
+/** 人格更新（结构化字段） */
 export class UpdatePersonaDto {
-  @IsString()
-  content!: string;
-}
-
-/** 人格试聊（草稿人格验证） */
-export class PersonaTestChatDto {
-  @IsString()
-  @MaxLength(2000)
-  content!: string;
-
-  /** true 时使用 draftPersona（草稿人格），不落库不影响线上 */
   @IsOptional()
-  @IsBoolean()
-  useDraft?: boolean;
+  @IsString()
+  @MaxLength(60)
+  name?: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  greeting?: string;
+
+  /** 性格描述（核心人格 prompt，允许长文本） */
   @IsOptional()
   @IsString()
   @MaxLength(30000)
-  draftPersona?: string;
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  styleHint?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  accentColor?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  avatarEmoji?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  personalityType?: string;
 }
 
 /** 训练列表查询 */

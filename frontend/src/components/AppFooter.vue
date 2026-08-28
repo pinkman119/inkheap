@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useMode } from '../composables/useMode'
-import logoUrl from '../assets/logo.png'
+import BrandMark from '@/components/BrandMark.vue'
 
 const { isWork } = useMode()
 
@@ -92,7 +92,7 @@ function scrollTop() {
       <div class="footer-row">
         <div class="footer-brand">
           <RouterLink to="/" class="footer-brand__logo" aria-label="墨堆">
-            <img :src="logoUrl" alt="墨堆" />
+            <BrandMark />
           </RouterLink>
           <div class="footer-brand__text">
             <span class="footer-brand__name">{{ brand }}</span>
@@ -235,18 +235,9 @@ function scrollTop() {
 }
 
 .footer-brand__logo {
-  width: 34px;
-  height: 34px;
+  --mark-size: 34px;
+  display: inline-flex;
   flex-shrink: 0;
-  display: block;
-}
-
-.footer-brand__logo svg,
-.footer-brand__logo img {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: contain;
 }
 
 .footer-brand__text {

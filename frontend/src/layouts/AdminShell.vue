@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAdminAuth } from '@/composables/useAdminAuth'
 import { useApi } from '@/composables/useApi'
 import { useTheme } from '@/composables/useTheme'
-import logoUrl from '@/assets/logo.png'
+import BrandMark from '@/components/BrandMark.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -99,9 +99,7 @@ onBeforeUnmount(() => {
   <div class="admin" :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileOpen }">
     <aside class="sidenav">
       <div class="sidenav__brand">
-        <span class="brand-mark" aria-hidden="true">
-          <img :src="logoUrl" alt="" />
-        </span>
+        <BrandMark />
         <span class="brand-name">墨堆</span>
         <span class="sidenav__tag">后台</span>
       </div>
@@ -278,17 +276,7 @@ onBeforeUnmount(() => {
 }
 
 .brand-mark {
-  display: inline-flex;
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-}
-.brand-mark svg,
-.brand-mark img {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: contain;
+  --mark-size: 28px;
 }
 
 .brand-name {

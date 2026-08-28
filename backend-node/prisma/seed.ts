@@ -3,7 +3,7 @@ import * as bcrypt from 'bcrypt';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { DEFAULT_RESUME_CONTENT, DEFAULT_RESUME_NAME } from '../src/modules/resume/resume.defaults';
-import { DEFAULT_PERSONA_CONTENT } from '../src/modules/digitallife/digital-life.defaults';
+import { DEFAULT_MODELS, DEFAULT_PERSONA } from '../src/modules/digitallife/digital-life.defaults';
 import { xiaojiSeeds } from './xiaoji-seed-data';
 
 const prisma = new PrismaClient();
@@ -378,31 +378,24 @@ async function main() {
   console.log(`AboutEvents seeded: ${events.length} items (${ringCount} rings)`);
 
   // ==================== 数字生命 seed ====================
-  // 人格（单条全局，id 固定 "default"；初始值 = muztagh-cat skill 全文）
+  // 人格（多人格结构化；初始 = muztagh-cat 默认人格）
   const personaCount = await prisma.dlPersona.count();
   if (personaCount === 0) {
     await prisma.dlPersona.create({
-      data: { id: 'default', content: DEFAULT_PERSONA_CONTENT },
+      data: { ...DEFAULT_PERSONA, sortOrder: 0 },
     });
     console.log('DlPersona seeded: muztagh-cat persona (default)');
   } else {
     console.log('DlPersona skipped: already exists');
   }
 
-  // 模型配置（单条全局，id 固定 "default"；默认 glm-4.6，无 Key）
-  const modelConfigCount = await prisma.dlModelConfig.count();
-  if (modelConfigCount === 0) {
-    await prisma.dlModelConfig.create({
-      data: {
-        id: 'default',
-        chatModel: 'glm-4.6',
-        embeddingModel: 'embedding-3',
-        apiKeyEnc: null,
-      },
-    });
-    console.log('DlModelConfig seeded: glm-4.6 / embedding-3 (no api key)');
+  // 模型（多模型启停列表；仅 GLM-4.6 启用，其余停用供随时切换，均不配 Key）
+  const modelCount = await prisma.dlModel.count();
+  if (modelCount === 0) {
+    await prisma.dlModel.createMany({ data: DEFAULT_MODELS });
+    console.log(`DlModels seeded: ${DEFAULT_MODELS.length} models (glm-4.6 enabled, no api key)`);
   } else {
-    console.log('DlModelConfig skipped: already exists');
+    console.log('DlModels skipped: already exist');
   }
 
   // ==================== 联系我 seed ====================

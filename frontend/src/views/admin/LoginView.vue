@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAdminAuth } from '@/composables/useAdminAuth'
 import { useApi } from '@/composables/useApi'
 import { useTheme } from '@/composables/useTheme'
-import logoUrl from '@/assets/logo.png'
+import BrandMark from '@/components/BrandMark.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -55,9 +55,7 @@ async function handleLogin() {
       <div class="brand-inner">
         <!-- Logo -->
         <div class="brand-logo">
-          <span class="logo-mark">
-            <img :src="logoUrl" alt="墨堆 Logo" />
-          </span>
+          <BrandMark class="logo-mark" />
           <div>
             <p class="logo-title">墨堆 Admin</p>
             <p class="logo-sub">InkHeap Console</p>
@@ -268,18 +266,7 @@ async function handleLogin() {
 
 .brand-logo { display: flex; align-items: center; gap: 12px; }
 .logo-mark {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-}
-.logo-mark img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
+  --mark-size: 44px;
 }
 .logo-title { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
 .logo-sub { font-size: 12px; color: rgba(255, 255, 255, 0.55); letter-spacing: 0.04em; }
