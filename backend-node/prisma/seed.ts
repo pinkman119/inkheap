@@ -236,6 +236,26 @@ async function main() {
     console.log(`Resume skipped: ${resumeCount} version(s) already exist`);
   }
 
+  // ==================== 页脚链接 seed ====================
+  // 预置当前默认导航 / 扩展（幂等：仅表为空时写入，不覆盖后台后续修改）
+  const footerLinkCount = await prisma.footerLink.count();
+  if (footerLinkCount === 0) {
+    const footerLinks = [
+      // 导航（站内路由）
+      { type: 'nav', mode: 0, label: '联系我', url: '/contact', sortOrder: 0 },
+      { type: 'nav', mode: 1, label: '关于我', url: '/about', sortOrder: 1 },
+      { type: 'nav', mode: 1, label: '小记', url: '/xiaoji', sortOrder: 2 },
+      { type: 'nav', mode: 2, label: '知识库', url: '/articles', sortOrder: 3 },
+      { type: 'nav', mode: 2, label: '简历', url: '/resume', sortOrder: 4 },
+      // 扩展（外链）
+      { type: 'ext', mode: 0, label: '源码', url: 'https://github.com/pinkman119/inkheap.git', sortOrder: 0 },
+    ];
+    await prisma.footerLink.createMany({ data: footerLinks });
+    console.log(`FooterLinks seeded: ${footerLinks.length} links`);
+  } else {
+    console.log(`FooterLinks skipped: ${footerLinkCount} link(s) already exist`);
+  }
+
   // ==================== 关于我 seed ====================
   // 个人资料（单条全局，id 固定 "about"）
   await prisma.aboutProfile.upsert({

@@ -203,10 +203,18 @@ export const DEFAULT_CHAT_MODELS = [
   'glm-4-flash',
 ];
 
+/**
+ * 模型类型枚举（预留扩展）。
+ * - general：通用（对话），聊天时按启用的通用模型顺序自动切换 / 前台可指定
+ * - embedding：嵌入（训练与检索），训练页可下拉选择
+ */
+export const MODEL_TYPES = ['general', 'embedding'] as const;
+export type DlModelType = (typeof MODEL_TYPES)[number];
+
 /** 智谱 OpenAI 兼容端点（chat 与 embedding 共用） */
 export const ZHIPU_BASE_URL = 'https://open.bigmodel.cn/api/paas/v4';
 
-/** embedding 维度（智谱 embedding-3 支持 256/512/1024/2048，本项目固定 1024） */
+/** embedding 维度（本项目固定 1024，新增嵌入模型需与其一致） */
 export const EMBEDDING_DIMENSIONS = 1024;
 
 /**
@@ -226,16 +234,21 @@ export const DEFAULT_MODELS: Array<{
   name: string;
   provider: string;
   modelId: string;
+  modelType: DlModelType;
   enabled: boolean;
   sortOrder: number;
 }> = [
-  { name: 'GLM-4.6', provider: 'zhipu', modelId: 'glm-4.6', enabled: true, sortOrder: 0 },
-  { name: 'GLM-4.5-Air', provider: 'zhipu', modelId: 'glm-4.5-air', enabled: false, sortOrder: 1 },
-  { name: 'GLM-4-Flash', provider: 'zhipu', modelId: 'glm-4-flash', enabled: false, sortOrder: 2 },
-  { name: 'DeepSeek Chat', provider: 'deepseek', modelId: 'deepseek-chat', enabled: false, sortOrder: 3 },
-  { name: 'GPT-4o mini', provider: 'openai', modelId: 'gpt-4o-mini', enabled: false, sortOrder: 4 },
-  { name: 'Qwen Plus', provider: 'qwen', modelId: 'qwen-plus', enabled: false, sortOrder: 5 },
-  { name: 'Claude Sonnet', provider: 'anthropic', modelId: 'claude-sonnet-4-20250514', enabled: false, sortOrder: 6 },
+  { name: 'GLM-4.6', provider: 'zhipu', modelId: 'glm-4.6', modelType: 'general', enabled: true, sortOrder: 0 },
+  { name: 'GLM-4.5-Air', provider: 'zhipu', modelId: 'glm-4.5-air', modelType: 'general', enabled: false, sortOrder: 1 },
+  { name: 'GLM-4-Flash', provider: 'zhipu', modelId: 'glm-4-flash', modelType: 'general', enabled: false, sortOrder: 2 },
+  { name: 'DeepSeek V4 Flash', provider: 'deepseek', modelId: 'deepseek-v4-flash', modelType: 'general', enabled: false, sortOrder: 3 },
+  { name: 'DeepSeek V4 Pro', provider: 'deepseek', modelId: 'deepseek-v4-pro', modelType: 'general', enabled: false, sortOrder: 4 },
+  { name: 'DeepSeek Chat', provider: 'deepseek', modelId: 'deepseek-chat', modelType: 'general', enabled: false, sortOrder: 5 },
+  { name: 'GPT-4o mini', provider: 'openai', modelId: 'gpt-4o-mini', modelType: 'general', enabled: false, sortOrder: 6 },
+  { name: 'Qwen Plus', provider: 'qwen', modelId: 'qwen-plus', modelType: 'general', enabled: false, sortOrder: 7 },
+  { name: 'Claude Sonnet', provider: 'anthropic', modelId: 'claude-sonnet-4-20250514', modelType: 'general', enabled: false, sortOrder: 8 },
+  // 嵌入模型：用于训练与检索（1024 维），对话不受影响
+  { name: 'GLM Embedding-3', provider: 'zhipu', modelId: 'embedding-3', modelType: 'embedding', enabled: false, sortOrder: 9 },
 ];
 
 /** 默认人格种子（muztagh-cat 结构化） */

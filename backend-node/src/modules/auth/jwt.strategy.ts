@@ -19,6 +19,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) {
       throw new UnauthorizedException();
     }
+    // 账号被失效后，已签发的 token 在下一次请求时立即被拦截，无需等 token 自然过期
+    if (user.status !== 'active') {
+      throw new UnauthorizedException('账号已失效');
+    }
     return { id: user.id, username: user.username, role: user.role };
   }
 }

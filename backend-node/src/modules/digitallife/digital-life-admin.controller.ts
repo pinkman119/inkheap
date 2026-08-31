@@ -15,6 +15,7 @@ import { PersonaService } from './persona.service';
 import { TrainingService, REF_TYPES, RefType } from './training.service';
 import {
   QueryTrainingDto,
+  TrainDto,
   UpdateDlModelDto,
   UpdatePersonaDto,
 } from './dto/digital-life.dto';
@@ -89,8 +90,16 @@ export class DigitalLifeAdminController {
   }
 
   @Post('training/:refType/:refId/train')
-  async trainOne(@Param('refType') refType: string, @Param('refId') refId: string) {
-    const result = await this.trainingService.trainOne(this.assertRefType(refType), refId);
+  async trainOne(
+    @Param('refType') refType: string,
+    @Param('refId') refId: string,
+    @Body() dto: TrainDto,
+  ) {
+    const result = await this.trainingService.trainOne(
+      this.assertRefType(refType),
+      refId,
+      dto.embeddingModelId,
+    );
     return { success: true, ...result };
   }
 

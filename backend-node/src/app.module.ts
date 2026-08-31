@@ -15,6 +15,8 @@ import { DigitalLifeModule } from './modules/digitallife/digital-life.module';
 import { ContactModule } from './modules/contact/contact.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { VisitModule } from './modules/visit/visit.module';
+import { AdminUserModule } from './modules/admin-user/admin-user.module';
+import { FooterLinkModule } from './modules/footer-link/footer-link.module';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { VisitModule } from './modules/visit/visit.module';
     ContactModule,
     DashboardModule,
     VisitModule,
+    AdminUserModule,
+    FooterLinkModule,
   ],
   controllers: [],
   providers: [],

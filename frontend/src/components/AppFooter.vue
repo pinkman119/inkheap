@@ -1,9 +1,11 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useMode } from '../composables/useMode'
+import { useApi } from '@/composables/useApi'
 import BrandMark from '@/components/BrandMark.vue'
 
 const { isWork } = useMode()
+const api = useApi()
 
 const props = defineProps({
   /** 上下内边距（原型：64px 上 / 32px 下） */
@@ -46,8 +48,33 @@ const props = defineProps({
   since: { type: [String, Number], default: 2024 },
 })
 
-// 导航链接：全模式显示「联系我」；工作模式额外显示 关于我 / 小记；生活模式额外显示 知识库 / 简历
+// 数据库页脚链接（后台「底部管理」配置）：null = 未加载或加载失败，此时回退默认值
+const dbLinks = ref(null)
+
+onMounted(async () => {
+  try {
+    const data = await api.get('/public/footer-links')
+    dbLinks.value = Array.isArray(data) ? data : []
+  } catch (err) {
+    console.warn('[AppFooter] 加载页脚配置失败，使用默认值', err)
+    dbLinks.value = []
+  }
+})
+
+// 按当前模式过滤：mode = 0 全模式显示；1 = 仅工作；2 = 仅生活
+function filterByMode(list) {
+  const expected = isWork.value ? 1 : 2
+  return list.filter((l) => l.mode === 0 || l.mode === expected)
+}
+
+// 导航链接：DB 有配置则优先使用（type=nav，按模式过滤）；否则回退 props / 模式默认值
 const navLinks = computed(() => {
+  const navFromDb = (dbLinks.value || [])
+    .filter((l) => l.type === 'nav')
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+  if (navFromDb.length) {
+    return filterByMode(navFromDb).map((l) => ({ label: l.label, to: l.url }))
+  }
   if (props.links && props.links.length) return props.links
   const base = [{ label: '联系我', to: '/contact' }]
   const modeLinks = isWork.value
@@ -60,6 +87,17 @@ const navLinks = computed(() => {
         { label: '简历', to: '/resume' },
       ]
   return [...modeLinks, ...base]
+})
+
+// 扩展列：DB 有配置则优先使用（type=ext，按模式过滤）；否则回退 props 默认值
+const extLinks = computed(() => {
+  const extFromDb = (dbLinks.value || [])
+    .filter((l) => l.type === 'ext')
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+  if (extFromDb.length) {
+    return filterByMode(extFromDb).map((l) => ({ label: l.label, href: l.url }))
+  }
+  return props.friendLinks || []
 })
 
 const year = new Date().getFullYear()
@@ -131,17 +169,17 @@ function scrollTop() {
 
       <!-- 两列导航 -->
       <div class="footer-nav">
-        <div class="footer-nav__col">
+        <div v-if="navLinks.length" class="footer-nav__col">
           <h4>导航</h4>
           <div class="footer-links">
             <RouterLink v-for="link in navLinks" :key="link.to" class="footer-link" :to="link.to">{{ link.label }}</RouterLink>
           </div>
         </div>
-        <div v-if="friendLinks.length" class="footer-nav__col">
+        <div v-if="extLinks.length" class="footer-nav__col">
           <h4>扩展</h4>
           <div class="footer-links">
             <a
-              v-for="f in friendLinks"
+              v-for="f in extLinks"
               :key="f.href"
               class="footer-link"
               :href="f.href"

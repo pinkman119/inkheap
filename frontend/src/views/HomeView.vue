@@ -4,6 +4,8 @@ import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useApi } from '@/composables/useApi'
+import { useMode } from '@/composables/useMode'
+import { preloadForMode } from '@/composables/usePreload'
 
 const api = useApi()
 
@@ -28,6 +30,22 @@ const socialLinks = [
 
 /* ===== 模式感知 ===== */
 const { isDark } = useTheme()
+const { mode } = useMode()
+
+/* ===== 目标页面数据预加载 ===== */
+// 首页渲染完成后，在浏览器空闲窗口并发拉取当前模式目标页面的首屏接口，
+// 用户切页时直接命中缓存、跳过请求，减少卡顿。
+function schedulePreload() {
+  // 管理端实时预览不预加载
+  if (props.previewData) return
+  const idle =
+    window.requestIdleCallback ||
+    ((cb) => setTimeout(() => cb({ timeRemaining: () => 0 }), 250))
+  idle(() => preloadForMode(mode.value), { timeout: 1500 })
+}
+
+// 停留在首页时切换模式：预加载新模式的目标页面（此时 HomeView 不会重新挂载）
+watch(mode, () => schedulePreload())
 
 /* ===== 首页配置（来自后台） ===== */
 const codeContent = ref('Hello, World. Welcome to My Page!\nme show you about me!\n这里只能定义一部分的我，\n这里不能定义我的全部！')
@@ -130,6 +148,8 @@ onMounted(async () => {
     await wait(400)
     if (!cancelled) runTypewriter()
   }
+  // 首页渲染完成后再后台预加载当前模式目标页面数据
+  schedulePreload()
 })
 
 onBeforeUnmount(() => {

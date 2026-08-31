@@ -89,7 +89,9 @@ services:
     container_name: inkheap-frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      # 等后端健康检查通过再启动 nginx，避免启动竞态导致的前期 502
+      backend:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"

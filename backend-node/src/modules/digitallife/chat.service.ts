@@ -103,9 +103,13 @@ export class ChatService {
   /**
    * 完整聊天流程（SSE 回调驱动）。
    * 流程：限流/模型预检在 controller 层完成 → 用户消息入库 → 检索 →
-   * 启用模型按顺序流式生成（首个 chunk 前失败自动切换下一个，已输出后失败则终止）→ 回复入库。
+   * 通用模型按顺序流式生成（可指定模型；首个 chunk 前失败自动切换下一个，已输出后失败则终止）→ 回复入库。
    */
-  async run(userId: string, content: string, callbacks: ChatStreamCallbacks): Promise<void> {
+  async run(
+    userId: string,
+    content: string,
+    callbacks: ChatStreamCallbacks & { modelId?: string },
+  ): Promise<void> {
     // 1. 用户消息先入库（生成失败也保留提问）
     await this.prisma.chatMessage.create({
       data: { userId, role: 'user', content },
@@ -124,8 +128,8 @@ export class ChatService {
       ),
     ];
 
-    // 4. 启用模型按顺序尝试（自动 fallback）
-    const llms = await this.modelConfig.getActiveLlms();
+    // 4. 通用模型按顺序尝试（可指定模型，未指定则全部启用模型自动 fallback）
+    const llms = await this.modelConfig.getActiveLlms(callbacks.modelId);
     let full = '';
     let lastError = '';
 

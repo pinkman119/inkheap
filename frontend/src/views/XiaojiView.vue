@@ -3,6 +3,7 @@ import { computed, ref, onMounted } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import { useApi } from '@/composables/useApi'
+import { takePreloaded } from '@/composables/usePreload'
 import {
   notes as staticNotes,
   noteTags as staticTags,
@@ -50,6 +51,18 @@ function applyStatic() {
 }
 
 async function load() {
+  // 命中首页预加载缓存：直接装配首屏数据（小记列表 + 分类 + 统计），跳过网络请求
+  const cached = takePreloaded('xiaoji')
+  if (cached) {
+    notes.value = (cached.list || []).map((n) => normalize(n))
+    noteTags.value = [
+      { key: 'all', label: '全部' },
+      ...(cached.cats || []).map((c) => ({ key: c.key, label: c.name })),
+    ]
+    stats.value = cached.stat || { total: 0, albums: 0, photos: 0 }
+    loading.value = false
+    return
+  }
   try {
     const [list, cats, stat] = await Promise.all([
       api.get('/xiaoji'),

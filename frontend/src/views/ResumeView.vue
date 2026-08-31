@@ -4,6 +4,7 @@ import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import ResumeContent from '@/components/resume/ResumeContent.vue'
 import { useApi } from '@/composables/useApi'
+import { takePreloaded } from '@/composables/usePreload'
 import { defaultResumeContent } from '@/data/resume'
 
 const { get } = useApi()
@@ -14,7 +15,7 @@ const loadFailed = ref(false)
 
 onMounted(async () => {
   try {
-    const data = await get('/public/resume')
+    const data = takePreloaded('resume') || (await get('/public/resume'))
     if (data?.content && typeof data.content === 'object') {
       resume.value = data.content
     }

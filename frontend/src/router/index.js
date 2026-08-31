@@ -124,6 +124,12 @@ const adminRoutes = [
     meta: { title: '首页管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
   },
   {
+    path: '/admin/footer',
+    name: 'admin-footer',
+    component: () => import('@/views/admin/FooterManageView.vue'),
+    meta: { title: '底部管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
     path: '/admin/resume',
     name: 'admin-resume',
     component: () => import('@/views/admin/ResumeManageView.vue'),
@@ -184,6 +190,13 @@ const adminRoutes = [
     name: 'admin-digital-life-training',
     component: () => import('@/views/admin/digitallife/TrainingManageView.vue'),
     meta: { title: '数字生命·训练管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  // ===== 系统管理 =====
+  {
+    path: '/admin/users',
+    name: 'admin-users',
+    component: () => import('@/views/admin/UserManageView.vue'),
+    meta: { title: '系统用户 · 墨堆 Admin', layout: 'layout-admin', auth: true },
   },
 ]
 

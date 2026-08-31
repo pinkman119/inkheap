@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import FootprintMap from '@/components/FootprintMap.vue'
+import { takePreloaded } from '@/composables/usePreload'
 import {
   loadAboutData,
   sections,
@@ -196,9 +197,9 @@ watch(loaded, async (val) => {
 
 onMounted(async () => {
   window.addEventListener('keydown', onKeydown)
-  // 拉取关于我页全部数据
+  // 拉取关于我页全部数据（命中首页预加载缓存则直接装配，跳过网络请求）
   try {
-    const data = await loadAboutData()
+    const data = takePreloaded('about') || (await loadAboutData())
     Object.assign(profile.value, data.profile)
     Object.assign(selfEvaluation.value, data.selfEvaluation)
     rings.value = data.rings

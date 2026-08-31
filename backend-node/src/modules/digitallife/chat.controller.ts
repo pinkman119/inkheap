@@ -8,8 +8,9 @@ import { ChatDto } from './dto/digital-life.dto';
 
 /**
  * 数字生命聊天接口（访客 JWT 鉴权）。
- * POST /api/user/digital-life/chat —— SSE 流式回复
- * GET  /api/user/digital-life/messages —— 历史消息（最近 100 条，时间正序）
+ * GET   /api/user/digital-life/models —— 可选「通用」模型列表（聊天页下拉）
+ * POST  /api/user/digital-life/chat —— SSE 流式回复
+ * GET   /api/user/digital-life/messages —— 历史消息（最近 100 条，时间正序）
  */
 @Controller('user/digital-life')
 @UseGuards(UserJwtAuthGuard)
@@ -19,6 +20,12 @@ export class ChatController {
     private readonly rateLimitService: RateLimitService,
     private readonly modelConfigService: ModelConfigService,
   ) {}
+
+  @Get('models')
+  async getModels() {
+    const items = await this.modelConfigService.listGeneralModels();
+    return { items };
+  }
 
   @Get('messages')
   async getMessages(@Req() req: any) {
@@ -47,7 +54,7 @@ export class ChatController {
     }
 
     // 2. 模型预检查：无可用模型（未启用/未配 Key）时 409 JSON（必须在开启 SSE 之前）
-    await this.modelConfigService.ensureActiveModel();
+    await this.modelConfigService.ensureActiveModel(dto.modelId);
 
     // 2. 开启 SSE 流
     res.status(200);
@@ -70,6 +77,7 @@ export class ChatController {
 
     try {
       await this.chatService.run(req.user.id, content, {
+        modelId: dto.modelId,
         onDelta: (text) => {
           if (!closed) writeEvent('delta', { text });
         },

@@ -1,6 +1,7 @@
 import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { REF_TYPES, RefType } from '../training.service';
+import { MODEL_TYPES } from '../digital-life.defaults';
 
 /** Mock 微信登录 */
 export class MockLoginDto {
@@ -9,14 +10,27 @@ export class MockLoginDto {
   openid?: string;
 }
 
-/** 聊天提问 */
+/** 聊天提问（可指定使用某个「通用」模型） */
 export class ChatDto {
   @IsString()
   @MaxLength(4000)
   content!: string;
+
+  /** 指定通用模型 ID；不传则按启用的通用模型顺序自动切换 */
+  @IsOptional()
+  @IsString()
+  modelId?: string;
 }
 
-/** 模型更新（name / modelId / apiKey） */
+/** 训练请求（可指定使用的「嵌入」模型） */
+export class TrainDto {
+  /** 嵌入模型 ID（模型管理中的「嵌入」类型模型）；不传则使用当前默认嵌入模型 */
+  @IsOptional()
+  @IsString()
+  embeddingModelId?: string;
+}
+
+/** 模型更新（name / modelId / modelType / apiKey） */
 export class UpdateDlModelDto {
   @IsOptional()
   @IsString()
@@ -27,6 +41,11 @@ export class UpdateDlModelDto {
   @IsString()
   @MaxLength(120)
   modelId?: string;
+
+  /** 模型类型：general 通用（对话）/ embedding 嵌入（训练与检索），预留扩展枚举 */
+  @IsOptional()
+  @IsIn(MODEL_TYPES as unknown as string[])
+  modelType?: string;
 
   /** 提供则更新密文（空串清除）；不提供保留原值 */
   @IsOptional()

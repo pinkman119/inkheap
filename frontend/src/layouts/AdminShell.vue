@@ -5,6 +5,7 @@ import { useAdminAuth } from '@/composables/useAdminAuth'
 import { useApi } from '@/composables/useApi'
 import { useTheme } from '@/composables/useTheme'
 import BrandMark from '@/components/BrandMark.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -53,12 +54,22 @@ function onKeydown(e) {
   mobileOpen.value = false
 }
 
+// ===== 退出登录：确认弹窗卡片（替换原生 confirm）=====
+const logoutConfirmOpen = ref(false)
+
 function handleLogout() {
   userMenuOpen.value = false
-  if (window.confirm('确定要退出登录吗？')) {
-    clearAuth()
-    router.push({ name: 'admin-login' })
-  }
+  logoutConfirmOpen.value = true
+}
+
+function cancelLogout() {
+  logoutConfirmOpen.value = false
+}
+
+function confirmLogout() {
+  logoutConfirmOpen.value = false
+  clearAuth()
+  router.push({ name: 'admin-login' })
 }
 
 // ===== 主题切换（图标旋转动画，与原型一致）=====
@@ -119,6 +130,10 @@ onBeforeUnmount(() => {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
             <span class="sidenav__label">首页管理</span>
           </router-link>
+          <router-link to="/admin/footer" class="sidenav__item" :class="{ active: isActive('/admin/footer') }">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 8H2a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h20a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1z"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="6" y1="16" x2="10" y2="16"/><line x1="14" y1="12" x2="18" y2="12"/><line x1="14" y1="16" x2="18" y2="16"/></svg>
+            <span class="sidenav__label">底部管理</span>
+          </router-link>
           <router-link to="/admin/resume" class="sidenav__item" :class="{ active: isActive('/admin/resume') }">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             <span class="sidenav__label">简历管理</span>
@@ -176,6 +191,10 @@ onBeforeUnmount(() => {
 
         <div class="sidenav__group">
           <div class="sidenav__group-title">系统</div>
+          <router-link to="/admin/users" class="sidenav__item" :class="{ active: isActive('/admin/users') }">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span class="sidenav__label">系统用户</span>
+          </router-link>
           <router-link to="/" class="sidenav__item">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             <span class="sidenav__label">返回站点</span>
@@ -234,6 +253,18 @@ onBeforeUnmount(() => {
   </div>
 
   <div class="sidenav-backdrop" :class="{ show: mobileOpen }" @click="mobileOpen = false"></div>
+
+  <!-- ===== 退出登录确认弹窗（与事件日历删除确认同款）===== -->
+  <ConfirmDialog
+    :open="logoutConfirmOpen"
+    title="退出登录"
+    confirm-label="退出"
+    :danger="false"
+    @cancel="cancelLogout"
+    @confirm="confirmLogout"
+  >
+    确定要退出登录吗？
+  </ConfirmDialog>
 </template>
 
 <style scoped>

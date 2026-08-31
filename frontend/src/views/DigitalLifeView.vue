@@ -33,6 +33,16 @@ let pendingMessage = '' // 被登录拦截的消息，登录后自动发送
 const rateLimitWait = ref(0)
 let countdownTimer = null
 
+// 可选「通用」模型（登录后从后端加载，用于切换对话模型）
+const generalModels = ref([])
+const selectedModelId = ref('')
+const MODEL_STORAGE_KEY = 'dl_chat_model_id'
+
+const currentModelLabel = computed(() => {
+  const hit = generalModels.value.find((m) => m.id === selectedModelId.value)
+  return hit ? hit.name : '自动'
+})
+
 const chatMessagesEl = ref(null)
 const textareaEl = ref(null)
 
@@ -99,9 +109,41 @@ onMounted(async () => {
     // 称呼拉取失败时使用默认
   }
   if (isLoggedIn()) {
-    await loadHistory()
+    await Promise.all([loadHistory(), loadGeneralModels()])
   }
 })
+
+/** 加载可选「通用」模型列表，并恢复上次选择 */
+async function loadGeneralModels() {
+  try {
+    const res = await fetch(`${BASE}/user/digital-life/models`, {
+      headers: { Authorization: `Bearer ${token.value}` },
+    })
+    if (!res.ok) {
+      if (res.status === 401) clearAuth()
+      return
+    }
+    const data = await res.json()
+    generalModels.value = (data.items || []).map((m) => ({
+      id: m.id,
+      name: m.name,
+      provider: m.provider,
+      modelId: m.modelId,
+    }))
+    const saved = localStorage.getItem(MODEL_STORAGE_KEY)
+    if (saved && generalModels.value.some((m) => m.id === saved)) {
+      selectedModelId.value = saved
+    }
+  } catch {
+    // 模型列表加载失败不阻断页面
+  }
+}
+
+function selectModel(id) {
+  selectedModelId.value = id
+  if (id) localStorage.setItem(MODEL_STORAGE_KEY, id)
+  else localStorage.removeItem(MODEL_STORAGE_KEY)
+}
 
 async function loadHistory() {
   try {
@@ -181,7 +223,10 @@ async function streamChat(text) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token.value}`,
       },
-      body: JSON.stringify({ content: text }),
+      body: JSON.stringify({
+        content: text,
+        modelId: selectedModelId.value || undefined,
+      }),
     })
 
     // 非 SSE 的错误响应（409 未配 Key / 429 限流 / 401 过期）
@@ -453,8 +498,25 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="chat-input">
-          <!-- 已登录：昵称 + 退出 -->
+          <!-- 已登录：模型选择 + 昵称 + 退出 -->
           <div v-if="isLoggedIn() && user" class="user-bar">
+            <div v-if="generalModels.length" class="model-picker">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 10 10 0 0 0-10-10z"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <select
+                class="model-select"
+                :value="selectedModelId"
+                aria-label="选择对话模型"
+                @change="selectModel($event.target.value)"
+              >
+                <option value="">自动</option>
+                <option v-for="m in generalModels" :key="m.id" :value="m.id">
+                  {{ m.name }}（{{ m.provider }}）
+                </option>
+              </select>
+              <span class="model-picker-caret">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </span>
+            </div>
             <span class="user-chip">{{ user.nickname }}</span>
             <button class="logout-btn" type="button" @click="onLogout">退出</button>
           </div>
@@ -819,6 +881,42 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
+}
+
+/* 对话模型选择 */
+.model-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  transition: all var(--transition);
+}
+.model-picker svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.model-select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  max-width: 150px;
+  padding-right: 2px;
+}
+.model-picker-caret {
+  display: inline-flex;
+  pointer-events: none;
+  color: var(--text-tertiary);
 }
 
 .user-chip {

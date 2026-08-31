@@ -3,6 +3,8 @@ import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { PrismaService } from '../prisma/prisma.service';
 import { ModelConfigService } from './model-config.service';
 import { VectorService } from './vector.service';
+import { describeEmbeddingError } from './embedding-error.util';
+import { EMBEDDING_DIMENSIONS } from './digital-life.defaults';
 
 export type RefType =
   | 'article'
@@ -71,8 +73,8 @@ export class TrainingService {
 
   // ==================== 训练 / 移除 ====================
 
-  /** 训练单条：拼装 → 切分 → 嵌入 → 替换写入 → trainType=1 */
-  async trainOne(refType: RefType, refId: string) {
+  /** 训练单条：拼装 → 切分 → 嵌入（可选指定嵌入模型）→ 替换写入 → trainType=1 */
+  async trainOne(refType: RefType, refId: string, embeddingModelId?: string) {
     const row = await this.findRow(refType, refId);
     if (!row) throw new NotFoundException(`${REF_TYPE_LABELS[refType]}记录不存在`);
 
@@ -92,11 +94,26 @@ export class TrainingService {
       throw new BadRequestException('切分后无有效文本，无法训练');
     }
 
-    const embeddings = await this.modelConfig.getEmbeddings();
-    const vectors = await embeddings.embedDocuments(chunks);
+    const embeddings = await this.modelConfig.getEmbeddings(embeddingModelId);
+    let vectors: number[][];
+    try {
+      vectors = await embeddings.embedDocuments(chunks);
+    } catch (e: any) {
+      throw new BadRequestException(describeEmbeddingError(e));
+    }
+    if (vectors.length && vectors[0].length !== EMBEDDING_DIMENSIONS) {
+      throw new BadRequestException(
+        `嵌入模型向量维度为 ${vectors[0].length}，与本项目要求（${EMBEDDING_DIMENSIONS} 维）不一致，请更换嵌入模型`,
+      );
+    }
 
     await this.vectorService.replaceChunks(refType, refId, chunks, vectors);
     await this.updateTrainType(refType, refId, 1);
+
+    // 指定了嵌入模型时，将其设为「当前唯一启用」的嵌入模型（训练/检索保持一致）
+    if (embeddingModelId) {
+      await this.modelConfig.setActiveEmbeddingModel(embeddingModelId);
+    }
 
     return {
       refType,

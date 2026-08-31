@@ -7,20 +7,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ==================== Admin ====================
-
 model AdminUser {
-  id        String   @id @default(uuid())
-  username  String   @unique
-  password  String
-  role      String   @default("admin")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id           String    @id @default(uuid())
+  username     String    @unique
+  password     String
+  role         String    @default("admin")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  lastLoginAt  DateTime? @map("last_login_at")
+  remark       String?
+  status       String    @default("active")
 
   @@map("admin_users")
 }
-
-// ==================== 文章 ====================
 
 model Article {
   id          String   @id @default(uuid())
@@ -35,61 +34,50 @@ model Article {
   published   Boolean  @default(false)
   featured    Boolean  @default(false)
   viewCount   Int      @default(0) @map("view_count")
-  // 内容类型：article = 知识库文章，note = 小记（为后续小记接入预留，本次仅使用 article）
   type        String   @default("article") @map("type")
-  // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练
-  trainType   Int      @default(0) @map("train_type")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
+  trainType   Int      @default(0) @map("train_type")
 
   @@map("articles")
 }
 
-// ==================== 首页配置 ====================
-
 model HomePage {
-  id          String   @id @default("home") // 全局唯一的首页配置
-  siteName    String   @default("INKHEAP") @map("site_name") // 首页名称
-  personTitle String   @default("Digital Gardener & Lifelong Learner") @map("person_title") // 首页人物 title
-  codeContent String   @default("") @map("code_content") // 首页代码框内容
-  avatar      String?  @map("avatar") // 首页头像 URL 路径（如 /files/2026-08-12/uuid.png）
+  id          String   @id @default("home")
+  siteName    String   @default("INKHEAP") @map("site_name")
+  personTitle String   @default("Digital Gardener & Lifelong Learner") @map("person_title")
+  codeContent String   @default("") @map("code_content")
+  avatar      String?  @map("avatar")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("home_page")
 }
 
-// ==================== 上传文件 ====================
-
 model File {
   id           String   @id @default(uuid())
-  filename     String   @map("filename") // 磁盘文件名（如 uuid.png）
-  originalName String?  @map("original_name") // 上传时的原始文件名
-  url          String   @unique @map("url") // 可访问路径（如 /files/2026-08-12/uuid.png）
+  filename     String   @map("filename")
+  originalName String?  @map("original_name")
+  url          String   @unique @map("url")
   mimeType     String?  @map("mime_type")
   size         Int
-  relativePath String   @map("relative_path") // 磁盘相对路径（如 2026-08-12/uuid.png）
+  relativePath String   @map("relative_path")
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("files")
 }
 
-// ==================== 简历 ====================
-
 model Resume {
   id        String   @id @default(uuid())
-  name      String   @default("默认版本") // 版本名称，便于后台区分
-  content   String   @default("{}") // 完整简历 JSON 字符串（结构对齐新原型各区块）
-  isActive  Boolean  @default(false) // 是否为当前生效版本（前台展示）
-  // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练（仅 isActive 版本参与训练）
-  trainType Int      @default(0) @map("train_type")
+  name      String   @default("默认版本")
+  content   String   @default("{}")
+  isActive  Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  trainType Int      @default(0) @map("train_type")
 
   @@map("resume")
 }
-
-// ==================== 分类 ====================
 
 model Category {
   id        String   @id @default(uuid())
@@ -104,39 +92,30 @@ model Category {
   @@map("categories")
 }
 
-// ==================== 小记 ====================
-
 model Blog {
   id        String   @id @default(uuid())
   slug      String   @unique
   title     String
-  // 类型：album = 相册，essay = 随笔
   type      String   @default("album")
-  // 分类 key 数组（JSON 字符串），如 ["登山","citywalk"]
   tags      String   @default("[]")
-  // markdown 正文
   content   String   @default("")
-  summary   String? // 摘要（列表副标题）
-  quote     String? // 随笔引文（essay 列表/封面使用）
-  location  String? // 地点
-  date      String? // 日期
-  // 照片数组（JSON 字符串）：[{"url":"/files/...","caption":"..."}]
+  summary   String?
+  quote     String?
+  location  String?
+  date      String?
   photos    String   @default("[]")
   published Boolean  @default(false)
   viewCount Int      @default(0) @map("view_count")
-  // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练
-  trainType Int      @default(0) @map("train_type")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  trainType Int      @default(0) @map("train_type")
 
   @@map("blogs")
 }
 
-// ==================== 小记分类 ====================
-
 model BlogCategory {
   id        String   @id @default(uuid())
-  key       String   @unique // 与 name 一致（去空格），同名即复用
+  key       String   @unique
   name      String
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -144,43 +123,35 @@ model BlogCategory {
   @@map("blog_categories")
 }
 
-// ==================== 关于我 ====================
-
-// 关于我 - 个人资料（单条全局，id 固定为 "about"）
-// 头像与署名（name）不在此表：头像取自 HomePage.avatar，署名取自 HomePage.siteName
 model AboutProfile {
   id              String   @id @default("about")
   kicker          String   @default("About Me")
   lede            String   @default("")
   evaluationQuote String   @default("") @map("evaluation_quote")
   evaluationBy    String   @default("") @map("evaluation_by")
-  // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练
-  trainType       Int      @default(0) @map("train_type")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
+  trainType       Int      @default(0) @map("train_type")
 
   @@map("about_profile")
 }
 
-// 关于我 - 足迹（省份 → 多条记录）
 model AboutFootprint {
   id        String   @id @default(uuid())
   province  String
   place     String
   time      String
   location  String
-  elevation String   @default("—")
   note      String
   sortOrder Int      @default(0) @map("sort_order")
-  // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练
-  trainType Int      @default(0) @map("train_type")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  trainType Int      @default(0) @map("train_type")
+  elevation String   @default("—")
 
   @@map("about_footprints")
 }
 
-// 关于我 - 旅行卡片
 model AboutTravel {
   id        String   @id @default(uuid())
   glyph     String
@@ -188,37 +159,30 @@ model AboutTravel {
   meta      String
   note      String
   sortOrder Int      @default(0) @map("sort_order")
-  // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练
-  trainType Int      @default(0) @map("train_type")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  trainType Int      @default(0) @map("train_type")
 
   @@map("about_travels")
 }
 
-// 关于我 - 事件日历（date 存 ISO，返回前端转 YYYY-MM-DD）
-// isRing：是否设为成就（成就事件沉淀到前台年轮时间线；年轮不再使用独立表）
 model AboutEvent {
   id        String   @id @default(uuid())
   date      DateTime
   title     String
   desc      String
-  isRing    Boolean  @default(false) @map("is_ring")
   sortOrder Int      @default(0) @map("sort_order")
-  // 数字生命 RAG 训练状态：0 = 未训练，1 = 已训练，2 = 已移除训练
-  trainType Int      @default(0) @map("train_type")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  trainType Int      @default(0) @map("train_type")
+  isRing    Boolean  @default(false) @map("is_ring")
 
   @@map("about_events")
 }
 
-// ==================== 站点访问 ====================
-
-// 站点每日访问量（前台 PV，按天聚合；来源：前台路由切换时上报 POST /api/visit）
 model SiteVisit {
   id        String   @id @default(uuid())
-  day       DateTime @unique // 当天零点（仅日期语义，服务器本地时区）
+  day       DateTime @unique
   count     Int      @default(0)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -226,29 +190,22 @@ model SiteVisit {
   @@map("site_visits")
 }
 
-// ==================== 联系我 ====================
-
-// 前台「联系我」提交的消息（访客来信 / 收信箱）
 model ContactMessage {
   id        String   @id @default(uuid())
-  name      String? // 来信人称呼（可空，匿名来信）
-  email     String? // 邮箱（可空，但填写时做格式校验）
-  phone     String? // 电话（可空）
-  subject   String? @map("subject") // 主题
-  contact   String? @map("contact") // 回信方式（自由文本：邮箱 / 微信 / 手机）
-  message   String // 正文
-  read      Boolean  @default(false) // 是否已读（后台收信箱用）
+  name      String?
+  email     String?
+  phone     String?
+  subject   String?  @map("subject")
+  message   String
+  read      Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  contact   String?  @map("contact")
 
   @@index([createdAt])
   @@map("contact_messages")
 }
 
-// ==================== 数字生命 ====================
-
-// 微信访客用户（数字生命聊天对象）
-// Mock 阶段 openid 形如 "mock-<随机串>"；接入真实微信扫码后为微信 openid
 model WechatUser {
   id        String   @id @default(uuid())
   openid    String   @unique
@@ -260,11 +217,9 @@ model WechatUser {
   @@map("wechat_users")
 }
 
-// 数字生命聊天记录（单一持续会话：按 userId 时间线追加）
 model ChatMessage {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
-  // "user" = 访客提问，"assistant" = 数字生命回复
   role      String
   content   String
   createdAt DateTime @default(now()) @map("created_at")
@@ -273,32 +228,30 @@ model ChatMessage {
   @@map("chat_messages")
 }
 
-// 数字生命 - 可用模型（多模型启停管理，对话按启用顺序自动 fallback）
 model DlModel {
   id        String   @id @default(uuid())
-  name      String // 展示名，如 "GLM-4.6"
-  provider  String // zhipu | openai | deepseek | qwen | anthropic
-  modelId   String   @map("model_id") // 模型标识，如 "glm-4.6"
+  name      String
+  provider  String
+  modelId   String   @map("model_id")
   enabled   Boolean  @default(false)
   sortOrder Int      @default(0) @map("sort_order")
-  // 该模型的 API Key 密文（AES-256-GCM，密钥来自 env APP_ENCRYPTION_KEY）
   apiKeyEnc String?  @map("api_key_enc")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  modelType String   @default("general") @map("type")
 
   @@map("dl_models")
 }
 
-// 数字生命 - 人格（多人格结构化配置；聊天使用第一个，前台后续可扩展人格切换）
 model DlPersona {
   id              String   @id @default(uuid())
-  name            String // 人格名称（对话窗口显示名），如 "慕士塔格猫"
-  greeting        String   @default("") // 问候语（开场白）
-  description     String   @default("") // 性格描述（核心人格 prompt，可放完整人格文本）
-  styleHint       String   @default("") @map("style_hint") // 回复风格提示
-  accentColor     String   @default("#2d8264") @map("accent_color") // 主题色
-  avatarEmoji     String   @default("") @map("avatar_emoji") // 头像 emoji
-  personalityType String   @default("") @map("personality_type") // 人格类型，如 "ENFJ"
+  name            String
+  greeting        String   @default("")
+  description     String   @default("")
+  styleHint       String   @default("") @map("style_hint")
+  accentColor     String   @default("#2d8264") @map("accent_color")
+  avatarEmoji     String   @default("") @map("avatar_emoji")
+  personalityType String   @default("") @map("personality_type")
   sortOrder       Int      @default(0) @map("sort_order")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -306,5 +259,31 @@ model DlPersona {
   @@map("dl_personas")
 }
 
-// 说明：pgvector 向量表 dl_vectors 由 prisma/pgvector-init.ts 以原生 SQL 管理
-// （Prisma 不支持 vector 列类型），包含 ref_type/ref_id/chunk_index/content/embedding(1024) 列与 HNSW 索引
+// dl_vectors 表由 prisma/pgvector-init.ts 与 VectorService 原生 SQL 管理，
+// 此处仅保留定义以兼容 schema 自检（Prisma 不支持 vector 列）。
+model dl_vectors {
+  id          String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ref_type    String
+  ref_id      String
+  chunk_index Int
+  content     String
+  embedding   Unsupported("vector")
+  created_at  DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime              @default(now()) @db.Timestamptz(6)
+
+  @@unique([ref_type, ref_id, chunk_index])
+}
+
+model FooterLink {
+  id        String   @id @default(uuid())
+  type      String
+  mode      Int      @default(0)
+  label     String
+  url       String
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([type, sortOrder])
+  @@map("footer_links")
+}

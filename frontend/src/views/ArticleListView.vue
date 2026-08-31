@@ -5,6 +5,7 @@ import AppFooter from '@/components/AppFooter.vue'
 import CategoryTreeNode from '@/components/CategoryTreeNode.vue'
 import ArticleCover from '@/components/ArticleCover.vue'
 import { useApi } from '@/composables/useApi'
+import { takePreloaded } from '@/composables/usePreload'
 
 const api = useApi()
 
@@ -118,9 +119,34 @@ async function loadMoreArticles() {
   }
 }
 
+// 命中首页预加载缓存：直接装配首屏数据（分类树 + 文章第一页 + 动态第一页），跳过网络请求
+function applyPreloaded(cached) {
+  categoryTree.value = Array.isArray(cached.tree) ? cached.tree : []
+  const listRes = cached.list && typeof cached.list === 'object' ? cached.list : {}
+  const listItems = Array.isArray(listRes.items) ? listRes.items : []
+  articleList.value = listItems.map(mapArticle)
+  if (typeof listRes.total === 'number') {
+    articleTotal.value = listRes.total
+    // 预加载始终是「全部」条件，total 即全部文章数
+    allCount.value = listRes.total
+  }
+  if (typeof listRes.page === 'number') articlePage.value = listRes.page
+  const feedRes = cached.feed && typeof cached.feed === 'object' ? cached.feed : {}
+  const feedItems = Array.isArray(feedRes.items) ? feedRes.items : []
+  feedList.value = feedItems.map(mapFeedItem)
+  if (typeof feedRes.total === 'number') feedTotal.value = feedRes.total
+  if (typeof feedRes.page === 'number') feedPage.value = feedRes.page
+  loading.value = false
+}
+
 onMounted(() => {
-  loadAll()
-  loadFeed()
+  const cached = takePreloaded('articles')
+  if (cached) {
+    applyPreloaded(cached)
+  } else {
+    loadAll()
+    loadFeed()
+  }
   window.addEventListener('scroll', onWindowScroll, { passive: true })
   onWindowScroll()
 })
