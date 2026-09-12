@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useMode } from '../composables/useMode'
 import { useApi } from '@/composables/useApi'
 import BrandMark from '@/components/BrandMark.vue'
+import SocialIcon from '@/components/SocialIcon.vue'
 
 const { isWork } = useMode()
 const api = useApi()
@@ -25,13 +26,13 @@ const props = defineProps({
       { label: '源码', href: 'https://github.com/pinkman119/inkheap.git' },
     ],
   },
-  /** 社交 / 联系方式：icon 支持 github / mail / doc */
+  /** 社交 / 联系方式：后台「底部管理 · 社交图标」有配置时优先使用，此处作为兜底默认值 */
   socials: {
     type: Array,
     default: () => [
       { label: 'GitHub', href: 'https://github.com', icon: 'github' },
       { label: '邮箱', href: 'mailto:hi@modui.design', icon: 'mail' },
-      { label: '语雀', href: 'https://www.yuque.com', icon: 'doc' },
+      { label: '语雀', href: 'https://www.yuque.com', icon: 'yuque' },
     ],
   },
   /** 版权声明（可传字符串数组，每项一行），留空则不展示 */
@@ -50,16 +51,33 @@ const props = defineProps({
 
 // 数据库页脚链接（后台「底部管理」配置）：null = 未加载或加载失败，此时回退默认值
 const dbLinks = ref(null)
+// 页脚全局配置（备案号 / 备案地址）：null = 未加载或加载失败，此时回退 props 默认值
+const dbConfig = ref(null)
 
 onMounted(async () => {
-  try {
-    const data = await api.get('/public/footer-links')
-    dbLinks.value = Array.isArray(data) ? data : []
-  } catch (err) {
-    console.warn('[AppFooter] 加载页脚配置失败，使用默认值', err)
+  const [linksRes, configRes] = await Promise.allSettled([
+    api.get('/public/footer-links'),
+    api.get('/public/footer-config'),
+  ])
+
+  if (linksRes.status === 'fulfilled') {
+    dbLinks.value = Array.isArray(linksRes.value) ? linksRes.value : []
+  } else {
+    console.warn('[AppFooter] 加载页脚链接失败，使用默认值', linksRes.reason)
     dbLinks.value = []
   }
+
+  if (configRes.status === 'fulfilled' && configRes.value) {
+    dbConfig.value = configRes.value
+  } else {
+    console.warn('[AppFooter] 加载页脚备案配置失败，使用默认值', configRes.reason)
+    dbConfig.value = null
+  }
 })
+
+// 备案信息：后台配置优先（空串 = 主动隐藏），未加载到配置时回退 props 默认值
+const icpText = computed(() => (dbConfig.value ? dbConfig.value.icpNo : props.icp))
+const icpHref = computed(() => (dbConfig.value && dbConfig.value.icpUrl) || 'https://beian.miit.gov.cn')
 
 // 按当前模式过滤：mode = 0 全模式显示；1 = 仅工作；2 = 仅生活
 function filterByMode(list) {
@@ -68,25 +86,40 @@ function filterByMode(list) {
 }
 
 // 导航链接：DB 有配置则优先使用（type=nav，按模式过滤）；否则回退 props / 模式默认值
+// 列表项必须使用「记录 id」生成唯一 key：不同导航可能指向同一路由
+// （例如「小记」与「邻居」都指向 /xiaoji），若用 to 当 key 会出现重复 key，
+// Vue 在模式切换 diff 时无法正确卸载旧节点，导致链接每次切换越积越多。
 const navLinks = computed(() => {
   const navFromDb = (dbLinks.value || [])
     .filter((l) => l.type === 'nav')
     .sort((a, b) => a.sortOrder - b.sortOrder)
+  let items
   if (navFromDb.length) {
-    return filterByMode(navFromDb).map((l) => ({ label: l.label, to: l.url }))
+    items = filterByMode(navFromDb)
+  } else if (props.links && props.links.length) {
+    items = props.links
+  } else {
+    // 邻居：工作 / 生活双模式都显示（后台配置的 mode=0 条目同样两种模式都出现）
+    const base = [
+      { label: '联系我', to: '/contact' },
+      { label: '邻居', to: '/friends' },
+    ]
+    const modeLinks = isWork.value
+      ? [
+          { label: '关于我', to: '/about' },
+          { label: '小记', to: '/xiaoji' },
+        ]
+      : [
+          { label: '知识库', to: '/articles' },
+          { label: '简历', to: '/resume' },
+        ]
+    items = [...modeLinks, ...base]
   }
-  if (props.links && props.links.length) return props.links
-  const base = [{ label: '联系我', to: '/contact' }]
-  const modeLinks = isWork.value
-    ? [
-        { label: '关于我', to: '/about' },
-        { label: '小记', to: '/xiaoji' },
-      ]
-    : [
-        { label: '知识库', to: '/articles' },
-        { label: '简历', to: '/resume' },
-      ]
-  return [...modeLinks, ...base]
+  return items.map((l, i) => ({
+    key: `nav-${l.id ?? i}`,
+    label: l.label,
+    to: l.to ?? l.url,
+  }))
 })
 
 // 扩展列：DB 有配置则优先使用（type=ext，按模式过滤）；否则回退 props 默认值
@@ -94,10 +127,35 @@ const extLinks = computed(() => {
   const extFromDb = (dbLinks.value || [])
     .filter((l) => l.type === 'ext')
     .sort((a, b) => a.sortOrder - b.sortOrder)
-  if (extFromDb.length) {
-    return filterByMode(extFromDb).map((l) => ({ label: l.label, href: l.url }))
-  }
-  return props.friendLinks || []
+  const items = extFromDb.length ? filterByMode(extFromDb) : props.friendLinks || []
+  return items.map((l, i) => ({
+    key: `ext-${l.id ?? i}`,
+    label: l.label,
+    href: l.href ?? l.url,
+  }))
+})
+
+// 圆形社交图标栏：DB 有配置则优先使用（type=social，按模式过滤）；否则回退 props 默认值
+const socialList = computed(() => {
+  const socialFromDb = (dbLinks.value || [])
+    .filter((l) => l.type === 'social')
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+  const items = socialFromDb.length
+    ? filterByMode(socialFromDb).map((l) => ({
+        label: l.label,
+        href: l.url,
+        icon: l.icon,
+        svg: l.svg,
+        id: l.id,
+      }))
+    : (props.socials || []).map((s) => ({ ...s, href: s.href, icon: s.icon, svg: s.svg }))
+  return items.map((s, i) => ({
+    key: `soc-${s.id ?? i}`,
+    label: s.label,
+    href: s.href,
+    icon: s.icon,
+    svg: s.svg,
+  }))
 })
 
 const year = new Date().getFullYear()
@@ -138,10 +196,10 @@ function scrollTop() {
           </div>
         </div>
 
-        <div class="footer-icons">
+        <div v-if="socialList.length" class="footer-icons">
           <a
-            v-for="s in socials"
-            :key="s.label"
+            v-for="s in socialList"
+            :key="s.key"
             class="footer-icon"
             :href="s.href"
             :aria-label="s.label"
@@ -149,20 +207,7 @@ function scrollTop() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <!-- GitHub -->
-            <svg v-if="s.icon === 'github'" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.5v-1.8c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.8 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.5-2.7 5.5-5.3 5.8.4.4.8 1.1.8 2.2v3.3c0 .3.2.6.8.5 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z" />
-            </svg>
-            <!-- 邮箱 -->
-            <svg v-else-if="s.icon === 'mail'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M22 6l-10 7L2 6" />
-              <rect x="2" y="4" width="20" height="16" rx="2" />
-            </svg>
-            <!-- 语雀（默认） -->
-            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-            </svg>
+            <SocialIcon :name="s.icon" :svg="s.svg" />
           </a>
         </div>
       </div>
@@ -172,7 +217,7 @@ function scrollTop() {
         <div v-if="navLinks.length" class="footer-nav__col">
           <h4>导航</h4>
           <div class="footer-links">
-            <RouterLink v-for="link in navLinks" :key="link.to" class="footer-link" :to="link.to">{{ link.label }}</RouterLink>
+            <RouterLink v-for="link in navLinks" :key="link.key" class="footer-link" :to="link.to">{{ link.label }}</RouterLink>
           </div>
         </div>
         <div v-if="extLinks.length" class="footer-nav__col">
@@ -180,7 +225,7 @@ function scrollTop() {
           <div class="footer-links">
             <a
               v-for="f in extLinks"
-              :key="f.href"
+              :key="f.key"
               class="footer-link"
               :href="f.href"
               target="_blank"
@@ -196,12 +241,12 @@ function scrollTop() {
           <span v-if="licenseItems.length">{{ licenseItems.join(' · ') }}</span>
           <span><slot>{{ copyright }} {{ brand }}</slot></span>
           <a
-            v-if="icp"
+            v-if="icpText"
             class="footer-beian"
-            href="https://beian.miit.gov.cn"
+            :href="icpHref"
             target="_blank"
             rel="noopener noreferrer"
-          >{{ icp }}</a>
+          >{{ icpText }}</a>
         </div>
       </div>
     </div>
@@ -324,9 +369,17 @@ function scrollTop() {
   box-shadow: var(--shadow-sm);
 }
 
-.footer-icon svg {
+/* 图标本体尺寸（SocialIcon 根元素：预设为 svg，自定义为包裹 span） */
+.footer-icon > svg,
+.footer-icon > span {
   width: 19px;
   height: 19px;
+  flex-shrink: 0;
+}
+
+/* 品牌图标（语雀 / GitHub / X）hover 时转为跟随文字的剪影，保证与主色背景的对比度 */
+.footer-icon:hover :deep(svg.brand-icon path) {
+  fill: currentColor;
 }
 
 /* 导航（两列） */

@@ -15,8 +15,10 @@ import { DigitalLifeModule } from './modules/digitallife/digital-life.module';
 import { ContactModule } from './modules/contact/contact.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { VisitModule } from './modules/visit/visit.module';
+import { ViewModule } from './modules/view/view.module';
 import { AdminUserModule } from './modules/admin-user/admin-user.module';
 import { FooterLinkModule } from './modules/footer-link/footer-link.module';
+import { FriendLinkModule } from './modules/friend-link/friend-link.module';
 
 @Module({
   imports: [
@@ -40,8 +42,10 @@ import { FooterLinkModule } from './modules/footer-link/footer-link.module';
     ContactModule,
     DashboardModule,
     VisitModule,
+    ViewModule,
     AdminUserModule,
     FooterLinkModule,
+    FriendLinkModule,
   ],
   controllers: [],
   providers: [],

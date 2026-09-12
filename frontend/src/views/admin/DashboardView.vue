@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useApi } from '@/composables/useApi'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const api = useApi()
 
@@ -149,10 +150,32 @@ async function toggleMsgRead(m) {
   await Promise.all([loadMessages(), loadStats()])
 }
 
-async function removeMsg(m) {
-  if (!confirm('确定删除这封来信？')) return
-  await api.delete(`/admin/contact/${m.id}`)
-  await Promise.all([loadMessages(), loadStats()])
+const confirmOpen = ref(false)
+const pendingMsg = ref(null)
+const deleting = ref(false)
+
+function removeMsg(m) {
+  pendingMsg.value = m
+  confirmOpen.value = true
+}
+
+function cancelRemove() {
+  confirmOpen.value = false
+  pendingMsg.value = null
+}
+
+async function confirmRemove() {
+  const m = pendingMsg.value
+  if (!m || deleting.value) return
+  deleting.value = true
+  try {
+    await api.delete(`/admin/contact/${m.id}`)
+    await Promise.all([loadMessages(), loadStats()])
+  } finally {
+    deleting.value = false
+    confirmOpen.value = false
+    pendingMsg.value = null
+  }
 }
 
 // ===== 访问趋势图表（逻辑与原型 drawLineChart 一致） =====
@@ -470,6 +493,19 @@ onUnmounted(() => {
       </div>
     </aside>
   </main>
+
+  <!-- ===== 删除确认弹窗 ===== -->
+  <ConfirmDialog
+    :open="confirmOpen"
+    title="删除来信"
+    confirm-label="删除"
+    :loading="deleting"
+    warn="此操作不可恢复。"
+    @cancel="cancelRemove"
+    @confirm="confirmRemove"
+  >
+    确定要删除这封来信吗？
+  </ConfirmDialog>
 </template>
 
 <style scoped>

@@ -1,4 +1,5 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { XiaojiService } from './xiaoji.service';
 
 /**
@@ -28,7 +29,7 @@ export class XiaojiController {
   }
 
   @Get('slug/:slug')
-  findBySlug(@Param('slug') slug: string) {
-    return this.xiaojiService.findBySlug(slug);
+  findBySlug(@Param('slug') slug: string, @Req() req: Request) {
+    return this.xiaojiService.findBySlug(slug, req.ip);
   }
 }

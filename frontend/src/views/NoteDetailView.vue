@@ -4,6 +4,8 @@ import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import { useApi } from '@/composables/useApi'
 import { renderMarkdown } from '@/utils/markdown'
+import { renderDiagrams } from '@/utils/diagram'
+import { isDark } from '@/composables/useTheme'
 import { notes as staticNotes, img } from '@/data/xiaoji.js'
 
 const props = defineProps({
@@ -67,6 +69,18 @@ watch(
 
 const typeLabel = computed(() => (note.value?.type === 'album' ? '相册' : '随笔'))
 const bodyHtml = computed(() => renderMarkdown(note.value?.content || ''))
+
+/* ===== 正文里的文本绘图（mermaid），v-html 写入后异步渲染 ===== */
+const proseEl = ref(null)
+
+watch(bodyHtml, () => {
+  requestAnimationFrame(() => renderDiagrams(proseEl.value))
+})
+
+// 深浅色切换后 mermaid 的配色需要重绘
+watch(isDark, () => {
+  renderDiagrams(proseEl.value, { force: true })
+})
 
 /* ===== 阅读进度条 ===== */
 const progressEl = ref(null)
@@ -224,12 +238,12 @@ function fallbackImg(e) {
         </div>
       </template>
 
-      <!-- 旅行感受 -->
+      <!-- 小记 -->
       <section class="d-section">
-        <h2>旅行感受</h2>
+        <h2>小记</h2>
       </section>
       <!-- eslint-disable-next-line vue/no-v-html —— markdown 经 DOMPurify 清洗 -->
-      <div class="d-prose" v-html="bodyHtml"></div>
+      <div ref="proseEl" class="d-prose" v-html="bodyHtml"></div>
 
       <!-- 上一篇 / 下一篇 -->
       <div class="d-nav">

@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateFooterLinkDto } from './dto/create-footer-link.dto';
 import { UpdateFooterLinkDto } from './dto/update-footer-link.dto';
 import { MoveFooterLinkDto } from './dto/move-footer-link.dto';
+import { sanitizeSvg } from '../../common/utils/sanitize-svg.util';
 
 @Injectable()
 export class FooterLinkService {
@@ -33,13 +34,33 @@ export class FooterLinkService {
       sortOrder = (last?.sortOrder ?? -1) + 1;
     }
     return this.prisma.footerLink.create({
-      data: { ...dto, mode: dto.mode ?? 0, sortOrder },
+      data: {
+        ...this.normalizeIcon(dto),
+        mode: dto.mode ?? 0,
+        sortOrder,
+      },
     });
   }
 
   async update(id: string, dto: UpdateFooterLinkDto) {
     await this.findOne(id);
-    return this.prisma.footerLink.update({ where: { id }, data: dto });
+    return this.prisma.footerLink.update({
+      where: { id },
+      data: this.normalizeIcon(dto),
+    });
+  }
+
+  /**
+   * 图标字段归一：
+   * - svg 需清洗掉脚本/事件属性（后台录入内容会以前端 v-html 渲染）
+   * - 清空 svg 时把字段置为 null，避免空字符串在前端被判为「有自定义图标」
+   */
+  private normalizeIcon<T extends { icon?: string; svg?: string }>(dto: T) {
+    const svg = sanitizeSvg(dto.svg);
+    return { ...dto, icon: dto.icon || null, svg: svg || null } as T & {
+      icon: string | null;
+      svg: string | null;
+    };
   }
 
   async remove(id: string) {

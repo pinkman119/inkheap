@@ -4,5 +4,6 @@ import router from './router'
 
 import './assets/styles/tokens.css'
 import './assets/styles/base.css'
+import './assets/styles/markdown-diagram.css'
 
 createApp(App).use(router).mount('#app')

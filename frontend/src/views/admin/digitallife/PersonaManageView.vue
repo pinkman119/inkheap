@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref, computed, watch, nextTick } from 'vue'
 import { useApi } from '@/composables/useApi'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const api = useApi()
 
@@ -15,6 +16,7 @@ const form = ref({
   name: '',
   greeting: '',
   description: '',
+  basicInfo: '',
   styleHint: '',
   accentColor: '#2d8264',
   avatarEmoji: '',
@@ -45,9 +47,21 @@ async function loadPersonas() {
   }
 }
 
-async function selectPersona(id) {
+/* 未保存修改时切换人格的确认弹窗 */
+const leaveOpen = ref(false)
+const pendingPersonaId = ref('')
+
+function selectPersona(id) {
   if (id === activeId.value) return
-  if (dirty.value && !window.confirm('当前人格有未保存的修改，切换后修改将丢失，是否继续？')) return
+  if (dirty.value) {
+    pendingPersonaId.value = id
+    leaveOpen.value = true
+    return
+  }
+  doSelectPersona(id)
+}
+
+async function doSelectPersona(id) {
   activeId.value = id
   suppressDirty = true
   try {
@@ -56,6 +70,7 @@ async function selectPersona(id) {
       name: detail.name || '',
       greeting: detail.greeting || '',
       description: detail.description || '',
+      basicInfo: detail.basicInfo || '',
       styleHint: detail.styleHint || '',
       accentColor: detail.accentColor || '#2d8264',
       avatarEmoji: detail.avatarEmoji || '',
@@ -70,6 +85,18 @@ async function selectPersona(id) {
   }
 }
 
+function confirmLeave() {
+  leaveOpen.value = false
+  const id = pendingPersonaId.value
+  pendingPersonaId.value = ''
+  if (id) doSelectPersona(id)
+}
+
+function cancelLeave() {
+  leaveOpen.value = false
+  pendingPersonaId.value = ''
+}
+
 async function savePersona() {
   if (!activeId.value || saving.value) return
   saving.value = true
@@ -78,6 +105,7 @@ async function savePersona() {
       name: form.value.name.trim(),
       greeting: form.value.greeting.trim(),
       description: form.value.description.trim(),
+      basicInfo: form.value.basicInfo.trim(),
       styleHint: form.value.styleHint.trim(),
       accentColor: form.value.accentColor,
       avatarEmoji: form.value.avatarEmoji.trim(),
@@ -133,7 +161,7 @@ onMounted(async () => {
             </button>
           </div>
         </div>
-        <p class="lede">编写数字人生的各个人格：问候语、性格描述、回复风格与主题色。</p>
+        <p class="lede">编写数字人生的各个人格：基本信息、问候语、性格描述、回复风格与主题色。</p>
         <p class="hero-note">{{ personas.length }} 个人格 · 保存后前台对话即时生效</p>
       </div>
     </section>
@@ -169,7 +197,7 @@ onMounted(async () => {
             <div class="field-head">
               <label class="field-label" for="pName">人格名称</label>
             </div>
-            <input id="pName" v-model="form.name" class="form-input" type="text" maxlength="60" placeholder="如：小墨" />
+            <input id="pName" v-model="form.name" class="form-input" type="text" placeholder="如：小墨" />
             <p class="field-hint">对话窗口显示的名称。</p>
           </div>
 
@@ -177,15 +205,23 @@ onMounted(async () => {
             <div class="field-head">
               <label class="field-label" for="pGreeting">问候语</label>
             </div>
-            <textarea id="pGreeting" v-model="form.greeting" class="form-input form-textarea" rows="2" maxlength="300" placeholder="如：你好呀，我是小墨，很高兴见到你～"></textarea>
+            <textarea id="pGreeting" v-model="form.greeting" class="form-input form-textarea" rows="2" placeholder="如：你好呀，我是小墨，很高兴见到你～"></textarea>
             <p class="field-hint">打开对话时的第一句话。</p>
+          </div>
+
+          <div class="field">
+            <div class="field-head">
+              <label class="field-label" for="pBasic">基本信息</label>
+            </div>
+            <textarea id="pBasic" v-model="form.basicInfo" class="form-input form-textarea" rows="5" placeholder="如：&#10;姓名：小墨&#10;职业：产品经理 / 设计师&#10;所在城市：杭州&#10;兴趣：登山、写作、独立开发"></textarea>
+            <p class="field-hint">站主的事实性资料（姓名、职业、城市、兴趣等），前台数字生命据此回答相关问题。</p>
           </div>
 
           <div class="field">
             <div class="field-head">
               <label class="field-label" for="pDesc">性格描述</label>
             </div>
-            <textarea id="pDesc" v-model="form.description" class="form-input form-textarea" rows="5" maxlength="1000" placeholder="描述人格的性格、背景、喜好…"></textarea>
+            <textarea id="pDesc" v-model="form.description" class="form-input form-textarea" rows="5" placeholder="描述人格的性格、背景、喜好…"></textarea>
             <p class="field-hint">写入 system prompt 的核心人格设定。</p>
           </div>
 
@@ -193,7 +229,7 @@ onMounted(async () => {
             <div class="field-head">
               <label class="field-label" for="pStyle">回复风格提示</label>
             </div>
-            <textarea id="pStyle" v-model="form.styleHint" class="form-input form-textarea" rows="3" maxlength="500" placeholder="如：用轻松幽默的语气回复，偶尔用 emoji 点缀"></textarea>
+            <textarea id="pStyle" v-model="form.styleHint" class="form-input form-textarea" rows="3" placeholder="如：用轻松幽默的语气回复，偶尔用 emoji 点缀"></textarea>
             <p class="field-hint">控制语气、篇幅、格式等回复风格。</p>
           </div>
 
@@ -201,7 +237,7 @@ onMounted(async () => {
             <div class="field-head">
               <label class="field-label" for="pType">MBTI / 人格标签</label>
             </div>
-            <input id="pType" v-model="form.personalityType" class="form-input" type="text" maxlength="40" placeholder="如：ENFJ" />
+            <input id="pType" v-model="form.personalityType" class="form-input" type="text" placeholder="如：ENFJ" />
             <p class="field-hint">展示在人格切换卡片的标签。</p>
           </div>
 
@@ -209,7 +245,7 @@ onMounted(async () => {
             <div class="field-head">
               <label class="field-label" for="pEmoji">头像 Emoji</label>
             </div>
-            <input id="pEmoji" v-model="form.avatarEmoji" class="form-input input-emoji" type="text" maxlength="4" placeholder="🙂" />
+            <input id="pEmoji" v-model="form.avatarEmoji" class="form-input input-emoji" type="text" placeholder="🙂" />
             <p class="field-hint">人格切换卡片左侧的圆形头像。</p>
           </div>
 
@@ -224,6 +260,18 @@ onMounted(async () => {
         </section>
       </div>
     </template>
+
+    <!-- ===== 未保存修改确认 ===== -->
+    <ConfirmDialog
+      :open="leaveOpen"
+      title="未保存的修改"
+      confirm-label="放弃修改"
+      :danger="false"
+      @cancel="cancelLeave"
+      @confirm="confirmLeave"
+    >
+      当前人格有未保存的修改，切换后修改将丢失，是否继续？
+    </ConfirmDialog>
   </div>
 </template>
 

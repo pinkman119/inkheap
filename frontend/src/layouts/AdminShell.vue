@@ -3,14 +3,15 @@ import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAdminAuth } from '@/composables/useAdminAuth'
 import { useApi } from '@/composables/useApi'
+import { useAdminBadges } from '@/composables/useAdminBadges'
 import { useTheme } from '@/composables/useTheme'
 import BrandMark from '@/components/BrandMark.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { user, clearAuth } = useAdminAuth()
-const { get } = useApi()
+const { user, clearAuth, updateUser } = useAdminAuth()
+const { get, assetUrl } = useApi()
 const { toggleTheme } = useTheme()
 
 // ===== 侧栏：桌面折叠 / 移动端抽屉 =====
@@ -36,13 +37,20 @@ function isActive(prefix) {
   return route.path === prefix || route.path.startsWith(prefix + '/')
 }
 
-// ===== 收信箱未读数 =====
-const unreadCount = ref(0)
+// ===== 侧栏红点：收信箱未读数 / 友链待审核数（跨组件共享，操作后可实时刷新）=====
+const { unreadCount, pendingFriendCount, refreshAll } = useAdminBadges()
 
 // ===== 用户下拉菜单 =====
 const userMenuOpen = ref(false)
 const userName = computed(() => user.value?.username || '墨堆主理人')
 const userInitial = computed(() => userName.value.trim().charAt(0) || '墨')
+
+// ===== 当前管理员头像（「系统用户」里配置，存于 admin_users.avatar）=====
+const avatarFailed = ref(false)
+const userAvatar = computed(() => user.value?.avatar || '')
+const avatarSrc = computed(() => (avatarFailed.value ? '' : assetUrl(userAvatar.value)))
+// 换头像后重置加载失败的降级标记，避免一直显示首字
+watch(userAvatar, () => { avatarFailed.value = false })
 
 function onDocClick(e) {
   if (userMenuOpen.value && !e.target.closest('.user-menu')) userMenuOpen.value = false
@@ -91,11 +99,13 @@ onMounted(async () => {
   document.addEventListener('click', onDocClick)
   document.addEventListener('keydown', onKeydown)
   mqMobile.addEventListener('change', onMqChange)
+  await refreshAll()
+  // 同步当前管理员资料：头像等字段可能未包含在旧版本的本地缓存里
   try {
-    const stats = await get('/admin/contact/stats')
-    unreadCount.value = stats?.unread ?? 0
+    const me = await get('/admin/auth/me')
+    if (me) updateUser({ username: me.username, role: me.role, avatar: me.avatar ?? null })
   } catch {
-    /* 忽略：未读数非关键 */
+    /* 忽略：个人资料非关键 */
   }
 })
 
@@ -126,30 +136,13 @@ onBeforeUnmount(() => {
 
         <div class="sidenav__group">
           <div class="sidenav__group-title">内容运营</div>
-          <router-link to="/admin/home-page" class="sidenav__item" :class="{ active: isActive('/admin/home-page') }">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
-            <span class="sidenav__label">首页管理</span>
-          </router-link>
-          <router-link to="/admin/footer" class="sidenav__item" :class="{ active: isActive('/admin/footer') }">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 8H2a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h20a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1z"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="6" y1="16" x2="10" y2="16"/><line x1="14" y1="12" x2="18" y2="12"/><line x1="14" y1="16" x2="18" y2="16"/></svg>
-            <span class="sidenav__label">底部管理</span>
-          </router-link>
-          <router-link to="/admin/resume" class="sidenav__item" :class="{ active: isActive('/admin/resume') }">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            <span class="sidenav__label">简历管理</span>
-          </router-link>
-          <router-link to="/admin/contact" class="sidenav__item" :class="{ active: isActive('/admin/contact') }">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-            <span class="sidenav__label">收信箱</span>
-            <span v-if="unreadCount > 0" class="nav-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+          <router-link to="/admin/categories" class="sidenav__item" :class="{ active: isActive('/admin/categories') }">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.83z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            <span class="sidenav__label">分类管理</span>
           </router-link>
           <router-link to="/admin/articles" class="sidenav__item" :class="{ active: isActive('/admin/articles') }">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
             <span class="sidenav__label">文章管理</span>
-          </router-link>
-          <router-link to="/admin/categories" class="sidenav__item" :class="{ active: isActive('/admin/categories') }">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.83z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-            <span class="sidenav__label">分类管理</span>
           </router-link>
           <router-link to="/admin/xiaoji" class="sidenav__item" :class="{ active: isActive('/admin/xiaoji') }">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -170,6 +163,10 @@ onBeforeUnmount(() => {
           <router-link to="/admin/about/events" class="sidenav__item" :class="{ active: isActive('/admin/about/events') }">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             <span class="sidenav__label">事件日历</span>
+          </router-link>
+          <router-link to="/admin/resume" class="sidenav__item" :class="{ active: isActive('/admin/resume') }">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span class="sidenav__label">简历管理</span>
           </router-link>
         </div>
 
@@ -194,6 +191,24 @@ onBeforeUnmount(() => {
           <router-link to="/admin/users" class="sidenav__item" :class="{ active: isActive('/admin/users') }">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span class="sidenav__label">系统用户</span>
+          </router-link>
+          <router-link to="/admin/home-page" class="sidenav__item" :class="{ active: isActive('/admin/home-page') }">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+            <span class="sidenav__label">首页管理</span>
+          </router-link>
+          <router-link to="/admin/footer" class="sidenav__item" :class="{ active: isActive('/admin/footer') }">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 8H2a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h20a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1z"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="6" y1="16" x2="10" y2="16"/><line x1="14" y1="12" x2="18" y2="12"/><line x1="14" y1="16" x2="18" y2="16"/></svg>
+            <span class="sidenav__label">底部管理</span>
+          </router-link>
+          <router-link to="/admin/contact" class="sidenav__item" :class="{ active: isActive('/admin/contact') }">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <span class="sidenav__label">收信箱</span>
+            <span v-if="unreadCount > 0" class="nav-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+          </router-link>
+          <router-link to="/admin/friends" class="sidenav__item" :class="{ active: isActive('/admin/friends') }">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14a6.5 6.5 0 0 1 3.5 5.6"/></svg>
+            <span class="sidenav__label">友链管理</span>
+            <span v-if="pendingFriendCount > 0" class="nav-badge">{{ pendingFriendCount > 99 ? '99+' : pendingFriendCount }}</span>
           </router-link>
           <router-link to="/" class="sidenav__item">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -227,11 +242,15 @@ onBeforeUnmount(() => {
           </button>
           <div class="user-menu">
             <button class="topbar__user" type="button" aria-haspopup="true" :aria-expanded="userMenuOpen" :title="userName" @click.stop="userMenuOpen = !userMenuOpen">
-              {{ userInitial }}
+              <img v-if="avatarSrc" :src="avatarSrc" alt="" class="topbar__user-img" @error="avatarFailed = true" />
+              <template v-else>{{ userInitial }}</template>
             </button>
             <div class="user-dropdown" :class="{ open: userMenuOpen }" role="menu" aria-label="账户菜单">
               <div class="user-dropdown__head">
-                <span class="user-dropdown__avatar">{{ userInitial }}</span>
+                <span class="user-dropdown__avatar">
+                  <img v-if="avatarSrc" :src="avatarSrc" alt="" class="avatar-img" @error="avatarFailed = true" />
+                  <template v-else>{{ userInitial }}</template>
+                </span>
                 <span class="user-dropdown__meta">
                   <span class="user-dropdown__name">{{ userName }}</span>
                   <span class="user-dropdown__role">管理员</span>
@@ -335,6 +354,15 @@ onBeforeUnmount(() => {
   flex: 1;
   overflow-y: auto;
   padding: 16px 12px;
+  /* 隐藏滚动条：菜单仍可滚动，仅去掉轨道与滑块，避免侧栏视觉突兀 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* 旧版 Edge / IE */
+}
+
+.sidenav__nav::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .sidenav__group {
@@ -552,6 +580,15 @@ onBeforeUnmount(() => {
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
+/* 配置了头像时铺满圆形按钮并裁切 */
+.topbar__user-img {
+  flex: none;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
 .topbar__user:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -610,6 +647,14 @@ onBeforeUnmount(() => {
 }
 [data-theme='dark'] .user-dropdown__avatar {
   color: #0f0f0f;
+}
+.user-dropdown__avatar .avatar-img {
+  flex: none;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
 }
 
 .user-dropdown__meta {

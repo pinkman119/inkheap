@@ -5,14 +5,14 @@ import { useAdminAuth } from '@/composables/useAdminAuth'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const api = useApi()
-const { user: currentUser } = useAdminAuth()
+const { user: currentUser, updateUser } = useAdminAuth()
 
 const loading = ref(true)
 const list = ref([])
 const toastMsg = ref('')
 const toastType = ref('success')
 
-// 弹窗类型：'create' | 'password' | 'remark' | null
+// 弹窗类型：'create' | 'password' | 'remark' | 'avatar' | null
 const modal = ref(null)
 const editing = ref(null)
 const saving = ref(false)
@@ -25,6 +25,7 @@ const confirming = ref(false)
 const createForm = ref({ username: '', password: '', remark: '' })
 const passwordForm = ref({ oldPassword: '', newPassword: '' })
 const remarkForm = ref({ remark: '' })
+const avatarForm = ref({ avatar: '' })
 
 const currentId = computed(() => currentUser.value?.id)
 const isSelf = (row) => row.id === currentId.value
@@ -152,6 +153,81 @@ async function submitRemark() {
   }
 }
 
+// ===== 修改头像 =====
+const uploading = ref(false)
+// 本次弹窗内新上传的文件 id：取消 / 替换 / 移除时用于删除，避免残留孤儿文件
+let uploadedFileId = ''
+
+/** 无头像时的首字占位（与顶栏一致） */
+const avatarInitial = (row) => (row?.username || '墨').trim().charAt(0) || '墨'
+
+function openAvatar(row) {
+  editing.value = row
+  avatarForm.value = { avatar: row.avatar || '' }
+  uploadedFileId = ''
+  modal.value = 'avatar'
+}
+
+/** 上传本地图片：先删掉本次弹窗内上一次的临时上传，再登记新文件 */
+async function onAvatarUpload(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  uploading.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await api.upload('/admin/upload', fd)
+    if (uploadedFileId && uploadedFileId !== res.id) {
+      api.delete(`/admin/upload/${uploadedFileId}`).catch(() => {})
+    }
+    avatarForm.value.avatar = res.url
+    uploadedFileId = res.id
+    showToast('图片上传成功', 'success')
+  } catch (err) {
+    showToast('上传失败: ' + err.message, 'error')
+  } finally {
+    uploading.value = false
+    e.target.value = ''
+  }
+}
+
+/** 移除头像：清空地址；本次新上传的文件直接删除，旧头像由后端在保存时清理 */
+function clearAvatar() {
+  if (uploadedFileId) {
+    api.delete(`/admin/upload/${uploadedFileId}`).catch(() => {})
+    uploadedFileId = ''
+  }
+  avatarForm.value.avatar = ''
+}
+
+async function submitAvatar() {
+  if (saving.value) return
+  saving.value = true
+  const avatar = avatarForm.value.avatar.trim()
+  try {
+    const updated = await api.patch(`/admin/users/${editing.value.id}/avatar`, { avatar })
+    // 改的是自己：同步顶栏头像，无需重新登录
+    if (isSelf(editing.value)) updateUser({ avatar: updated.avatar })
+    showToast(avatar ? '头像已更新' : '头像已移除', 'success')
+    uploadedFileId = ''
+    modal.value = null
+    await load()
+  } catch (e) {
+    showToast('保存失败: ' + e.message, 'error')
+  } finally {
+    saving.value = false
+  }
+}
+
+/** 关闭弹窗：丢弃头像弹窗内未保存的临时上传 */
+function closeModal() {
+  if (modal.value === 'avatar' && uploadedFileId) {
+    api.delete(`/admin/upload/${uploadedFileId}`).catch(() => {})
+    uploadedFileId = ''
+  }
+  modal.value = null
+}
+
 // ===== 失效 / 启用 =====
 // 失效走确认弹窗卡片（与事件日历删除确认一致）；启用即时执行，不打扰
 function toggleStatus(row) {
@@ -241,6 +317,7 @@ onMounted(load)
       <table class="data-table">
         <thead>
           <tr>
+            <th class="col-avatar">头像</th>
             <th class="col-username">用户名</th>
             <th class="col-remark">备注</th>
             <th class="col-status">状态</th>
@@ -251,6 +328,12 @@ onMounted(load)
         </thead>
         <tbody>
           <tr v-for="row in list" :key="row.id" :class="{ 'is-disabled': row.status !== 'active' }">
+            <td class="cell-avatar">
+              <span class="user-avatar">
+                <img v-if="row.avatar" :src="api.assetUrl(row.avatar)" :alt="row.username" />
+                <template v-else>{{ avatarInitial(row) }}</template>
+              </span>
+            </td>
             <td class="cell-username">
               <span class="uname">{{ row.username }}</span>
               <span v-if="isSelf(row)" class="self-tag">我</span>
@@ -264,6 +347,7 @@ onMounted(load)
             <td class="cell-time">{{ row.lastLoginAt ? formatTime(row.lastLoginAt) : '从未登录' }}</td>
             <td class="cell-time">{{ formatTime(row.createdAt) }}</td>
             <td class="cell-ops">
+              <button class="link" @click="openAvatar(row)">改头像</button>
               <button class="link" @click="openPassword(row)">改密码</button>
               <button class="link" @click="openRemark(row)">改备注</button>
               <button
@@ -278,7 +362,7 @@ onMounted(load)
             </td>
           </tr>
           <tr v-if="!list.length">
-            <td colspan="6" class="empty-row">
+            <td colspan="7" class="empty-row">
               <div class="empty empty--block">
                 <div class="empty__illus">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -293,13 +377,13 @@ onMounted(load)
     </section>
 
     <transition name="modal-fade">
-      <div v-if="modal" class="modal-mask" @click.self="modal = null">
+      <div v-if="modal" class="modal-mask" @click.self="closeModal">
         <div class="editor-modal" role="dialog" aria-modal="true">
           <div class="modal-head">
             <span class="modal-title">
-              {{ modal === 'create' ? '新增管理员' : modal === 'password' ? `修改密码 · ${editing.username}` : `修改备注 · ${editing.username}` }}
+              {{ modal === 'create' ? '新增管理员' : modal === 'password' ? `修改密码 · ${editing.username}` : modal === 'avatar' ? `修改头像 · ${editing.username}` : `修改备注 · ${editing.username}` }}
             </span>
-            <button class="modal-close" type="button" title="关闭" @click="modal = null">
+            <button class="modal-close" type="button" title="关闭" @click="closeModal">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
@@ -337,6 +421,38 @@ onMounted(load)
               </div>
             </template>
 
+            <!-- 改头像 -->
+            <template v-else-if="modal === 'avatar'">
+              <div class="avatar-editor">
+                <span class="avatar-preview">
+                  <img v-if="avatarForm.avatar" :src="api.assetUrl(avatarForm.avatar)" alt="头像预览" />
+                  <template v-else>{{ avatarInitial(editing) }}</template>
+                </span>
+                <div class="avatar-actions">
+                  <label class="btn btn--ghost">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    {{ uploading ? '上传中…' : '上传图片' }}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/gif,image/webp"
+                      :disabled="uploading"
+                      @change="onAvatarUpload"
+                      hidden
+                    />
+                  </label>
+                  <button class="btn btn--ghost" type="button" :disabled="uploading || !avatarForm.avatar" @click="clearAvatar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+                    移除头像
+                  </button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label class="field-label" for="uAvatarUrl">头像地址</label>
+                <input id="uAvatarUrl" v-model="avatarForm.avatar" class="form-input" type="text" maxlength="500" placeholder="留空则显示用户名首字" />
+                <p class="field-hint">可粘贴图片链接，或上传本地图片（png / jpeg / gif / webp，最大 5MB）。保存后立即在后台顶栏生效。</p>
+              </div>
+            </template>
+
             <!-- 改备注 -->
             <template v-else>
               <div class="form-field">
@@ -347,12 +463,12 @@ onMounted(load)
           </div>
 
           <div class="modal-foot">
-            <button class="btn btn--ghost" type="button" :disabled="saving" @click="modal = null">取消</button>
+            <button class="btn btn--ghost" type="button" :disabled="saving" @click="closeModal">取消</button>
             <button
               class="btn btn--primary"
               type="button"
               :disabled="saving"
-              @click="modal === 'create' ? submitCreate() : modal === 'password' ? submitPassword() : submitRemark()"
+              @click="modal === 'create' ? submitCreate() : modal === 'password' ? submitPassword() : modal === 'avatar' ? submitAvatar() : submitRemark()"
             >
               {{ saving ? '保存中…' : '保存' }}
             </button>
@@ -499,6 +615,7 @@ onMounted(load)
 .data-table tbody tr { transition: background-color var(--transition); }
 .data-table tbody tr:hover { background-color: color-mix(in srgb, var(--accent-light) 40%, transparent); }
 .data-table tr:last-child td { border-bottom: none; }
+.col-avatar { width: 76px; }
 .col-username { width: 200px; }
 .col-status { width: 100px; }
 .col-time { width: 150px; }
@@ -506,6 +623,17 @@ onMounted(load)
 .data-table tr.is-disabled td { opacity: 0.55; }
 .cell-username { font-weight: 600; }
 .uname { font-family: var(--font-mono); }
+/* ===== 头像单元格：有图显示图片，无图回退用户名首字 ===== */
+.cell-avatar { width: 76px; }
+.user-avatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%; overflow: hidden;
+  background-color: var(--accent); color: #fff;
+  font-family: var(--font-serif); font-weight: 600; font-size: 15px;
+  flex-shrink: 0;
+}
+.user-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+[data-theme='dark'] .user-avatar { color: #0f0f0f; }
 .self-tag {
   margin-left: 8px; padding: 1px 8px; border-radius: 100px;
   background: var(--accent-light); color: var(--accent);
@@ -587,6 +715,23 @@ onMounted(load)
   background: var(--bg-soft); color: var(--text-tertiary); font-size: 13px;
 }
 .notice svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+/* ===== 头像编辑 ===== */
+.avatar-editor {
+  display: flex; align-items: center; gap: 18px;
+  padding: 14px; border: 1px dashed var(--border); border-radius: var(--radius-sm);
+}
+.avatar-preview {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 72px; height: 72px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+  background-color: var(--accent); color: #fff;
+  font-family: var(--font-serif); font-weight: 600; font-size: 28px;
+}
+.avatar-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+[data-theme='dark'] .avatar-preview { color: #0f0f0f; }
+.avatar-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.avatar-actions .btn { padding: 7px 13px; font-size: 13px; }
+.field-hint { margin: 4px 0 0; font-size: 12px; line-height: 1.6; color: var(--text-tertiary); }
 
 /* form */
 .form-field { display: flex; flex-direction: column; gap: 6px; }

@@ -33,20 +33,20 @@ export class ChatService {
     private vectorService: VectorService,
   ) {}
 
-  /** 历史消息（时间正序，最近 limit 条） */
-  async getHistory(userId: string, limit = 100) {
+  /** 历史消息（时间正序，最近 limit 条；sessionId 为空时仅查默认/旧会话） */
+  async getHistory(userId: string, sessionId?: string, limit = 100) {
     const desc = await this.prisma.chatMessage.findMany({
-      where: { userId },
+      where: { userId, sessionId: sessionId || null },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
     return desc.reverse();
   }
 
-  /** 最近 20 条作为多轮上下文 */
-  private async getContext(userId: string) {
+  /** 最近 20 条作为多轮上下文（按会话隔离） */
+  private async getContext(userId: string, sessionId?: string) {
     const desc = await this.prisma.chatMessage.findMany({
-      where: { userId },
+      where: { userId, sessionId: sessionId || null },
       orderBy: { createdAt: 'desc' },
       take: CONTEXT_MESSAGE_LIMIT,
     });
@@ -73,6 +73,13 @@ export class ChatService {
     if (persona.styleHint.trim()) settings.push(`- 回复风格：${persona.styleHint}`);
     if (persona.greeting.trim()) settings.push(`- 你的问候语参考：${persona.greeting}`);
     sections.push(`【人格设定】\n${settings.join('\n')}`);
+
+    // 基本信息（站主填写的事实性资料，回答相关内容时必须优先依据，不得编造）
+    if (persona.basicInfo.trim()) {
+      sections.push(
+        `【基本信息】\n以下是站主提供的事实性基本信息，当对方的问题涉及这些内容时，必须优先依据其回答，不要编造或更改：\n${persona.basicInfo.trim()}`,
+      );
+    }
 
     // RAG 资料与反编造规则
     sections.push(`【补充规则】\n${chunksBlock}\n- 资料未覆盖的信息，按你的人格规则诚实说明「这块我还没有告诉过你」，不要编造细节。`);
@@ -107,12 +114,13 @@ export class ChatService {
    */
   async run(
     userId: string,
+    sessionId: string | undefined,
     content: string,
     callbacks: ChatStreamCallbacks & { modelId?: string },
   ): Promise<void> {
     // 1. 用户消息先入库（生成失败也保留提问）
     await this.prisma.chatMessage.create({
-      data: { userId, role: 'user', content },
+      data: { userId, sessionId: sessionId || null, role: 'user', content },
     });
 
     // 2. RAG 检索（409 未配置 Key 时此处抛出，由 controller 转为 SSE error）
@@ -120,7 +128,7 @@ export class ChatService {
 
     // 3. 组装 messages（system + 最近 10 轮历史）
     const systemPrompt = await this.buildSystemPrompt(chunksBlock);
-    const history = await this.getContext(userId);
+    const history = await this.getContext(userId, sessionId);
     const messages: (SystemMessage | HumanMessage | AIMessage)[] = [
       new SystemMessage(systemPrompt),
       ...history.map((m) =>
@@ -170,7 +178,7 @@ export class ChatService {
     }
 
     const saved = await this.prisma.chatMessage.create({
-      data: { userId, role: 'assistant', content: full },
+      data: { userId, sessionId: sessionId || null, role: 'assistant', content: full },
     });
     callbacks.onDone(saved.id, full);
   }

@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useApi } from '@/composables/useApi'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const api = useApi()
 const loading = ref(true)
@@ -63,14 +64,34 @@ async function save() {
   }
 }
 
-async function remove(item) {
-  if (!confirm(`确认删除「${item.place}」？`)) return
+const confirmOpen = ref(false)
+const pendingItem = ref(null)
+const deleting = ref(false)
+
+function remove(item) {
+  pendingItem.value = item
+  confirmOpen.value = true
+}
+
+function cancelRemove() {
+  confirmOpen.value = false
+  pendingItem.value = null
+}
+
+async function confirmRemove() {
+  const item = pendingItem.value
+  if (!item || deleting.value) return
+  deleting.value = true
   try {
     await api.delete(`/admin/about/travels/${item.id}`)
     showToast('已删除', 'success')
     await load()
   } catch (e) {
     showToast('删除失败: ' + e.message, 'error')
+  } finally {
+    deleting.value = false
+    confirmOpen.value = false
+    pendingItem.value = null
   }
 }
 
@@ -164,6 +185,19 @@ onMounted(load)
         </div>
       </div>
     </transition>
+
+    <!-- ===== 删除确认弹窗 ===== -->
+    <ConfirmDialog
+      :open="confirmOpen"
+      title="删除旅行卡片"
+      confirm-label="删除"
+      :loading="deleting"
+      warn="删除后不可恢复。"
+      @cancel="cancelRemove"
+      @confirm="confirmRemove"
+    >
+      确定要删除 <strong>「{{ pendingItem?.place }}」</strong> 吗？
+    </ConfirmDialog>
   </div>
 </template>
 

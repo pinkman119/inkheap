@@ -312,6 +312,7 @@ export class ModelConfigService implements OnModuleInit {
       apiKey: this.decrypt(zhipu.apiKeyEnc!),
       configuration: { baseURL: PROVIDER_BASE_URLS.zhipu },
       dimensions: EMBEDDING_DIMENSIONS,
+      encodingFormat: 'float',
     });
   }
 
@@ -407,7 +408,12 @@ export class ModelConfigService implements OnModuleInit {
     });
   }
 
-  /** 按 provider 构造 OpenAI 兼容 embedding 客户端（固定 1024 维） */
+  /**
+   * 按 provider 构造 OpenAI 兼容 embedding 客户端（固定 1024 维）。
+   * 必须显式传 encodingFormat: 'float'：OpenAI JS SDK 默认会带 encoding_format=base64，
+   * 智谱 embedding-3 在 base64 模式下会忽略 dimensions 并返回 256 维（实测），
+   * 传 'float' 后服务端返回 JSON 数组，配合 dimensions 即可稳定得到 1024 维。
+   */
   private buildEmbeddings(modelId: string, provider: string, apiKey: string): OpenAIEmbeddings {
     const baseURL = PROVIDER_BASE_URLS[provider] || PROVIDER_BASE_URLS.zhipu;
     return new OpenAIEmbeddings({
@@ -415,6 +421,7 @@ export class ModelConfigService implements OnModuleInit {
       apiKey,
       configuration: { baseURL },
       dimensions: EMBEDDING_DIMENSIONS,
+      encodingFormat: 'float',
     });
   }
 

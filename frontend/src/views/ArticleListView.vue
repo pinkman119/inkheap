@@ -4,10 +4,17 @@ import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import CategoryTreeNode from '@/components/CategoryTreeNode.vue'
 import ArticleCover from '@/components/ArticleCover.vue'
+import { useRouter } from 'vue-router'
 import { useApi } from '@/composables/useApi'
 import { takePreloaded } from '@/composables/usePreload'
+import { useSiteIdentity } from '@/composables/useSiteIdentity'
+import { resolveAuthor } from '@/utils/author'
 
 const api = useApi()
+const router = useRouter()
+
+// 站点身份：文章未设置作者时，回退展示站点名（后台「首页管理」配置）
+const { siteName, loadSiteIdentity } = useSiteIdentity()
 
 /* ===== 真实数据（来自后端公开接口） ===== */
 const categoryTree = ref([])
@@ -27,6 +34,8 @@ const articleListEnded = computed(() => articleList.value.length >= articleTotal
 
 // 后端文章字段 → 模板字段映射
 function mapArticle(a) {
+  // 作者链接：未配置时默认跳站点首页；站外链接需新窗口打开
+  const authorResolved = resolveAuthor(a.author, a.authorUrl, '')
   return {
     key: a.slug || a.id,
     slug: a.slug,
@@ -35,9 +44,14 @@ function mapArticle(a) {
     thumbnail: a.coverImage || '',
     categoryKey: a.categoryKey,
     category: categoryNameMap.value[a.categoryKey] || a.categoryKey,
-    author: a.author || '墨堆',
+    // 作者名留空时在模板中回退到站点名（响应式，站点身份加载后会刷新）
+    authorRaw: authorResolved.name,
+    authorHref: authorResolved.href,
+    authorExternal: authorResolved.isExternal,
     date: a.createdAt ? a.createdAt.slice(0, 10) : '',
-    reads: (a.views ?? 0).toLocaleString(),
+    // 后端返回字段是 viewCount（此处此前误写成 a.views，导致列表阅读量恒为 0）；
+    // 设置了虚拟阅读量时按 displayViewCount 展示
+    reads: Number(a.displayViewCount ?? a.viewCount ?? 0).toLocaleString(),
     tagList: Array.isArray(a.tags) ? a.tags : [],
     plainAuthorIcon: false,
   }
@@ -140,6 +154,7 @@ function applyPreloaded(cached) {
 }
 
 onMounted(() => {
+  loadSiteIdentity()
   const cached = takePreloaded('articles')
   if (cached) {
     applyPreloaded(cached)
@@ -156,6 +171,15 @@ function onWindowScroll() {
   const y = window.scrollY || window.pageYOffset || 0
   if (y + window.innerHeight >= document.documentElement.scrollHeight - 240) {
     loadMoreArticles()
+  }
+}
+
+// 作者点击：站外链接新窗口打开，站内（默认首页）走路由跳转
+function openAuthorLink(article) {
+  if (article.authorExternal) {
+    window.open(article.authorHref, '_blank', 'noopener')
+  } else {
+    router.push(article.authorHref)
   }
 }
 
@@ -544,7 +568,13 @@ onBeforeUnmount(() => {
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                   <circle cx="12" cy="7" r="4" />
                 </svg>
-                {{ article.author }}
+                <a
+                  class="author-link"
+                  :href="article.authorExternal ? article.authorHref : `#${article.authorHref}`"
+                  :target="article.authorExternal ? '_blank' : undefined"
+                  :rel="article.authorExternal ? 'noopener' : undefined"
+                  @click.stop.prevent="openAuthorLink(article)"
+                >{{ article.authorRaw || siteName }}</a>
               </span>
               <span>
                 <svg
@@ -999,6 +1029,18 @@ onBeforeUnmount(() => {
   width: 14px;
   height: 14px;
   opacity: 0.7;
+}
+
+/* 作者名：超链接，点击跳转作者主页（未配置时跳站点首页） */
+.article-meta .author-link {
+  color: inherit;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color var(--transition);
+}
+.article-meta .author-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
 }
 
 .empty-state {

@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import SocialIcon from '@/components/SocialIcon.vue'
+import { FOOTER_ICONS, DEFAULT_FOOTER_ICON, getFooterIconLabel } from '@/utils/footer-icons'
 
 const api = useApi()
 
@@ -13,15 +15,66 @@ const toastType = ref('success')
 const showModal = ref(false)
 const saving = ref(false)
 const editingId = ref(null) // null = 新建
-const form = ref({ type: 'nav', mode: 0, label: '', url: '' })
+const emptyForm = () => ({
+  type: 'nav',
+  mode: 0,
+  label: '',
+  url: '',
+  icon: DEFAULT_FOOTER_ICON,
+  svg: '',
+})
+const form = ref(emptyForm())
+
+// 是否为自定义 SVG 图标模式（true 时忽略预设 icon）
+const useCustomSvg = computed(() => !!form.value.svg.trim())
+
+const modalTitle = computed(() => {
+  const isSocial = form.value.type === 'social'
+  const action = editingId.value ? '编辑' : '新增'
+  return action + (isSocial ? '社交图标' : '链接')
+})
+
+// ===== 备案信息（全站单条配置） =====
+const config = ref({ icpNo: '', icpUrl: '' })
+const configSaving = ref(false)
+
+async function loadConfig() {
+  try {
+    const data = await api.get('/admin/footer-config')
+    if (data) config.value = data
+  } catch (e) {
+    showToast('备案信息加载失败: ' + e.message, 'error')
+  }
+}
+
+async function saveConfig() {
+  const icpUrl = (config.value.icpUrl || '').trim()
+  if (icpUrl && !/^https?:\/\//i.test(icpUrl)) {
+    showToast('备案地址需以 http:// 或 https:// 开头', 'error')
+    return
+  }
+  configSaving.value = true
+  try {
+    const data = await api.put('/admin/footer-config', {
+      icpNo: (config.value.icpNo || '').trim(),
+      icpUrl,
+    })
+    if (data) config.value = data
+    showToast('备案信息已保存', 'success')
+  } catch (e) {
+    showToast('保存失败: ' + e.message, 'error')
+  } finally {
+    configSaving.value = false
+  }
+}
 
 // ===== 删除确认 =====
 const showDeleteModal = ref(false)
 const deleteTarget = ref(null)
 
-// 后台展示顺序：导航列在前，扩展列在后，各自按 sortOrder
+// 后台展示顺序：导航 → 扩展 → 社交图标，各自按 sortOrder
 const sortedLinks = computed(() => {
-  const order = { nav: 0, ext: 1 }
+  const order = { nav: 0, ext: 1, social: 2 }
   return [...links.value].sort((a, b) => {
     const ta = order[a.type] ?? 9
     const tb = order[b.type] ?? 9
@@ -44,8 +97,9 @@ function isLastInType(item) {
   return sameType[sameType.length - 1]?.id === item.id
 }
 
-const typeLabel = (t) => (t === 'nav' ? '导航' : '扩展')
+const typeLabel = (t) => (t === 'nav' ? '导航' : t === 'ext' ? '扩展' : '社交')
 const modeLabel = (m) => (m === 0 ? '全模式' : m === 1 ? '工作' : '生活')
+const iconLabel = (item) => (item.svg ? '自定义 SVG' : getFooterIconLabel(item.icon))
 
 async function load() {
   loading.value = true
@@ -58,12 +112,15 @@ async function load() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadConfig()
+})
 
 // ===== 新建 / 编辑 =====
-function openCreate() {
+function openCreate(type = 'nav') {
   editingId.value = null
-  form.value = { type: 'nav', mode: 0, label: '', url: '' }
+  form.value = { ...emptyForm(), type }
   showModal.value = true
 }
 
@@ -74,6 +131,8 @@ function openEdit(item) {
     mode: item.mode ?? 0,
     label: item.label,
     url: item.url,
+    icon: item.icon || DEFAULT_FOOTER_ICON,
+    svg: item.svg || '',
   }
   showModal.value = true
 }
@@ -88,11 +147,25 @@ async function save() {
     return
   }
   saving.value = true
+  const customSvg = form.value.svg.trim()
+  if (form.value.type === 'social' && customSvg && !/<svg[\s\S]*<\/svg>/i.test(customSvg)) {
+    showToast('自定义图标需为完整的 SVG 代码（以 <svg> 开头、</svg> 结尾）', 'error')
+    saving.value = false
+    return
+  }
   const payload = {
     type: form.value.type,
     mode: Number(form.value.mode),
     label: form.value.label.trim(),
     url: form.value.url.trim(),
+  }
+  if (form.value.type === 'social') {
+    // 自定义 SVG 优先级高于预设图标
+    payload.icon = customSvg ? null : form.value.icon || DEFAULT_FOOTER_ICON
+    payload.svg = customSvg || null
+  } else {
+    payload.icon = null
+    payload.svg = null
   }
   try {
     if (editingId.value) {
@@ -166,14 +239,53 @@ function showToast(msg, type = 'success') {
             <h1>底部管理</h1>
           </div>
           <div class="hero-side">
-            <button class="btn btn--primary" type="button" @click="openCreate">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <button class="btn btn--ghost" type="button" @click="openCreate('nav')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
               新增链接
+            </button>
+            <button class="btn btn--primary" type="button" @click="openCreate('social')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              新增图标
             </button>
           </div>
         </div>
-        <p class="lede">维护页脚「导航」与「扩展」链接，圆形图标栏不在此管理。</p>
-        <p class="hero-note">{{ links.length }} 条链接 · 导航为站内路由，扩展为外链 · 按当前模式（工作/生活）过滤展示</p>
+        <p class="lede">维护页脚「导航」「扩展」链接，以及顶部品牌区右侧的圆形「社交图标」。</p>
+        <p class="hero-note">{{ links.length }} 条记录 · 导航为站内路由，扩展/社交为外链 · 按当前模式（工作/生活）过滤展示</p>
+      </div>
+    </section>
+
+    <!-- ===== 备案信息（全站单条配置） ===== -->
+    <section v-if="config" class="icp-card">
+      <div class="icp-card__head">
+        <span class="icp-card__title">备案信息</span>
+        <span class="icp-card__desc">展示在页脚底部版权行，全站唯一配置；备案号留空则不展示</span>
+      </div>
+      <div class="icp-card__body">
+        <div class="form-field">
+          <label class="field-label" for="icpNo">备案号</label>
+          <input
+            id="icpNo"
+            v-model="config.icpNo"
+            type="text"
+            placeholder="如：苏ICP备2024125779号"
+          />
+        </div>
+        <div class="form-field">
+          <label class="field-label" for="icpUrl">备案地址</label>
+          <input
+            id="icpUrl"
+            v-model="config.icpUrl"
+            type="text"
+            class="input-mono"
+            placeholder="https://beian.miit.gov.cn"
+          />
+          <small class="hint">点击备案号跳转的链接，留空则默认跳转工信部备案查询系统</small>
+        </div>
+        <div class="icp-card__foot">
+          <button class="btn btn--primary" type="button" :disabled="configSaving" @click="saveConfig">
+            {{ configSaving ? '保存中…' : '保存备案信息' }}
+          </button>
+        </div>
       </div>
     </section>
 
@@ -187,7 +299,7 @@ function showToast(msg, type = 'success') {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
       </div>
       <p class="empty__title">暂无底部链接</p>
-      <p class="empty__sub">点击右上角「新增链接」开始配置</p>
+      <p class="empty__sub">点击右上角「新增链接」或「新增图标」开始配置</p>
     </div>
 
     <!-- ===== List ===== -->
@@ -196,7 +308,11 @@ function showToast(msg, type = 'success') {
         <li v-for="item in sortedLinks" :key="item.id" class="link-row">
           <span class="link-type" :class="item.type">{{ typeLabel(item.type) }}</span>
           <span class="link-mode" :class="'mode-' + (item.mode ?? 0)">{{ modeLabel(item.mode ?? 0) }}</span>
+          <span v-if="item.type === 'social'" class="link-icon" :title="iconLabel(item)">
+            <SocialIcon :name="item.icon" :svg="item.svg" />
+          </span>
           <span class="link-label">{{ item.label }}</span>
+          <span v-if="item.type === 'social'" class="link-icon-name">{{ iconLabel(item) }}</span>
           <span class="link-url">{{ item.url }}</span>
           <span class="link-actions">
             <button class="mini-btn" :disabled="isFirstInType(item)" title="上移" @click="move(item, 'up')">
@@ -216,9 +332,9 @@ function showToast(msg, type = 'success') {
     <Teleport to="body">
       <transition name="modal-fade">
         <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
-          <div class="modal-card" role="dialog" aria-modal="true" :aria-label="editingId ? '编辑链接' : '新增链接'">
+          <div class="modal-card" :class="{ 'modal-card--wide': form.type === 'social' }" role="dialog" aria-modal="true" :aria-label="modalTitle">
             <div class="modal-head">
-              <span class="modal-title">{{ editingId ? '编辑链接' : '新增链接' }}</span>
+              <span class="modal-title">{{ modalTitle }}</span>
               <button class="modal-close" title="关闭" :disabled="saving" @click="showModal = false">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
@@ -230,6 +346,7 @@ function showToast(msg, type = 'success') {
                   <select id="fType" v-model="form.type">
                     <option value="nav">导航（站内路由）</option>
                     <option value="ext">扩展（外链）</option>
+                    <option value="social">社交（圆形图标）</option>
                   </select>
                 </div>
                 <div class="form-field">
@@ -255,8 +372,53 @@ function showToast(msg, type = 'success') {
                   :placeholder="form.type === 'nav' ? '站内路径，如 /contact' : '外链，如 https://…'"
                 />
                 <small v-if="form.type === 'nav'" class="hint">导航按站内路由跳转，请填写以 / 开头的路径</small>
-                <small v-else class="hint">扩展以外链形式在新标签页打开</small>
+                <small v-else class="hint">外链，在新标签页打开；邮箱请填 mailto:xxx@xx.com</small>
               </div>
+
+              <!-- ===== 社交图标专属配置 ===== -->
+              <template v-if="form.type === 'social'">
+                <div class="form-field">
+                  <label class="field-label">图标预览</label>
+                  <div class="icon-preview">
+                    <span class="icon-preview__circle">
+                      <SocialIcon :name="form.icon" :svg="form.svg" />
+                    </span>
+                    <span class="icon-preview__text">
+                      {{ useCustomSvg ? '自定义 SVG' : getFooterIconLabel(form.icon) }}
+                    </span>
+                  </div>
+                </div>
+                <div class="form-field">
+                  <label class="field-label">预设图标</label>
+                  <div class="icon-picker">
+                    <button
+                      v-for="ic in FOOTER_ICONS"
+                      :key="ic.key"
+                      type="button"
+                      class="icon-picker__item"
+                      :class="{ active: !useCustomSvg && form.icon === ic.key }"
+                      :title="ic.label"
+                      @click="form.icon = ic.key; form.svg = ''"
+                    >
+                      <SocialIcon :name="ic.key" />
+                    </button>
+                  </div>
+                </div>
+                <div class="form-field">
+                  <label class="field-label" for="fSvg">
+                    自定义图标（可选，填了则优先于预设图标）
+                  </label>
+                  <textarea
+                    id="fSvg"
+                    v-model="form.svg"
+                    class="input-mono svg-input"
+                    rows="4"
+                    spellcheck="false"
+                    placeholder='<svg viewBox="0 0 24 24">...</svg>'
+                  />
+                  <small class="hint">粘贴完整 SVG 源码（推荐 24×24 / 1024×1024 viewBox），尺寸由容器自适应</small>
+                </div>
+              </template>
             </div>
             <div class="modal-foot">
               <button class="btn btn--ghost" :disabled="saving" @click="showModal = false">取消</button>
@@ -373,6 +535,40 @@ function showToast(msg, type = 'success') {
   transform: translateY(-1px); box-shadow: var(--shadow-md);
 }
 
+/* ===== 备案信息卡片 ===== */
+.icp-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin: 22px 0 0;
+}
+.icp-card__head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-soft);
+}
+.icp-card__title {
+  font-family: var(--font-serif);
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+.icp-card__desc { font-size: 12.5px; color: var(--text-tertiary); }
+.icp-card__body {
+  padding: 18px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.6fr);
+  gap: 16px 18px;
+  align-items: start;
+}
+.icp-card__foot { grid-column: 1 / -1; display: flex; }
+
 /* ===== Loading / Empty ===== */
 .empty {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -429,6 +625,33 @@ function showToast(msg, type = 'success') {
   flex-shrink: 0;
 }
 .link-type.ext { color: #2b6cb0; background-color: rgba(43, 108, 176, 0.12); }
+.link-type.social { color: #8a5a2b; background-color: rgba(138, 90, 43, 0.14); }
+
+/* 列表中的社交图标预览 */
+.link-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.link-icon :deep(svg),
+.link-icon :deep(span) { width: 14px; height: 14px; }
+.link-icon-name {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  background-color: var(--bg-soft);
+  padding: 2px 9px;
+  border-radius: 100px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 .link-mode {
   font-family: var(--font-mono); font-size: 11.5px; font-weight: 500;
   color: var(--text-tertiary); background-color: var(--bg-soft);
@@ -500,6 +723,7 @@ function showToast(msg, type = 'success') {
   flex-direction: column;
 }
 .modal-card--confirm { width: 420px; }
+.modal-card--wide { width: 540px; }
 .modal-head {
   display: flex;
   align-items: center;
@@ -597,6 +821,83 @@ function showToast(msg, type = 'success') {
 }
 .form-row { display: flex; gap: 14px; }
 .form-row .form-field { flex: 1; min-width: 0; }
+
+/* ===== 社交图标：预览 / 选择器 / 自定义 SVG ===== */
+.icon-preview { display: flex; align-items: center; gap: 12px; }
+.icon-preview__circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.icon-preview__circle :deep(svg),
+.icon-preview__circle :deep(span) { width: 19px; height: 19px; }
+.icon-preview__text { font-size: 13px; color: var(--text-secondary); }
+
+.icon-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  max-height: 168px;
+  overflow-y: auto;
+}
+.icon-picker__item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.icon-picker__item :deep(svg),
+.icon-picker__item :deep(span) { width: 19px; height: 19px; }
+.icon-picker__item:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background-color: var(--accent-light);
+}
+.icon-picker__item.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background-color: var(--accent-light);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.svg-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
+}
+.svg-input::placeholder { color: var(--text-tertiary); }
+.svg-input:focus {
+  background-color: var(--bg-card);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
 .hint {
   font-size: 12px; color: var(--text-tertiary);
   font-family: var(--font-mono);
@@ -666,9 +967,12 @@ function showToast(msg, type = 'success') {
   .page-hero { padding: 20px 18px 20px; }
   .page-hero h1 { font-size: 30px; }
   .hero-side { width: 100%; }
+  .icp-card__body { grid-template-columns: 1fr; }
   .link-row { padding: 10px 12px; gap: 8px; margin: 0 4px; flex-wrap: wrap; }
   .link-url { flex-basis: 100%; order: 5; }
   .link-actions { margin-left: auto; }
   .form-row { flex-direction: column; }
+  .modal-card--wide { width: calc(100vw - 32px); }
+  .icon-picker { grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); }
 }
 </style>

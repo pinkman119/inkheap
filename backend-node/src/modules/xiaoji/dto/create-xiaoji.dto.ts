@@ -4,10 +4,14 @@ import {
   IsBoolean,
   IsArray,
   IsIn,
-  ArrayMaxSize,
   ValidateNested,
+  IsInt,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+
+/** 随笔最多 9 张照片；相册（album）不限 */
+export const XIAOJI_MAX_PHOTOS = 9;
 
 export class PhotoDto {
   @IsString()
@@ -56,9 +60,9 @@ export class CreateXiaojiDto {
   @IsString()
   date?: string;
 
+  // 照片数量上限按类型校验：相册不限，随笔最多 9 张（见 XiaojiService.assertPhotoLimit）
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(9)
   @ValidateNested({ each: true })
   @Type(() => PhotoDto)
   photos?: PhotoDto[];
@@ -66,4 +70,11 @@ export class CreateXiaojiDto {
   @IsOptional()
   @IsBoolean()
   published?: boolean;
+
+  // 虚拟阅读量：null / 不传 = 未设置（前台展示真实值）；>= 0 时前台直接展示该值
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  virtualViewCount?: number;
 }

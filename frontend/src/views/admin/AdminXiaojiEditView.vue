@@ -22,7 +22,7 @@
             </button>
           </div>
         </div>
-        <p class="lede">相册 / 随笔通用；均可上传照片（最多 9 张），第一张作为列表封面。</p>
+        <p class="lede">照片上传：相册不限张数，随笔最多 9 张；第一张作为列表封面。</p>
       </div>
     </section>
 
@@ -39,8 +39,8 @@
           <div class="field">
             <label class="field-label">类型</label>
             <div class="seg">
-              <button class="seg__item" :class="{ active: form.type === 'album' }" @click="form.type = 'album'">相册</button>
-              <button class="seg__item" :class="{ active: form.type === 'essay' }" @click="form.type = 'essay'">随笔</button>
+              <button class="seg__item" :class="{ active: form.type === 'album' }" @click="setType('album')">相册</button>
+              <button class="seg__item" :class="{ active: form.type === 'essay' }" @click="setType('essay')">随笔</button>
             </div>
           </div>
 
@@ -97,6 +97,22 @@
             <textarea v-model="form.content" class="content-editor" rows="16" placeholder="支持 Markdown 语法，与文章一致"></textarea>
           </div>
 
+          <div class="field">
+            <label class="field-label">虚拟阅读量</label>
+            <input
+              v-model.number="form.virtualViewCount"
+              type="number"
+              min="0"
+              placeholder="留空则展示真实阅读量"
+            />
+            <p class="field-hint">
+              真实阅读 {{ form.viewCount ?? 0 }} 次（按 IP 每天去重统计）
+              <template v-if="form.virtualViewCount !== null && form.virtualViewCount !== ''">
+                <br />前台将展示 {{ form.virtualViewCount }}
+              </template>
+            </p>
+          </div>
+
           <div class="field toggle-row">
             <label class="toggle-label">
               <input type="checkbox" v-model="form.published" /><span></span> 发布（勾选后前台可见）
@@ -108,16 +124,16 @@
       <!-- ===== 右列：照片管理 ===== -->
       <section class="card col-side">
         <div class="card__head">
-          <span class="card__head-title">照片管理（{{ form.photos.length }}/9）</span>
-          <label class="btn btn--soft btn--sm upload-btn" :class="{ disabled: form.photos.length >= 9 }">
+          <span class="card__head-title">照片管理（{{ form.photos.length }}{{ form.type === 'essay' ? '/9' : '' }}）</span>
+          <label class="btn btn--soft btn--sm upload-btn" :class="{ disabled: photoLimitReached }">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             上传
-            <input ref="fileInput" type="file" multiple accept="image/*" :disabled="form.photos.length >= 9" @change="onUpload" />
+            <input ref="fileInput" type="file" multiple accept="image/*" :disabled="photoLimitReached" @change="onUpload" />
           </label>
         </div>
         <div class="photo-list">
           <div v-if="!form.photos.length" class="photo-empty">
-            暂无照片。上传后第一张将作为列表封面（最多 9 张）。
+            暂无照片。相册不限张数，随笔最多 9 张；第一张将作为列表封面。
           </div>
           <div v-for="(p, i) in form.photos" :key="p.url + '-' + i" class="photo-item">
             <span class="photo-index">{{ i + 1 }}</span>
@@ -137,9 +153,18 @@
             </div>
           </div>
         </div>
-        <p class="photo-tip">最多 9 张，相册封面取第一张；随笔的照片展示在详情页。</p>
+        <p class="photo-tip">相册封面取第一张；相册不限张数，随笔最多 9 张。</p>
       </section>
     </div>
+
+    <!-- ===== Toast ===== -->
+    <transition name="toast-pop">
+      <div v-if="toastMsg" class="toast" :class="toastType" role="status" aria-live="polite">
+        <svg v-if="toastType === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+        <span>{{ toastMsg }}</span>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -154,6 +179,8 @@ export default {
     return {
       loading: false,
       saving: false,
+      toastMsg: '',
+      toastType: 'success',
       tagInput: '',
       form: {
         title: '',
@@ -167,6 +194,8 @@ export default {
         date: '',
         photos: [],
         published: false,
+        viewCount: 0,
+        virtualViewCount: null,
       },
     }
   },
@@ -174,12 +203,24 @@ export default {
     isNew() {
       return !this.$route.params.id
     },
+    /** 照片上限：相册不限（Infinity），随笔最多 9 张 */
+    photoLimit() {
+      return this.form.type === 'album' ? Infinity : 9
+    },
+    photoLimitReached() {
+      return Number.isFinite(this.photoLimit) && this.form.photos.length >= this.photoLimit
+    },
   },
   created() {
     if (!this.isNew) this.load()
   },
   methods: {
     assetUrl: (p) => api.assetUrl(p),
+    showToast(msg, type = 'success') {
+      this.toastMsg = msg
+      this.toastType = type
+      setTimeout(() => { this.toastMsg = '' }, 3000)
+    },
     async load() {
       this.loading = true
       try {
@@ -196,13 +237,20 @@ export default {
           date: d.date || '',
           photos: (d.photos || []).map((p) => ({ url: p.url, caption: p.caption || '' })),
           published: !!d.published,
+          viewCount: d.viewCount ?? 0,
+          virtualViewCount: d.virtualViewCount ?? null,
         }
       } catch (e) {
-        alert('加载小记失败：' + (e?.message || e))
+        this.showToast('加载小记失败：' + (e?.message || e), 'error')
         this.$router.replace({ name: 'admin-xiaoji' })
       } finally {
         this.loading = false
       }
+    },
+    /** 虚拟阅读量：空字符串 / NaN 统一视为「未设置」，提交 null 由后端清除 */
+    normalizeVirtualViews(v) {
+      if (v === '' || v === null || v === undefined || Number.isNaN(v)) return null
+      return v
     },
     autoSlug() {
       if (!this.form.slug) {
@@ -225,19 +273,32 @@ export default {
     removeTag(t) {
       this.form.tags = this.form.tags.filter((x) => x !== t)
     },
+    /** 切换类型：随笔最多 9 张，超出时不切换并提示 */
+    setType(type) {
+      if (type === this.form.type) return
+      if (type === 'essay' && this.form.photos.length > 9) {
+        this.showToast('随笔最多 9 张照片，请先删除多余照片再切换', 'error')
+        return
+      }
+      this.form.type = type
+    },
     async onUpload(e) {
       const files = Array.from(e.target.files || [])
       if (!files.length) return
-      const remain = 9 - this.form.photos.length
-      if (remain <= 0) {
-        alert('最多上传 9 张照片')
-        if (this.$refs.fileInput) this.$refs.fileInput.value = ''
-        return
+      const limit = this.photoLimit
+      const unlimited = !Number.isFinite(limit)
+      if (!unlimited) {
+        const remain = limit - this.form.photos.length
+        if (remain <= 0) {
+          this.showToast(`最多上传 ${limit} 张照片`, 'error')
+          if (this.$refs.fileInput) this.$refs.fileInput.value = ''
+          return
+        }
+        if (files.length > remain) {
+          this.showToast(`最多上传 ${limit} 张照片，超出部分未上传（仅保留前 ${remain} 张）`, 'error')
+        }
       }
-      const picked = files.slice(0, remain)
-      if (files.length > remain) {
-        alert(`最多上传 9 张照片，超出部分未上传（仅保留前 ${remain} 张）`)
-      }
+      const picked = unlimited ? files : files.slice(0, limit - this.form.photos.length)
       const uploading = picked.map(async (file) => {
         const fd = new FormData()
         fd.append('file', file)
@@ -248,7 +309,7 @@ export default {
         const added = await Promise.all(uploading)
         this.form.photos = this.form.photos.concat(added)
       } catch (err) {
-        alert('上传失败：' + (err?.message || err))
+        this.showToast('上传失败：' + (err?.message || err), 'error')
       } finally {
         if (this.$refs.fileInput) this.$refs.fileInput.value = ''
       }
@@ -264,10 +325,14 @@ export default {
     },
     async save() {
       if (!this.form.title.trim() || !this.form.content.trim()) {
-        alert('请填写标题和正文')
+        this.showToast('请填写标题和正文', 'error')
         return
       }
       if (!this.form.slug) this.autoSlug()
+      if (this.form.type !== 'album' && this.form.photos.length > 9) {
+        this.showToast('随笔最多上传 9 张照片', 'error')
+        return
+      }
       this.saving = true
       try {
         const payload = {
@@ -282,6 +347,8 @@ export default {
           date: this.form.date.trim(),
           photos: this.form.photos,
           published: this.form.published,
+          // 清空输入框会得到空字符串，统一转成 null（= 未设置，前台回到展示真实阅读量）
+          virtualViewCount: this.normalizeVirtualViews(this.form.virtualViewCount),
         }
         if (this.isNew) {
           await api.post('/admin/xiaoji', payload)
@@ -290,7 +357,7 @@ export default {
         }
         this.$router.push({ name: 'admin-xiaoji' })
       } catch (e) {
-        alert('保存失败：' + (e?.message || e))
+        this.showToast('保存失败：' + (e?.message || e), 'error')
       } finally {
         this.saving = false
       }
@@ -480,6 +547,9 @@ export default {
 .content-editor {
   font-family: var(--font-mono); font-size: 13px; line-height: 1.75; min-height: 340px;
 }
+.field-hint {
+  margin: 0; font-size: 12px; line-height: 1.6; color: var(--text-tertiary);
+}
 
 /* ===== Tags input ===== */
 .tags-input {
@@ -594,6 +664,25 @@ export default {
 .photo-list::-webkit-scrollbar { width: 8px; }
 .photo-list::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--text-tertiary) 35%, transparent); border-radius: 4px;
+}
+
+/* ===== Toast ===== */
+.toast {
+  position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%);
+  background: var(--bg-card); border: 1px solid var(--accent); color: var(--accent);
+  font-size: 14px; font-weight: 500; padding: 10px 22px; border-radius: 100px;
+  box-shadow: var(--shadow-lg);
+  display: inline-flex; align-items: center; gap: 8px;
+  z-index: 4000; max-width: min(480px, 90vw);
+}
+.toast svg { width: 16px; height: 16px; flex-shrink: 0; }
+.toast.error { border-color: #e0533d; color: #e0533d; }
+.toast-pop-enter-active, .toast-pop-leave-active {
+  transition: opacity 0.35s cubic-bezier(0.22, 1, 0.36, 1), transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.toast-pop-enter-from, .toast-pop-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(20px);
 }
 
 /* ===== Responsive ===== */

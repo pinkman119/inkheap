@@ -1,7 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TrainingService } from '../digitallife/training.service';
-import { CreateXiaojiDto } from './dto/create-xiaoji.dto';
+import { ViewCountService } from '../view/view.service';
+import { resolveDisplayViews } from '../view/view.util';
+import { CreateXiaojiDto, XIAOJI_MAX_PHOTOS } from './dto/create-xiaoji.dto';
 import { UpdateXiaojiDto } from './dto/update-xiaoji.dto';
 import { QueryXiaojiDto } from './dto/query-xiaoji.dto';
 
@@ -10,6 +16,7 @@ export class XiaojiService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly trainingService: TrainingService,
+    private readonly viewCountService: ViewCountService,
   ) {}
 
   // ==================== 公开接口 ====================
@@ -28,7 +35,8 @@ export class XiaojiService {
   }
 
   /** 按 slug 取已发布详情，附带 prev/next 导航（按日期倒序相邻） */
-  async findBySlug(slug: string) {
+  // ip 用于按天去重：同一 IP 每天最多贡献一次真实阅读量
+  async findBySlug(slug: string, ip?: string) {
     const blog = await this.prisma.blog.findFirst({
       where: { slug, published: true },
     });
@@ -36,10 +44,7 @@ export class XiaojiService {
       throw new NotFoundException('小记不存在或未发布');
     }
 
-    // 浏览量 +1（异步，不阻塞响应）
-    this.prisma.blog
-      .update({ where: { id: blog.id }, data: { viewCount: { increment: 1 } } })
-      .catch(() => {});
+    await this.viewCountService.record('note', blog.id, ip);
 
     const all = await this.prisma.blog.findMany({
       where: { published: true },
@@ -152,13 +157,15 @@ export class XiaojiService {
   }
 
   async create(dto: CreateXiaojiDto) {
+    const type = dto.type || 'album';
+    this.assertPhotoLimit(type, dto.photos);
     const tags = await this.saveTags(dto.tags || []);
     const slug = await this.buildUniqueSlug(dto.slug || dto.title);
     const blog = await this.prisma.blog.create({
       data: {
         title: dto.title,
         slug,
-        type: dto.type || 'album',
+        type,
         tags: JSON.stringify(tags),
         content: dto.content || '',
         summary: dto.summary ?? null,
@@ -167,6 +174,7 @@ export class XiaojiService {
         date: dto.date ?? null,
         photos: JSON.stringify(dto.photos || []),
         published: dto.published ?? false,
+        virtualViewCount: dto.virtualViewCount ?? null,
       },
     });
     return this.serialize(blog);
@@ -178,6 +186,12 @@ export class XiaojiService {
       throw new NotFoundException('小记不存在');
     }
 
+    // 以「更新后的最终状态」校验照片数量：随笔最多 9 张，相册不限
+    this.assertPhotoLimit(
+      dto.type ?? existing.type,
+      dto.photos !== undefined ? dto.photos : this.parsePhotos(existing.photos),
+    );
+
     const data: any = {};
     if (dto.title !== undefined) data.title = dto.title;
     if (dto.type !== undefined) data.type = dto.type;
@@ -188,6 +202,7 @@ export class XiaojiService {
     if (dto.date !== undefined) data.date = dto.date ?? null;
     if (dto.photos !== undefined) data.photos = JSON.stringify(dto.photos || []);
     if (dto.published !== undefined) data.published = dto.published;
+    if (dto.virtualViewCount !== undefined) data.virtualViewCount = dto.virtualViewCount;
     if (dto.tags !== undefined) {
       data.tags = JSON.stringify(await this.saveTags(dto.tags || []));
     }
@@ -216,6 +231,25 @@ export class XiaojiService {
   }
 
   // ==================== 内部工具 ====================
+
+  /** 照片数量校验：相册（album）不限，其余类型最多 9 张 */
+  private assertPhotoLimit(type: string, photos?: { url: string }[]) {
+    if (type === 'album') return;
+    if ((photos?.length || 0) > XIAOJI_MAX_PHOTOS) {
+      throw new BadRequestException(
+        `随笔最多上传 ${XIAOJI_MAX_PHOTOS} 张照片`,
+      );
+    }
+  }
+
+  /** 解析数据库中的 photos JSON 字段 */
+  private parsePhotos(raw: string | null): { url: string; caption?: string }[] {
+    try {
+      return JSON.parse(raw || '[]') || [];
+    } catch {
+      return [];
+    }
+  }
 
   /**
    * 分类同步：对每个分类名，存在同名（key）则复用，不存在则自动新建。
@@ -276,7 +310,13 @@ export class XiaojiService {
     } catch {
       // ignore
     }
-    return { ...blog, tags, photos };
+    return {
+      ...blog,
+      tags,
+      photos,
+      // 前台统一使用该字段展示，无需每个页面重复判断「是否设置了虚拟阅读量」
+      displayViewCount: resolveDisplayViews(blog.viewCount, blog.virtualViewCount),
+    };
   }
 
   /** 列表卡片所需的最小字段 */

@@ -256,6 +256,244 @@ async function main() {
     console.log(`FooterLinks skipped: ${footerLinkCount} link(s) already exist`);
   }
 
+  // ==================== 页脚社交图标 seed ====================
+  // 与导航/扩展分开统计：老库已有链接记录时也能补上圆形图标栏默认值（幂等）
+  const socialLinkCount = await prisma.footerLink.count({ where: { type: 'social' } });
+  if (socialLinkCount === 0) {
+    const socialLinks = [
+      { type: 'social', mode: 0, label: 'GitHub', url: 'https://github.com', icon: 'github', sortOrder: 0 },
+      { type: 'social', mode: 0, label: '邮箱', url: 'mailto:hi@modui.design', icon: 'mail', sortOrder: 1 },
+      { type: 'social', mode: 0, label: '语雀', url: 'https://www.yuque.com', icon: 'yuque', sortOrder: 2 },
+    ];
+    await prisma.footerLink.createMany({ data: socialLinks });
+    console.log(`FooterLinks(social) seeded: ${socialLinks.length} icons`);
+  } else {
+    console.log(`FooterLinks(social) skipped: ${socialLinkCount} icon(s) already exist`);
+  }
+
+  // ==================== 页脚备案信息 seed ====================
+  // 全站单条记录（id = footer），幂等：仅记录不存在时写入初始值，不覆盖后台修改
+  const footerConfig = await prisma.footerConfig.findUnique({ where: { id: 'footer' } });
+  if (!footerConfig) {
+    await prisma.footerConfig.create({
+      data: {
+        id: 'footer',
+        icpNo: '苏ICP备2024125779号',
+        icpUrl: 'https://beian.miit.gov.cn',
+      },
+    });
+    console.log('FooterConfig seeded: 1 default record (icp)');
+  } else {
+    console.log('FooterConfig skipped: record already exists');
+  }
+
+  // ==================== 页脚导航「邻居」seed ====================
+  // 单独按 url 判断：老库已有其他页脚链接时也能补上这一条，且不会覆盖后台后续修改。
+  // mode = 0 → 工作 / 生活双模式都显示。
+  const neighborNav = await prisma.footerLink.findFirst({ where: { type: 'nav', url: '/friends' } });
+  if (!neighborNav) {
+    await prisma.footerLink.create({
+      data: { type: 'nav', mode: 0, label: '邻居', url: '/friends', sortOrder: 5 },
+    });
+    console.log('FooterLink(邻居) seeded: /friends (双模式显示)');
+  } else {
+    console.log('FooterLink(邻居) skipped: already exists');
+  }
+
+  // ==================== 友链（邻居）seed ====================
+  // 落库的友链即「已通过申请」的友链，前台「邻居」页直接读取本表。
+  const friendLinkCount = await prisma.friendLink.count();
+  if (friendLinkCount === 0) {
+    const friendLinks = [
+      {
+        name: '墨堆',
+        url: '/',
+        group: '本站',
+        tag: '本站',
+        isSelf: true,
+        mode: 0,
+        sortOrder: 0,
+        desc: '以设计记录思考。这里是我的知识库、小记与数字生命——也是这份索引的编写者。',
+      },
+      {
+        name: '阮一峰的网络日志',
+        url: 'https://www.ruanyifeng.com/blog/',
+        avatar: 'https://picsum.photos/seed/ruan/160/160',
+        group: '技术',
+        tag: '技术周刊',
+        mode: 0,
+        sortOrder: 1,
+        desc: '每周五更新的技术周刊，覆盖前端、开源与开发者工具，中文技术写作的常青树。',
+      },
+      {
+        name: '少数派',
+        url: 'https://sspai.com',
+        avatar: 'https://picsum.photos/seed/sspai/160/160',
+        group: '生活',
+        tag: '效率工具',
+        mode: 0,
+        sortOrder: 2,
+        desc: '致力于更好地运用数字工具改善生活，主题覆盖 App、工作流与硬件评测。',
+      },
+      {
+        name: '利器',
+        url: 'https://liqi.io',
+        avatar: 'https://picsum.photos/seed/liqi/160/160',
+        group: '阅读',
+        tag: '创造者访谈',
+        mode: 0,
+        sortOrder: 3,
+        desc: '访谈创造者如何使用工具完成工作，聚焦方法与思路，而非工具本身。',
+      },
+      {
+        name: '张洪Heo',
+        url: 'https://example.com/zhheo',
+        avatar: 'https://picsum.photos/seed/heo/160/160',
+        group: '技术',
+        tag: '前端开发',
+        mode: 0,
+        sortOrder: 4,
+        desc: '前端工程师，分享开发笔记与生活碎片，站点更新频繁、风格清爽。',
+      },
+      {
+        name: '空白Koobai',
+        url: 'https://example.com/koobai',
+        avatar: 'https://picsum.photos/seed/koobai/160/160',
+        group: '设计',
+        tag: '设计摄影',
+        mode: 0,
+        sortOrder: 5,
+        desc: '设计师与摄影爱好者，记录版式实验、胶片扫描与城市漫步。',
+      },
+      {
+        name: '山维',
+        url: 'https://example.com/shanwei',
+        avatar: 'https://picsum.photos/seed/shanwei/160/160',
+        group: '技术',
+        tag: '独立开发',
+        mode: 0,
+        sortOrder: 6,
+        desc: '独立开发者，写产品从零到一的过程，也写失败与复盘。',
+      },
+      {
+        name: '无垠',
+        url: 'https://example.com/wuyin',
+        avatar: 'https://picsum.photos/seed/wuyin/160/160',
+        group: '阅读',
+        tag: '阅读思考',
+        mode: 0,
+        sortOrder: 7,
+        desc: '每月一篇长文，主题多为哲学、技术与日常生活的交界处。',
+      },
+      {
+        name: '拾月',
+        url: 'https://example.com/shiyue',
+        avatar: 'https://picsum.photos/seed/shiyue/160/160',
+        group: '设计',
+        tag: '旅行摄影',
+        // 失联条目：前台置灰保留
+        status: 'dormant',
+        mode: 0,
+        sortOrder: 8,
+        desc: '用照片和日记记录旅途，偏爱清晨与雨天的城市。',
+      },
+    ];
+    await prisma.friendLink.createMany({ data: friendLinks });
+    console.log(`FriendLinks seeded: ${friendLinks.length} links`);
+  } else {
+    console.log(`FriendLinks skipped: ${friendLinkCount} link(s) already exist`);
+  }
+
+  // ==================== 友链加入申请 seed ====================
+  // 演示闭环：前台提交的每条申请都落到这里，后台通过后才会写入 friend_links。
+  const friendAppCount = await prisma.friendApplication.count();
+  if (friendAppCount === 0) {
+    const approved = await prisma.friendApplication.create({
+      data: {
+        name: '青野',
+        email: 'qingye@example.com',
+        url: 'https://example.com/qingye',
+        type: '设计',
+        message: '在做一本关于城市植物的独立杂志，想和墨堆交换链接。',
+        status: 'approved',
+        handledAt: new Date(),
+      },
+    });
+    const lastLink = await prisma.friendLink.findFirst({
+      orderBy: { sortOrder: 'desc' },
+      select: { sortOrder: true },
+    });
+    const link = await prisma.friendLink.create({
+      data: {
+        name: approved.name,
+        url: approved.url,
+        avatar: 'https://picsum.photos/seed/qingye/160/160',
+        group: approved.type,
+        tag: '独立杂志',
+        message: approved.message,
+        mode: 0,
+        sortOrder: (lastLink?.sortOrder ?? -1) + 1,
+        applicationId: approved.id,
+      },
+    });
+    await prisma.friendApplication.update({
+      where: { id: approved.id },
+      data: { linkId: link.id },
+    });
+
+    const pendingSamples = [
+      {
+        name: '拾光者',
+        email: 'shiguang@example.com',
+        url: 'https://example.com/shiguang',
+        type: '阅读',
+        message: '每月读三本书，写一点不成熟的想法。希望能认识更多认真写字的人。',
+        status: 'pending',
+      },
+      {
+        name: '老陈的笔记本',
+        email: 'laochen@example.com',
+        url: 'https://example.com/laochen',
+        type: '技术',
+        message: '写了八年运维笔记，最近开始整理成系列。站点朴素，内容为主。',
+        status: 'pending',
+      },
+    ];
+    await prisma.friendApplication.createMany({ data: pendingSamples });
+    console.log(`FriendApplications seeded: ${pendingSamples.length + 1} applications`);
+  } else {
+    console.log(`FriendApplications skipped: ${friendAppCount} application(s) already exist`);
+  }
+
+  // ==================== 首页社交链接 seed ====================
+  // 该字段为后加字段，老库里已有的 home_page 行会被填成空数组。
+  // 仅在数组为空时补默认值（一次性初始化），后台后续修改不会被覆盖。
+  const homePage = await prisma.homePage.findUnique({ where: { id: 'home' } });
+  if (homePage) {
+    let socials: unknown = null;
+    try {
+      socials = JSON.parse(homePage.socialLinks || '[]');
+    } catch {
+      socials = null;
+    }
+    if (!Array.isArray(socials) || socials.length === 0) {
+      await prisma.homePage.update({
+        where: { id: 'home' },
+        data: {
+          socialLinks: JSON.stringify([
+            { label: 'yuque', url: 'https://www.yuque.com', icon: 'yuque', svg: '' },
+            { label: 'github', url: 'https://github.com', icon: 'github', svg: '' },
+          ]),
+        },
+      });
+      console.log('HomePage socialLinks seeded: 2 default links');
+    } else {
+      console.log(`HomePage socialLinks skipped: ${socials.length} link(s) already exist`);
+    }
+  } else {
+    console.log('HomePage socialLinks skipped: no home_page row yet');
+  }
+
   // ==================== 关于我 seed ====================
   // 个人资料（单条全局，id 固定 "about"）
   await prisma.aboutProfile.upsert({

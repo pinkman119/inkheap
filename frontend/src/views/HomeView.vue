@@ -2,20 +2,20 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
+import SocialIcon from '@/components/SocialIcon.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useApi } from '@/composables/useApi'
 import { useMode } from '@/composables/useMode'
 import { preloadForMode } from '@/composables/usePreload'
+import { DEFAULT_AVATAR } from '@/composables/useSiteIdentity'
 
 const api = useApi()
 
 const props = defineProps({
-  /** 后台「首页管理」实时预览数据：{ siteName, personTitle, codeContent, avatar }。
+  /** 后台「首页管理」实时预览数据：{ siteName, personTitle, codeContent, avatar, socialLinks }。
    * 传入时跳过接口加载，直接用该数据渲染，供管理端抽屉内复用本页渲染逻辑。 */
   previewData: { type: Object, default: null },
 })
-
-const DEFAULT_AVATAR = 'https://picsum.photos/seed/cat/400/400'
 
 const profile = ref({
   avatar: DEFAULT_AVATAR,
@@ -23,14 +23,33 @@ const profile = ref({
   role: '', // 人物 title（后台配置）
 })
 
-const socialLinks = [
-  { label: 'yuque', href: 'https://www.yuque.com', icon: 'doc' },
-  { label: 'github', href: 'https://github.com', icon: 'github' },
+/** 后台未配置（或接口拉取失败）时的兜底社交链接 */
+const DEFAULT_SOCIAL_LINKS = [
+  { label: 'yuque', url: 'https://www.yuque.com', icon: 'yuque', svg: '' },
+  { label: 'github', url: 'https://github.com', icon: 'github', svg: '' },
 ]
+
+// 后台「首页管理」驱动；空数组表示用户主动清空，此时不展示社交区
+const socialLinks = ref([...DEFAULT_SOCIAL_LINKS])
+
+function applySocialLinks(raw) {
+  if (!Array.isArray(raw)) {
+    socialLinks.value = DEFAULT_SOCIAL_LINKS.map((item) => ({ ...item }))
+    return
+  }
+  socialLinks.value = raw
+    .filter((item) => item && (item.url || item.label))
+    .map((item) => ({
+      label: item.label ?? '',
+      url: item.url ?? '',
+      icon: item.icon ?? '',
+      svg: item.svg ?? '',
+    }))
+}
 
 /* ===== 模式感知 ===== */
 const { isDark } = useTheme()
-const { mode } = useMode()
+const { mode, isWork } = useMode()
 
 /* ===== 目标页面数据预加载 ===== */
 // 首页渲染完成后，在浏览器空闲窗口并发拉取当前模式目标页面的首屏接口，
@@ -44,18 +63,45 @@ function schedulePreload() {
   idle(() => preloadForMode(mode.value), { timeout: 1500 })
 }
 
-// 停留在首页时切换模式：预加载新模式的目标页面（此时 HomeView 不会重新挂载）
-watch(mode, () => schedulePreload())
+// 停留在首页时切换模式：预加载新模式的目标页面（此时 HomeView 不会重新挂载），
+// 并按新模式重新挑选人物 title 与代码框内容、重跑打字机
+watch(mode, () => {
+  schedulePreload()
+  if (rawConfig) {
+    applyConfig(rawConfig)
+    runTypewriter()
+  }
+})
 
 /* ===== 首页配置（来自后台） ===== */
-const codeContent = ref('Hello, World. Welcome to My Page!\nme show you about me!\n这里只能定义一部分的我，\n这里不能定义我的全部！')
+/** 接口未配置代码框内容时的兜底文案 */
+const DEFAULT_CODE =
+  'Hello, World. Welcome to My Page!\nme show you about me!\n这里只能定义一部分的我，\n这里不能定义我的全部！'
+
+const codeContent = ref(DEFAULT_CODE)
+
+/** 后台原始配置：模式切换时据此重新挑选 title 与代码框内容 */
+let rawConfig = null
+
+/** 按当前模式挑选配置：模式专属内容为空时回退到通用配置 */
+function pickByMode(data) {
+  const work = isWork.value
+  return {
+    ...data,
+    personTitle: (work ? data.workPersonTitle : data.lifePersonTitle) || data.personTitle || '',
+    codeContent: (work ? data.workCodeContent : data.lifeCodeContent) || data.codeContent || '',
+  }
+}
 
 function applyConfig(data) {
-  if (data.siteName) profile.value.name = data.siteName
-  if (data.personTitle) profile.value.role = data.personTitle
-  if (data.codeContent) codeContent.value = data.codeContent
+  rawConfig = data
+  const picked = pickByMode(data)
+  if (picked.siteName) profile.value.name = picked.siteName
+  profile.value.role = picked.personTitle
+  codeContent.value = picked.codeContent || DEFAULT_CODE
   // 优先使用后台配置的头像，缺失时回退默认占位图
-  profile.value.avatar = api.assetUrl(data.avatar) || DEFAULT_AVATAR
+  profile.value.avatar = api.assetUrl(picked.avatar) || DEFAULT_AVATAR
+  applySocialLinks(data.socialLinks)
 }
 
 async function loadHomeConfig() {
@@ -177,46 +223,19 @@ onBeforeUnmount(() => {
         </div>
         <h1 class="name">{{ profile.name }}</h1>
         <p class="role">{{ profile.role }}</p>
-        <div class="social-links">
+        <div v-if="socialLinks.length" class="social-links">
           <a
-            v-for="link in socialLinks"
-            :key="link.label"
+            v-for="(link, index) in socialLinks"
+            :key="index"
             class="social-link"
-            :href="link.href"
+            :href="link.url || '#'"
             target="_blank"
             rel="noopener noreferrer"
           >
-            <svg
-              v-if="link.icon === 'doc'"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
-            </svg>
-            <svg
-              v-else
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path
-                d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"
-              />
-            </svg>
-            {{ link.label }}
+            <span class="social-link__icon">
+              <SocialIcon :name="link.icon" :svg="link.svg" />
+            </span>
+            <span class="social-link__label">{{ link.label }}</span>
           </a>
         </div>
       </section>
@@ -398,9 +417,23 @@ onBeforeUnmount(() => {
   box-shadow: 0 4px 12px rgba(95, 197, 154, 0.18);
 }
 
-.social-link svg {
-  width: 16px;
-  height: 16px;
+/* 图标容器：固定尺寸后由内部图标撑满，预设图标与自定义 SVG 表现一致 */
+.social-link__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+
+.social-link__label {
+  line-height: 1;
+}
+
+/* hover 时按钮底色转为主色，品牌色图标统一变成跟随文字的剪影，避免同色系糊在一起 */
+.social-link:hover :deep(svg.brand-icon path) {
+  fill: currentColor;
 }
 
 /* 右：终端 */

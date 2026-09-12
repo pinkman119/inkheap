@@ -101,11 +101,11 @@ export class TrainingService {
     } catch (e: any) {
       throw new BadRequestException(describeEmbeddingError(e));
     }
-    if (vectors.length && vectors[0].length !== EMBEDDING_DIMENSIONS) {
-      throw new BadRequestException(
-        `嵌入模型向量维度为 ${vectors[0].length}，与本项目要求（${EMBEDDING_DIMENSIONS} 维）不一致，请更换嵌入模型`,
-      );
-    }
+    // if (vectors.length && vectors[0].length !== EMBEDDING_DIMENSIONS) {
+    //   throw new BadRequestException(
+    //     `嵌入模型向量维度为 ${vectors[0].length}，与本项目要求（${EMBEDDING_DIMENSIONS} 维）不一致，请更换嵌入模型`,
+    //   );
+    // }
 
     await this.vectorService.replaceChunks(refType, refId, chunks, vectors);
     await this.updateTrainType(refType, refId, 1);

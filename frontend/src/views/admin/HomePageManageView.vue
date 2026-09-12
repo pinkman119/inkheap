@@ -1,9 +1,13 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { useMode } from '@/composables/useMode'
 import HomeView from '@/views/HomeView.vue'
+import SocialIcon from '@/components/SocialIcon.vue'
+import { FOOTER_ICONS, DEFAULT_FOOTER_ICON, getFooterIconLabel } from '@/utils/footer-icons'
 
 const api = useApi()
+const { mode, setMode } = useMode()
 
 const loading = ref(true)
 const saving = ref(false)
@@ -14,29 +18,84 @@ const form = ref({
   siteName: '',
   personTitle: '',
   codeContent: '',
+  workPersonTitle: '',
+  workCodeContent: '',
+  lifePersonTitle: '',
+  lifeCodeContent: '',
   avatar: '',
+  socialLinks: [],
 })
+
+/* ===== 社交链接（首页头像下方的一排按钮） ===== */
+const SOCIAL_MAX = 12
+const socialModalOpen = ref(false)
+const socialEditingIndex = ref(-1) // -1 = 新建
+const emptySocial = () => ({ label: '', url: '', icon: DEFAULT_FOOTER_ICON, svg: '' })
+const socialForm = ref(emptySocial())
+// 填了自定义 SVG 时忽略预设图标
+const socialUseCustomSvg = computed(() => !!socialForm.value.svg.trim())
+
+const socialIconLabel = (item) => (item.svg ? '自定义 SVG' : getFooterIconLabel(item.icon))
+
+function openSocialModal(index = -1) {
+  socialEditingIndex.value = index
+  socialForm.value = index >= 0 ? { ...form.value.socialLinks[index] } : emptySocial()
+  socialModalOpen.value = true
+}
+
+function saveSocial() {
+  const label = socialForm.value.label.trim()
+  const url = socialForm.value.url.trim()
+  if (!label) return showToast('请填写显示名称', 'error')
+  if (!url) return showToast('请填写链接地址', 'error')
+  const svg = socialForm.value.svg.trim()
+  if (svg && !/<svg[\s\S]*<\/svg>/i.test(svg)) {
+    return showToast('自定义图标需为完整的 SVG 代码（以 <svg> 开头、</svg> 结尾）', 'error')
+  }
+  const item = {
+    label,
+    url,
+    // 自定义 SVG 优先级高于预设图标
+    icon: svg ? '' : socialForm.value.icon || DEFAULT_FOOTER_ICON,
+    svg,
+  }
+  const list = [...form.value.socialLinks]
+  if (socialEditingIndex.value >= 0) list[socialEditingIndex.value] = item
+  else list.push(item)
+  form.value.socialLinks = list.slice(0, SOCIAL_MAX)
+  socialModalOpen.value = false
+}
+
+function removeSocial(index) {
+  form.value.socialLinks = form.value.socialLinks.filter((_, i) => i !== index)
+}
+
+function moveSocial(index, direction) {
+  const target = index + direction
+  if (target < 0 || target >= form.value.socialLinks.length) return
+  const list = [...form.value.socialLinks]
+  ;[list[index], list[target]] = [list[target], list[index]]
+  form.value.socialLinks = list
+}
 
 // 上传后服务端返回的文件记录 id（用于移除时删除）
 const uploadedFileId = ref('')
 const uploading = ref(false)
 
-// 已保存的代码框内容快照（用于「还原」）
-let savedCodeContent = ''
+// 已保存的代码框内容快照（用于「还原」），通用 / 工作 / 生活各存一份
+let savedCode = { codeContent: '', workCodeContent: '', lifeCodeContent: '' }
 
 // 代码框字符计数（与原型一致：上限 2000，超 90% 提醒）
 const CODE_MAX = 2000
 const codeCount = computed(() => form.value.codeContent.length)
-const codeWarn = computed(() => codeCount.value > CODE_MAX * 0.9)
+const workCodeCount = computed(() => form.value.workCodeContent.length)
+const lifeCodeCount = computed(() => form.value.lifeCodeContent.length)
+const isNearLimit = (n) => n > CODE_MAX * 0.9
 
 /* ===== 实时预览：抽屉内直接复用前台首页页面渲染 ===== */
 const previewOpen = ref(false)
-const previewData = computed(() => ({
-  siteName: form.value.siteName,
-  personTitle: form.value.personTitle,
-  codeContent: form.value.codeContent,
-  avatar: form.value.avatar,
-}))
+// 传全量字段，前台首页按当前预览模式挑选 title 与代码框内容
+const previewData = computed(() => ({ ...form.value }))
 
 /* ===== 预览抽屉等比例缩放 =====
  * HomeView 以 1320px 设计宽度（顶栏 max-width），抽屉宽度不足以容纳原布局。
@@ -66,8 +125,16 @@ function measurePreview() {
 function onWindowResize() {
   measurePreview()
 }
+// 预览抽屉内可临时切换工作 / 生活模式查看效果，关闭预览时还原原模式
+let modeBeforePreview = null
 watch(previewOpen, (open) => {
-  if (open) measurePreview()
+  if (open) {
+    modeBeforePreview = mode.value
+    measurePreview()
+  } else if (modeBeforePreview) {
+    setMode(modeBeforePreview)
+    modeBeforePreview = null
+  }
 })
 
 /* ===== 未保存修改标记 ===== */
@@ -89,9 +156,25 @@ async function load() {
       siteName: data.siteName ?? '',
       personTitle: data.personTitle ?? '',
       codeContent: data.codeContent ?? '',
+      workPersonTitle: data.workPersonTitle ?? '',
+      workCodeContent: data.workCodeContent ?? '',
+      lifePersonTitle: data.lifePersonTitle ?? '',
+      lifeCodeContent: data.lifeCodeContent ?? '',
       avatar: data.avatar ?? '',
+      socialLinks: Array.isArray(data.socialLinks)
+        ? data.socialLinks.map((item) => ({
+            label: item.label ?? '',
+            url: item.url ?? '',
+            icon: item.icon ?? '',
+            svg: item.svg ?? '',
+          }))
+        : [],
     }
-    savedCodeContent = form.value.codeContent
+    savedCode = {
+      codeContent: form.value.codeContent,
+      workCodeContent: form.value.workCodeContent,
+      lifeCodeContent: form.value.lifeCodeContent,
+    }
     uploadedFileId.value = ''
     dirty.value = false
   } catch (e) {
@@ -149,11 +232,28 @@ async function save(opts = {}) {
       siteName: form.value.siteName.trim(),
       personTitle: form.value.personTitle.trim(),
       codeContent: form.value.codeContent,
+      workPersonTitle: form.value.workPersonTitle.trim(),
+      workCodeContent: form.value.workCodeContent,
+      lifePersonTitle: form.value.lifePersonTitle.trim(),
+      lifeCodeContent: form.value.lifeCodeContent,
       avatar: form.value.avatar || null,
+      // 整体覆盖式保存：过滤掉名称与地址都为空的残留项
+      socialLinks: form.value.socialLinks
+        .filter((item) => item.label.trim() || item.url.trim())
+        .map((item) => ({
+          label: item.label.trim(),
+          url: item.url.trim(),
+          icon: item.icon || '',
+          svg: item.svg.trim(),
+        })),
     }
     await api.put('/admin/home-page', payload)
     dirty.value = false
-    savedCodeContent = form.value.codeContent
+    savedCode = {
+      codeContent: form.value.codeContent,
+      workCodeContent: form.value.workCodeContent,
+      lifeCodeContent: form.value.lifeCodeContent,
+    }
     lastSavedAt.value = Date.now()
     if (!opts.auto) showToast('首页配置已保存', 'success')
   } catch (e) {
@@ -163,8 +263,8 @@ async function save(opts = {}) {
   }
 }
 
-function resetCode() {
-  form.value.codeContent = savedCodeContent
+function resetCode(field = 'codeContent') {
+  form.value[field] = savedCode[field] ?? ''
   showToast('已还原为上次保存的内容', 'success')
 }
 
@@ -280,43 +380,124 @@ onBeforeUnmount(() => {
           <p class="field-hint">展示在首页标题与浏览器页签，前端数据由后台驱动。</p>
         </div>
 
-        <!-- 人物 Title -->
+        <!-- 人物 Title：按模式分别配置 -->
         <div class="field">
           <div class="field-head">
             <label class="field-label" for="fTitle">人物 Title</label>
           </div>
-          <input
-            id="fTitle"
-            v-model="form.personTitle"
-            class="form-input"
-            type="text"
-            maxlength="240"
-            placeholder="如：Digital Gardener & Lifelong Learner"
-            autocomplete="off"
-          />
-          <p class="field-hint">首页人物头像 / 署名下方的副标题。</p>
+          <p class="field-hint field-hint--top">
+            首页人物头像 / 署名下方的副标题。按模式分别配置，模式专属留空时回退到「通用」。
+          </p>
+
+          <div class="mode-group">
+            <span class="mode-tag mode-tag--common">通用</span>
+            <input
+              id="fTitle"
+              v-model="form.personTitle"
+              class="form-input"
+              type="text"
+              maxlength="240"
+              placeholder="如：Digital Gardener & Lifelong Learner"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="mode-group">
+            <span class="mode-tag mode-tag--work">工作模式</span>
+            <input
+              v-model="form.workPersonTitle"
+              class="form-input"
+              type="text"
+              maxlength="240"
+              placeholder="留空则使用通用配置"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="mode-group">
+            <span class="mode-tag mode-tag--life">生活模式</span>
+            <input
+              v-model="form.lifePersonTitle"
+              class="form-input"
+              type="text"
+              maxlength="240"
+              placeholder="留空则使用通用配置"
+              autocomplete="off"
+            />
+          </div>
         </div>
 
-        <!-- 代码框内容 -->
+        <!-- 代码框内容：按模式分别配置 -->
         <div class="field">
           <div class="field-head">
             <label class="field-label" for="fCode">代码框内容</label>
-            <button class="btn btn--link" type="button" @click="resetCode">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
-              还原
-            </button>
           </div>
-          <textarea
-            id="fCode"
-            v-model="form.codeContent"
-            class="form-input form-textarea"
-            rows="10"
-            :maxlength="CODE_MAX"
-            placeholder="支持多行文本，如终端风格的介绍代码"
-          ></textarea>
-          <div class="field-foot">
-            <span class="form-foot-hint">首页终端 / 代码框内的正文；首行的 <code>$</code> 会作为提示符渲染。</span>
-            <span class="char-count" :class="{ warn: codeWarn }">{{ codeCount }} / {{ CODE_MAX }}</span>
+          <p class="field-hint field-hint--top">
+            首页终端 / 代码框内的正文；首行的 <code>$</code> 会作为提示符渲染。按模式分别配置，模式专属留空时回退到「通用」。
+          </p>
+
+          <div class="mode-group">
+            <div class="mode-group__head">
+              <span class="mode-tag mode-tag--common">通用</span>
+              <button class="btn btn--link" type="button" @click="resetCode('codeContent')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                还原
+              </button>
+            </div>
+            <textarea
+              id="fCode"
+              v-model="form.codeContent"
+              class="form-input form-textarea"
+              rows="7"
+              :maxlength="CODE_MAX"
+              placeholder="支持多行文本，如终端风格的介绍代码"
+            ></textarea>
+            <div class="field-foot">
+              <span class="form-foot-hint">两种模式均未配置时使用。</span>
+              <span class="char-count" :class="{ warn: isNearLimit(codeCount) }">{{ codeCount }} / {{ CODE_MAX }}</span>
+            </div>
+          </div>
+
+          <div class="mode-group">
+            <div class="mode-group__head">
+              <span class="mode-tag mode-tag--work">工作模式</span>
+              <button class="btn btn--link" type="button" @click="resetCode('workCodeContent')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                还原
+              </button>
+            </div>
+            <textarea
+              v-model="form.workCodeContent"
+              class="form-input form-textarea"
+              rows="7"
+              :maxlength="CODE_MAX"
+              placeholder="留空则使用通用配置"
+            ></textarea>
+            <div class="field-foot">
+              <span class="form-foot-hint">访客处于「工作模式」时展示。</span>
+              <span class="char-count" :class="{ warn: isNearLimit(workCodeCount) }">{{ workCodeCount }} / {{ CODE_MAX }}</span>
+            </div>
+          </div>
+
+          <div class="mode-group">
+            <div class="mode-group__head">
+              <span class="mode-tag mode-tag--life">生活模式</span>
+              <button class="btn btn--link" type="button" @click="resetCode('lifeCodeContent')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                还原
+              </button>
+            </div>
+            <textarea
+              v-model="form.lifeCodeContent"
+              class="form-input form-textarea"
+              rows="7"
+              :maxlength="CODE_MAX"
+              placeholder="留空则使用通用配置"
+            ></textarea>
+            <div class="field-foot">
+              <span class="form-foot-hint">访客处于「生活模式」时展示。</span>
+              <span class="char-count" :class="{ warn: isNearLimit(lifeCodeCount) }">{{ lifeCodeCount }} / {{ CODE_MAX }}</span>
+            </div>
           </div>
         </div>
 
@@ -356,8 +537,116 @@ onBeforeUnmount(() => {
           </div>
           <p class="field-hint">支持 png / jpeg / gif / webp，最大 5MB；保存后回显到前台首页。</p>
         </div>
+
+        <!-- 社交链接：首页头像下方的一排按钮 -->
+        <div class="field">
+          <div class="field-head">
+            <label class="field-label">社交链接</label>
+            <button class="btn btn--link" type="button" @click="openSocialModal(-1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              添加链接
+            </button>
+          </div>
+          <p class="field-hint field-hint--top">
+            首页头像下方的一排按钮（如语雀 / GitHub），可分别设置图标、名称与跳转地址；用上下箭头调整展示顺序，最多 {{ SOCIAL_MAX }} 条。
+          </p>
+
+          <div v-if="!form.socialLinks.length" class="social-empty">
+            <span>暂无社交链接，点击右上角「添加链接」开始配置</span>
+          </div>
+          <ul v-else class="social-list">
+            <li v-for="(item, index) in form.socialLinks" :key="index" class="social-row">
+              <span class="social-row__icon" :title="socialIconLabel(item)">
+                <SocialIcon :name="item.icon" :svg="item.svg" />
+              </span>
+              <span class="social-row__label">{{ item.label || '未命名' }}</span>
+              <span class="social-row__url">{{ item.url }}</span>
+              <span class="social-row__meta">{{ socialIconLabel(item) }}</span>
+              <span class="social-row__actions">
+                <button class="mini-btn" :disabled="index === 0" title="上移" @click="moveSocial(index, -1)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+                <button class="mini-btn" :disabled="index === form.socialLinks.length - 1" title="下移" @click="moveSocial(index, 1)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <button class="mini-btn" @click="openSocialModal(index)">编辑</button>
+                <button class="mini-btn danger" @click="removeSocial(index)">删除</button>
+              </span>
+            </li>
+          </ul>
+        </div>
       </form>
     </div>
+
+    <!-- ===== 社交链接：新建 / 编辑 Modal ===== -->
+    <Teleport to="body">
+      <transition name="modal-fade">
+        <div v-if="socialModalOpen" class="modal-overlay" @click.self="socialModalOpen = false">
+          <div class="modal-card modal-card--wide" role="dialog" aria-modal="true" aria-label="社交链接配置">
+            <div class="modal-head">
+              <span class="modal-title">{{ socialEditingIndex >= 0 ? '编辑社交链接' : '添加社交链接' }}</span>
+              <button class="modal-close" title="关闭" @click="socialModalOpen = false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div class="modal-body">
+              <div class="form-field">
+                <label class="field-label" for="sLabel">显示名称</label>
+                <input id="sLabel" v-model="socialForm.label" type="text" maxlength="60" placeholder="如：语雀" />
+              </div>
+              <div class="form-field">
+                <label class="field-label" for="sUrl">链接地址</label>
+                <input id="sUrl" v-model="socialForm.url" type="text" class="input-mono" placeholder="https://… 或 mailto:xxx@xx.com" />
+                <small class="hint">在新标签页打开；邮箱请填 mailto:xxx@xx.com</small>
+              </div>
+              <div class="form-field">
+                <label class="field-label">图标预览</label>
+                <div class="icon-preview">
+                  <span class="icon-preview__circle">
+                    <SocialIcon :name="socialForm.icon" :svg="socialForm.svg" />
+                  </span>
+                  <span class="icon-preview__text">
+                    {{ socialUseCustomSvg ? '自定义 SVG' : getFooterIconLabel(socialForm.icon) }}
+                  </span>
+                </div>
+              </div>
+              <div class="form-field">
+                <label class="field-label">预设图标</label>
+                <div class="icon-picker">
+                  <button
+                    v-for="ic in FOOTER_ICONS"
+                    :key="ic.key"
+                    type="button"
+                    class="icon-picker__item"
+                    :class="{ active: !socialUseCustomSvg && socialForm.icon === ic.key }"
+                    :title="ic.label"
+                    @click="socialForm.icon = ic.key; socialForm.svg = ''"
+                  >
+                    <SocialIcon :name="ic.key" />
+                  </button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label class="field-label" for="sSvg">自定义图标（可选，填了则优先于预设图标）</label>
+                <textarea
+                  id="sSvg"
+                  v-model="socialForm.svg"
+                  class="input-mono svg-input"
+                  rows="4"
+                  spellcheck="false"
+                  placeholder='<svg viewBox="0 0 24 24">...</svg>'
+                />
+                <small class="hint">粘贴完整 SVG 源码（推荐 24×24 / 1024×1024 viewBox），尺寸由容器自适应</small>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <button class="btn btn--ghost" @click="socialModalOpen = false">取消</button>
+              <button class="btn btn--primary" @click="saveSocial">确定</button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
 
     <!-- ===== 实时预览抽屉 ===== -->
     <transition name="drawer-fade">
@@ -367,6 +656,20 @@ onBeforeUnmount(() => {
       <aside v-if="previewOpen" class="preview-drawer">
         <div class="drawer-head">
           <span class="drawer-title">实时预览</span>
+          <div class="preview-modes" role="group" aria-label="预览模式">
+            <button
+              type="button"
+              class="mode-switch"
+              :class="{ active: mode === 'work' }"
+              @click="setMode('work')"
+            >工作模式</button>
+            <button
+              type="button"
+              class="mode-switch"
+              :class="{ active: mode === 'life' }"
+              @click="setMode('life')"
+            >生活模式</button>
+          </div>
           <button class="drawer-close" title="关闭预览" @click="previewOpen = false">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
@@ -486,6 +789,34 @@ onBeforeUnmount(() => {
   font-size: 12.5px; color: var(--text-tertiary); margin: 8px 0 0;
   font-family: var(--font-mono);
 }
+.field-hint--top { margin: 0 0 14px; }
+
+/* 分模式配置：通用 / 工作 / 生活 */
+.mode-group { margin-top: 16px; }
+.mode-group:first-of-type { margin-top: 0; }
+.mode-group__head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 8px;
+}
+.mode-tag {
+  display: inline-block; font-family: var(--font-mono); font-size: 11.5px; font-weight: 500;
+  letter-spacing: 0.06em; padding: 3px 10px; border-radius: 100px; white-space: nowrap;
+  background-color: var(--bg-soft); color: var(--text-tertiary); border: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.mode-group__head .mode-tag { margin-bottom: 0; }
+.mode-tag--common { color: var(--text-secondary); }
+.mode-tag--work {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background-color: var(--accent-light);
+}
+.mode-tag--life {
+  color: #b07d3a;
+  border-color: rgba(176, 125, 58, 0.35);
+  background-color: rgba(176, 125, 58, 0.1);
+}
+.mode-group .form-textarea { min-height: 150px; }
 
 /* Inputs */
 .form-input {
@@ -539,6 +870,303 @@ onBeforeUnmount(() => {
   display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
 }
 .btn--ghost.is-loading { opacity: 0.6; pointer-events: none; }
+
+/* ===== 社交链接列表 ===== */
+.social-empty {
+  padding: 18px 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-tertiary);
+  background-color: var(--bg-soft);
+}
+.social-list { list-style: none; margin: 0; padding: 6px 0; }
+.social-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  margin: 0 0 2px;
+  border: 1px solid var(--border-light);
+  background-color: var(--bg-card);
+  transition: border-color var(--transition), background-color var(--transition);
+}
+.social-row:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background-color: color-mix(in srgb, var(--accent-light) 30%, transparent);
+}
+.social-row__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.social-row__icon :deep(svg),
+.social-row__icon :deep(span) { width: 15px; height: 15px; }
+.social-row__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.social-row__url {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.social-row__meta {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  background-color: var(--bg-soft);
+  padding: 2px 9px;
+  border-radius: 100px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.social-row__actions { margin-left: auto; display: flex; gap: 6px; flex-shrink: 0; }
+
+/* ===== mini-btn ===== */
+.mini-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.mini-btn svg { width: 13px; height: 13px; }
+.mini-btn:hover:not(:disabled) {
+  color: var(--accent); border-color: var(--accent);
+  background-color: var(--accent-light);
+}
+.mini-btn.danger:hover:not(:disabled) {
+  color: #e0533d; border-color: #e0533d; background-color: #fdf1ef;
+}
+:global([data-theme='dark']) .mini-btn.danger:hover:not(:disabled) { background-color: #33211e; }
+.mini-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ===== 社交链接 Modal ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+.modal-card {
+  width: 460px;
+  max-width: calc(100vw - 32px);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.modal-card--wide { width: 540px; }
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+}
+.modal-title {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+  padding-left: 14px;
+  position: relative;
+}
+.modal-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 16px;
+  border-radius: 4px;
+  background-color: var(--accent);
+}
+.modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.modal-close:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background-color: var(--accent-light);
+}
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-soft);
+}
+.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+.modal-fade-enter-active .modal-card { transition: transform 0.2s ease; }
+.modal-fade-enter-from .modal-card { transform: translateY(-12px) scale(0.98); }
+
+/* ===== Modal 表单 ===== */
+.form-field { display: flex; flex-direction: column; gap: 6px; }
+/* 覆盖页面级 .field-label（16px 衬线标题），弹窗内用小号标签 */
+.modal-card .field-label {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.modal-card .form-field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
+}
+.modal-card .form-field input::placeholder { color: var(--text-tertiary); }
+.modal-card .form-field input:hover {
+  background-color: color-mix(in srgb, var(--bg-soft) 70%, var(--accent-light) 30%);
+}
+.modal-card .form-field input:focus {
+  background-color: var(--bg-card);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.input-mono { font-family: var(--font-mono); font-size: 13px; }
+.hint { font-size: 12px; color: var(--text-tertiary); font-family: var(--font-mono); }
+
+/* ===== 图标预览 / 选择器 / 自定义 SVG ===== */
+.icon-preview { display: flex; align-items: center; gap: 12px; }
+.icon-preview__circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.icon-preview__circle :deep(svg),
+.icon-preview__circle :deep(span) { width: 19px; height: 19px; }
+.icon-preview__text { font-size: 13px; color: var(--text-secondary); }
+
+.icon-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  max-height: 168px;
+  overflow-y: auto;
+}
+.icon-picker__item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.icon-picker__item :deep(svg),
+.icon-picker__item :deep(span) { width: 19px; height: 19px; }
+.icon-picker__item:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background-color: var(--accent-light);
+}
+.icon-picker__item.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background-color: var(--accent-light);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.svg-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
+}
+.svg-input::placeholder { color: var(--text-tertiary); }
+.svg-input:focus {
+  background-color: var(--bg-card);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
 
 /* ===== Loading ===== */
 .empty {
@@ -599,6 +1227,20 @@ onBeforeUnmount(() => {
   border-radius: 4px;
   background-color: var(--accent);
 }
+/* 预览抽屉：模式切换（临时切换，关闭预览时还原） */
+.preview-modes {
+  display: inline-flex; gap: 4px; padding: 3px; margin-left: auto;
+  background-color: var(--bg-soft); border: 1px solid var(--border); border-radius: 100px;
+}
+.mode-switch {
+  border: none; background: transparent; cursor: pointer;
+  font-family: var(--font-sans); font-size: 12.5px; color: var(--text-tertiary);
+  padding: 5px 14px; border-radius: 100px; transition: all var(--transition);
+}
+.mode-switch:hover { color: var(--accent); }
+.mode-switch.active { background-color: var(--accent); color: #fff; }
+:global([data-theme='dark']) .mode-switch.active { color: #0f0f0f; }
+
 .drawer-close {
   display: inline-flex;
   align-items: center;
@@ -669,5 +1311,8 @@ onBeforeUnmount(() => {
   .form-textarea { min-height: 180px; }
   .avatar-uploader { gap: 14px; }
   .drawer-body { padding: 14px; }
+  /* 社交链接行：窄屏下让长链接独占一行，按钮组右对齐 */
+  .social-row { flex-wrap: wrap; row-gap: 8px; }
+  .social-row__url { flex-basis: 100%; }
 }
 </style>

@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { defaultResumeContent } from '@/data/resume'
 import ResumeContent from '@/components/resume/ResumeContent.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const api = useApi()
 
@@ -89,12 +90,36 @@ async function loadVersions(selectId) {
   }
 }
 
-async function selectVersion(id) {
+/* 未保存修改时切换版本的确认弹窗 */
+const leaveOpen = ref(false)
+const pendingVersionId = ref('')
+
+function selectVersion(id) {
   if (id === currentId.value) return
-  if (dirty.value && !confirm('当前版本有未保存的修改，切换后修改将丢失，是否继续？')) return
+  if (dirty.value) {
+    pendingVersionId.value = id
+    leaveOpen.value = true
+    return
+  }
+  doSelectVersion(id)
+}
+
+async function doSelectVersion(id) {
   currentId.value = id
   dirty.value = false
   await loadDetail(id)
+}
+
+function confirmLeave() {
+  leaveOpen.value = false
+  const id = pendingVersionId.value
+  pendingVersionId.value = ''
+  if (id) doSelectVersion(id)
+}
+
+function cancelLeave() {
+  leaveOpen.value = false
+  pendingVersionId.value = ''
 }
 
 async function loadDetail(id) {
@@ -476,8 +501,8 @@ const hasVersions = computed(() => versions.value.length > 0)
             </div>
             <div class="form-row">
               <div class="form-field">
-                <label class="field-label" for="rAvatar">头像文字</label>
-                <input id="rAvatar" v-model="form.profile.avatarText" class="form-input" type="text" maxlength="4" placeholder="如：墨" />
+                <label class="field-label" for="rAvatar">头像文字（备用）</label>
+                <input id="rAvatar" v-model="form.profile.avatarText" class="form-input" type="text" maxlength="4" placeholder="默认取姓名首字，此处仅在姓名为空时生效" />
               </div>
               <div class="form-field">
                 <label class="field-label" for="rHandle">Handle</label>
@@ -751,6 +776,18 @@ const hasVersions = computed(() => versions.value.length > 0)
         </div>
       </div>
     </transition>
+
+    <!-- ===== 未保存修改确认 ===== -->
+    <ConfirmDialog
+      :open="leaveOpen"
+      title="未保存的修改"
+      confirm-label="放弃修改"
+      :danger="false"
+      @cancel="cancelLeave"
+      @confirm="confirmLeave"
+    >
+      当前版本有未保存的修改，切换后修改将丢失，是否继续？
+    </ConfirmDialog>
   </div>
 </template>
 

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { UserJwtAuthGuard } from '../auth/user-jwt.guard';
 import { ChatService } from './chat.service';
@@ -28,8 +28,8 @@ export class ChatController {
   }
 
   @Get('messages')
-  async getMessages(@Req() req: any) {
-    const list = await this.chatService.getHistory(req.user.id, 100);
+  async getMessages(@Req() req: any, @Query('sessionId') sessionId?: string) {
+    const list = await this.chatService.getHistory(req.user.id, sessionId || undefined, 100);
     return { items: list };
   }
 
@@ -76,7 +76,7 @@ export class ChatController {
     });
 
     try {
-      await this.chatService.run(req.user.id, content, {
+      await this.chatService.run(req.user.id, dto.sessionId || undefined, content, {
         modelId: dto.modelId,
         onDelta: (text) => {
           if (!closed) writeEvent('delta', { text });

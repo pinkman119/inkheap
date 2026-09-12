@@ -4,6 +4,7 @@
  * - marked：把 markdown 字符串编译成 HTML
  * - highlight.js：代码块语法高亮（自动识别语言，如 yaml / bash / js）
  * - DOMPurify：净化输出 HTML，防止未来接入后端 / 用户内容带来的 XSS
+ * - mermaid：文本绘图（时序图 / 流程图等），由 utils/diagram.js 在 DOM 挂载后异步渲染
  *
  * 用法：
  *   import { renderMarkdown } from '@/utils/markdown'
@@ -58,13 +59,84 @@ function calloutExtension() {
   }
 }
 
+/**
+ * 文本绘图占位节点。源码放进 <pre> 文本节点（会被转义，不会破坏 HTML 结构），
+ * 渲染成 DOM 后由 utils/diagram.js 调用 mermaid 编译成 SVG。
+ */
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function diagramHtml(source) {
+  return (
+    `<div class="md-diagram" data-diagram="mermaid">` +
+    `<pre class="md-diagram-src">${escapeHtml(String(source || '').trim())}</pre>` +
+    `</div>\n`
+  )
+}
+
+/**
+ * 定位绘图注释的结束符。
+ *
+ * 不能直接用 /([\s\S]*?)-->/ 收尾：mermaid 的箭头语法 -->>、--> 本身就含 "-->"，
+ * 会把源码拦腰截断。真正的注释结束符后面只可能跟「空白 + 换行/结尾」，
+ * 而箭头后面必然紧跟参与者名，据此区分。
+ */
+function matchDiagramComment(src) {
+  const head = /^<!--\s*[^>]*?(?:绘图|图表)[^>]*?源码为\s*[：:]\s*/.exec(src)
+  if (!head) return null
+
+  const rest = src.slice(head[0].length)
+  const terminator = /-->\s*(?:\n|$)/g
+  let hit = terminator.exec(rest)
+  while (hit) {
+    const text = rest.slice(0, hit.index)
+    // 防止该注释没有合法结束符时，一路吞掉后续正文里的注释
+    if (!text.includes('<!--')) {
+      return { raw: src.slice(0, head[0].length + hit.index + hit[0].length), text }
+    }
+    hit = terminator.exec(rest)
+  }
+  return null
+}
+
+/**
+ * 文本绘图扩展（语雀导出风格）：识别
+ *   <!-- 这是一个文本绘图，源码为：sequenceDiagram
+ *        U->>E: 点击上传
+ *   -->
+ * 编译为 <div class="md-diagram" ...>，由 utils/diagram.js 在 DOM 挂载后异步渲染。
+ * 必须在 marked 的 html 块规则之前拦截，否则会退化成一条被 DOMPurify 丢掉的注释。
+ */
+function diagramExtension() {
+  return {
+    name: 'diagram',
+    level: 'block',
+    start(src) {
+      return src.indexOf('<!--')
+    },
+    tokenizer(src) {
+      const match = matchDiagramComment(src)
+      if (!match || !match.text.trim()) return false
+      return { type: 'diagram', raw: match.raw, text: match.text }
+    },
+    renderer(token) {
+      return diagramHtml(token.text)
+    },
+  }
+}
+
 // v18: heading IDs 需通过 marked-gfm-heading-id 扩展生成
 marked.use(gfmHeadingId())
 
 marked.use({
   gfm: true,
   breaks: false,
-  extensions: [calloutExtension()],
+  extensions: [calloutExtension(), diagramExtension()],
 })
 
 // marked v5+ 已移除 highlight 选项，这里通过 renderer.code 手动接入 highlight.js，
@@ -76,6 +148,10 @@ marked.use({
     code(token) {
       const text = token.text
       const lang = token.lang
+      // ```mermaid 标准写法：交给绘图渲染，而不是当普通代码高亮
+      if (String(lang || '').trim().split(/\s+/)[0].toLowerCase() === 'mermaid') {
+        return diagramHtml(text)
+      }
       const language = lang && hljs.getLanguage(lang) ? lang : ''
       const highlighted = language
         ? hljs.highlight(text, { language }).value
@@ -159,11 +235,16 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
   }
 })
 
-/** 把 markdown 源渲染为净化后的 HTML 字符串 */
-export function renderMarkdown(source) {
+/**
+ * 把 markdown 源渲染为净化后的 HTML 字符串。
+ * @param {string} source markdown 源码
+ * @param {object} [options] 透传给 marked.parse 的选项。对话场景可传 { breaks: true }，
+ *   把单个换行也渲染成 <br>，避免 AI 的分行被合并成一整段。
+ */
+export function renderMarkdown(source, options = {}) {
   if (!source) return ''
   const normalized = normalizeYuqueImages(source)
-  const rawHtml = marked.parse(normalized)
+  const rawHtml = marked.parse(normalized, options)
   return DOMPurify.sanitize(rawHtml, {
     ADD_ATTR: ['target'],
   })

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useApi } from '@/composables/useApi'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const api = useApi()
 
@@ -142,6 +143,12 @@ function goPage(p) {
   load()
 }
 
+// ===== 确认弹窗状态 =====
+const removeConfirmOpen = ref(false)
+const removeTarget = ref(null)
+const batchConfirmOpen = ref(false)
+const batchConfirmCount = ref(0)
+
 /** 单条训练 / 移除训练（带当前选中的嵌入模型） */
 async function trainOne(item) {
   if (item._loading) return
@@ -161,9 +168,20 @@ async function trainOne(item) {
   }
 }
 
-async function removeOne(item) {
+function removeOne(item) {
   if (item._loading) return
-  if (!window.confirm(`确认移除「${item.title}」的训练？移除后不再参与数字生命检索。`)) return
+  removeTarget.value = item
+  removeConfirmOpen.value = true
+}
+
+function cancelRemoveOne() {
+  removeConfirmOpen.value = false
+  removeTarget.value = null
+}
+
+async function confirmRemoveOne() {
+  const item = removeTarget.value
+  if (!item || item._loading) return
   item._loading = true
   item._error = ''
   try {
@@ -175,18 +193,27 @@ async function removeOne(item) {
     showToast(`移除失败：${e.message}`, 'error')
   } finally {
     item._loading = false
+    removeConfirmOpen.value = false
+    removeTarget.value = null
   }
 }
 
 /** 一键训练全部未训练：串行调用单条接口，失败跳过继续 */
-async function trainAllUntrained() {
+function trainAllUntrained() {
   if (batchRunning.value) return
   const untrained = list.value.filter((it) => it.trainType === 0)
   if (!untrained.length) {
     showToast('当前列表没有未训练的数据', 'error')
     return
   }
-  if (!window.confirm(`将训练当前列表的 ${untrained.length} 条未训练数据（每条调用一次嵌入接口），开始？`)) return
+  batchConfirmCount.value = untrained.length
+  batchConfirmOpen.value = true
+}
+
+async function confirmTrainAll() {
+  batchConfirmOpen.value = false
+  const untrained = list.value.filter((it) => it.trainType === 0)
+  if (!untrained.length) return
 
   batchRunning.value = true
   batchStop.value = false
@@ -438,6 +465,29 @@ onMounted(() => {
         <li v-for="(f, i) in batchFailures" :key="i">{{ f }}</li>
       </ul>
     </div>
+
+    <!-- ===== 移除训练确认 ===== -->
+    <ConfirmDialog
+      :open="removeConfirmOpen"
+      title="移除训练"
+      confirm-label="移除"
+      @cancel="cancelRemoveOne"
+      @confirm="confirmRemoveOne"
+    >
+      确认移除 <strong>「{{ removeTarget?.title }}」</strong> 的训练？移除后不再参与数字生命检索。
+    </ConfirmDialog>
+
+    <!-- ===== 批量训练确认 ===== -->
+    <ConfirmDialog
+      :open="batchConfirmOpen"
+      title="批量训练"
+      confirm-label="开始"
+      :danger="false"
+      @cancel="batchConfirmOpen = false"
+      @confirm="confirmTrainAll"
+    >
+      将训练当前列表的 <strong>{{ batchConfirmCount }}</strong> 条未训练数据（每条调用一次嵌入接口），是否开始？
+    </ConfirmDialog>
   </div>
 </template>
 

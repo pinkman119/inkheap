@@ -64,6 +64,8 @@
               <th>类型</th>
               <th>分类</th>
               <th>状态</th>
+              <th class="th-views">真实阅读</th>
+              <th class="th-views">虚拟阅读</th>
               <th>更新时间</th>
               <th class="xj-table__ops">操作</th>
             </tr>
@@ -85,6 +87,13 @@
                 <span class="badge" :class="a.published ? 'badge--ok' : 'badge--muted'">
                   {{ a.published ? '已发布' : '草稿' }}
                 </span>
+              </td>
+              <td class="cell-views">{{ a.viewCount ?? 0 }}</td>
+              <td class="cell-views">
+                <span v-if="a.virtualViewCount !== null && a.virtualViewCount !== undefined" class="views-virtual">
+                  {{ a.virtualViewCount }}
+                </span>
+                <span v-else class="views-unset">未设置</span>
               </td>
               <td class="cell-muted">{{ formatDate(a.updatedAt) }}</td>
               <td class="xj-table__ops">
@@ -113,16 +122,40 @@
         </div>
       </div>
     </section>
+
+    <!-- ===== 删除确认弹窗 ===== -->
+    <ConfirmDialog
+      :open="confirmOpen"
+      title="删除小记"
+      confirm-label="删除"
+      :loading="deleting"
+      warn="删除后该小记将从站点与列表中移除，此操作不可撤销。"
+      @cancel="cancelRemove"
+      @confirm="confirmRemove"
+    >
+      确定要删除 <strong>《{{ pendingItem?.title }}》</strong> 吗？
+    </ConfirmDialog>
+
+    <!-- ===== Toast ===== -->
+    <transition name="toast-pop">
+      <div v-if="toastMsg" class="toast" :class="toastType" role="status" aria-live="polite">
+        <svg v-if="toastType === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+        <span>{{ toastMsg }}</span>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script>
 import { useApi } from '../../composables/useApi'
+import ConfirmDialog from '../../components/ConfirmDialog.vue'
 
 const api = useApi()
 
 export default {
   name: 'AdminXiaojiList',
+  components: { ConfirmDialog },
   data() {
     return {
       searchInput: '',
@@ -137,6 +170,15 @@ export default {
       loadError: false,
       _loadSeq: 0,
       _observer: null,
+
+      // 删除确认弹窗
+      confirmOpen: false,
+      pendingItem: null,
+      deleting: false,
+
+      // 站内提示
+      toastMsg: '',
+      toastType: 'success',
     }
   },
   computed: {
@@ -251,14 +293,35 @@ export default {
           this.items.splice(idx, 1)
           if (typeof this.total === 'number') this.total = Math.max(0, this.total - 1)
         }
-      } catch (e) { alert('操作失败：' + (e?.message || e)) }
+      } catch (e) { this.showToast('操作失败：' + (e?.message || e), 'error') }
     },
-    async removeItem(a) {
-      if (!confirm(`确认删除《${a.title}》？`)) return
+    removeItem(a) {
+      this.pendingItem = a
+      this.confirmOpen = true
+    },
+    cancelRemove() {
+      this.confirmOpen = false
+      this.pendingItem = null
+    },
+    async confirmRemove() {
+      if (!this.pendingItem) return
+      this.deleting = true
       try {
-        await api.delete(`/admin/xiaoji/${a.id}`)
+        await api.delete(`/admin/xiaoji/${this.pendingItem.id}`)
+        this.confirmOpen = false
+        this.pendingItem = null
+        this.showToast('小记已删除', 'success')
         this.loadItems(true)
-      } catch (e) { alert('删除失败：' + (e?.message || e)) }
+      } catch (e) {
+        this.showToast('删除失败：' + (e?.message || e), 'error')
+      } finally {
+        this.deleting = false
+      }
+    },
+    showToast(msg, type = 'success') {
+      this.toastMsg = msg
+      this.toastType = type
+      setTimeout(() => { this.toastMsg = '' }, 3000)
     },
     formatDate(v) {
       if (!v) return '-'
@@ -442,6 +505,14 @@ export default {
   color: var(--text-tertiary); white-space: nowrap;
   font-family: var(--font-mono); font-size: 12px;
 }
+.th-views { width: 88px; text-align: right; }
+.cell-views {
+  width: 88px; text-align: right;
+  font-family: var(--font-mono); font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.views-virtual { color: var(--accent); font-weight: 600; }
+.views-unset { color: var(--text-tertiary); font-size: 12px; }
 .xj-table__ops { white-space: nowrap; text-align: right; }
 
 .type-badge {
@@ -512,6 +583,25 @@ export default {
 }
 .xj-list::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--text-tertiary) 55%, transparent);
+}
+
+/* ===== Toast ===== */
+.toast {
+  position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%);
+  background: var(--bg-card); border: 1px solid var(--accent); color: var(--accent);
+  font-size: 14px; font-weight: 500; padding: 10px 22px; border-radius: 100px;
+  box-shadow: var(--shadow-lg);
+  display: inline-flex; align-items: center; gap: 8px;
+  z-index: 4000; max-width: min(480px, 90vw);
+}
+.toast svg { width: 16px; height: 16px; flex-shrink: 0; }
+.toast.error { border-color: #e0533d; color: #e0533d; }
+.toast-pop-enter-active, .toast-pop-leave-active {
+  transition: opacity 0.35s cubic-bezier(0.22, 1, 0.36, 1), transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.toast-pop-enter-from, .toast-pop-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(20px);
 }
 
 /* ===== Responsive ===== */

@@ -7,6 +7,10 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // 信任一层反向代理（Docker 部署为 Nginx → backend），否则 req.ip 恒为容器网关地址，
+  // 所有访客会被识别成同一个 IP，按 IP 去重的阅读量将永远停在 1。
+  app.set('trust proxy', 1);
+
   // Serve uploaded files publicly under /files
   app.useStaticAssets(join(process.cwd(), 'files'), { prefix: '/files' });
 

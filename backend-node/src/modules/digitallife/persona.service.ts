@@ -33,6 +33,7 @@ export class PersonaService {
     if (dto.name !== undefined) data.name = dto.name.trim();
     if (dto.greeting !== undefined) data.greeting = dto.greeting.trim();
     if (dto.description !== undefined) data.description = dto.description;
+    if (dto.basicInfo !== undefined) data.basicInfo = dto.basicInfo;
     if (dto.styleHint !== undefined) data.styleHint = dto.styleHint.trim();
     if (dto.accentColor !== undefined) data.accentColor = dto.accentColor.trim();
     if (dto.avatarEmoji !== undefined) data.avatarEmoji = dto.avatarEmoji.trim();

@@ -1,0 +1,32 @@
+---
+description: 代码结构导航优先使用 CodeGraphy 关系图（codegraphy CLI），而不是盲目 grep/glob 遍历。
+alwaysApply: true
+enabled: true
+updatedAt: 2026-09-12T00:00:00.000Z
+provider:
+---
+
+# CodeGraphy 关系图优先
+
+本仓库已建立 CodeGraphy 工作区（`.codegraphy/`，Graph Cache 位于 `.codegraphy/graph.sqlite`），全局命令 `codegraphy` 可用。
+
+## 规则
+
+1. 当任务属于**结构性导航**时，优先调用 `codegraphy` 而不是逐文件 grep/glob：
+   - 某符号/文件定义在哪、谁引用它（`search`、`dependents`）
+   - 某文件依赖了什么、模块间调用链（`dependencies`、`path`）
+   - 改动影响面、入口点、包内枢纽（`dependents`、`edges`、`nodes`）
+2. 只有在以下情况才退回文本搜索（`search_content` / `read_file`）：
+   - 查找字面文本、日志、注释、配置值等非结构信息
+   - 图缓存缺失或 `codegraphy` 不可用
+   - 需要最终确认源码细节（图只是导航证据，不能替代阅读源码）
+3. 查询前先 `codegraphy status`；若为 `missing`/`stale`，先执行 `codegraphy index` 再查询。
+4. 大幅修改代码后如需再次做结构查询，先重新 `codegraphy index` 保证事实新鲜。
+5. 读取命令的 JSON 输出时，注意 `ok` / `data` / `error` 信封与分页字段；结果是**有界**的，分页未取完不代表结果不存在。
+6. 本仓库 TS/JS 的 import 会解析到 **符号节点**，因此查「谁用了某个类/函数」要先 `codegraphy search <名称>` 拿到符号 ID（形如 `路径#名称:kind`），再 `codegraphy dependents "<符号ID>"`；直接查文件级 dependents 会漏报。
+7. 详细用法见技能 `.codebuddy/skills/codegraphy/SKILL.md`（技能名 `codegraphy`），需要时加载它。
+
+## 环境约束
+
+- CLI 版本 `@codegraphy-dev/core` 4.0.1，要求 Node.js `>=20 <23`。
+- 当前本机可用命令：`index`、`status`、`doctor`、`nodes`、`search`、`edges`、`dependencies`、`dependents`、`path`、`scope`、`filter`、`plugins`。

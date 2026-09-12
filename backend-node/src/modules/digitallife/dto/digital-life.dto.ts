@@ -20,6 +20,12 @@ export class ChatDto {
   @IsOptional()
   @IsString()
   modelId?: string;
+
+  /** 会话 ID：开启新会话时由前端生成并持久化；不传则消息归入默认（空）会话 */
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  sessionId?: string;
 }
 
 /** 训练请求（可指定使用的「嵌入」模型） */
@@ -54,42 +60,40 @@ export class UpdateDlModelDto {
   apiKey?: string;
 }
 
-/** 人格更新（结构化字段） */
+/** 人格更新（结构化字段）：人格文本均不设字数上限 */
 export class UpdatePersonaDto {
   @IsOptional()
   @IsString()
-  @MaxLength(60)
   name?: string;
 
   @IsOptional()
   @IsString()
-  @MaxLength(500)
   greeting?: string;
 
   /** 性格描述（核心人格 prompt，允许长文本） */
   @IsOptional()
   @IsString()
-  @MaxLength(30000)
   description?: string;
+
+  /** 基本信息：站主的事实性资料（姓名/职业/城市/兴趣等），前台据此回答相关问题 */
+  @IsOptional()
+  @IsString()
+  basicInfo?: string;
 
   @IsOptional()
   @IsString()
-  @MaxLength(2000)
   styleHint?: string;
 
   @IsOptional()
   @IsString()
-  @MaxLength(20)
   accentColor?: string;
 
   @IsOptional()
   @IsString()
-  @MaxLength(10)
   avatarEmoji?: string;
 
   @IsOptional()
   @IsString()
-  @MaxLength(30)
   personalityType?: string;
 }
 

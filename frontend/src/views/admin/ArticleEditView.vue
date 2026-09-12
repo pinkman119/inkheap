@@ -1,11 +1,16 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useApi } from '@/composables/useApi'
+import { useSiteIdentity } from '@/composables/useSiteIdentity'
+import ArticleDetailView from '@/views/ArticleDetailView.vue'
 
 const router = useRouter()
 const route = useRoute()
 const api = useApi()
+
+// 站点身份：作者留空时前台回退展示的名称
+const { siteName, loadSiteIdentity } = useSiteIdentity()
 
 const isEdit = computed(() => !!route.params.id)
 const loading = ref(false)
@@ -21,15 +26,20 @@ const form = ref({
   coverImage: '',
   categoryKey: '',
   tags: [],
-  author: '墨堆',
+  author: '',
+  authorUrl: '',
   published: false,
   featured: false,
+  viewCount: 0,
+  virtualViewCount: null,
 })
 
 const tagInput = ref('')
 const categories = ref([])
 
 onMounted(async () => {
+  window.addEventListener('resize', onWindowResize)
+  loadSiteIdentity()
   try {
     categories.value = await api.get('/admin/categories')
   } catch (e) { /* ignore */ }
@@ -46,9 +56,12 @@ onMounted(async () => {
         coverImage: article.coverImage || '',
         categoryKey: article.categoryKey,
         tags: article.tags || [],
-        author: article.author,
+        author: article.author || '',
+        authorUrl: article.authorUrl || '',
         published: article.published,
         featured: article.featured,
+        viewCount: article.viewCount ?? 0,
+        virtualViewCount: article.virtualViewCount ?? null,
       }
     } catch (e) {
       showToast('加载文章失败: ' + e.message, 'error')
@@ -56,6 +69,10 @@ onMounted(async () => {
       loading.value = false
     }
   }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', onWindowResize)
 })
 
 function autoSlug() {
@@ -82,9 +99,88 @@ function removeTag(t) {
   form.value.tags = form.value.tags.filter(x => x !== t)
 }
 
+// 生成一张随机占位封面（seed 决定图片，换 seed 即换图）
+function randomCover() {
+  form.value.coverImage = `https://picsum.photos/seed/${Date.now()}/600/400`
+}
+
+// 移除封面：真正清空封面地址（保存后前台回退为标题文字封面），不再自动补随机占位图
 function removeCover() {
   form.value.coverImage = ''
 }
+
+/* ===== 摘要自动生成：后端读取正文内容，调用已启用的 LLM 生成摘要 ===== */
+const generating = ref(false)
+
+async function generateSummary() {
+  if (!form.value.content.trim()) {
+    showToast('请先填写正文内容，再生成摘要', 'error')
+    return
+  }
+  generating.value = true
+  try {
+    const res = await api.post('/admin/articles/generate-summary', {
+      content: form.value.content,
+      title: form.value.title,
+    })
+    const summary = (res?.summary || '').trim()
+    if (!summary) {
+      showToast('生成结果为空，请重试', 'error')
+      return
+    }
+    form.value.summary = summary
+    showToast('摘要已生成', 'success')
+  } catch (e) {
+    showToast('生成摘要失败: ' + e.message, 'error')
+  } finally {
+    generating.value = false
+  }
+}
+
+/* ===== 实时预览：抽屉内直接复用前台文章详情页渲染 ===== */
+const previewOpen = ref(false)
+
+// 传编辑中的全量字段；虚拟阅读量清空时统一为 null，与提交逻辑保持一致
+const previewData = computed(() => {
+  const v = form.value.virtualViewCount
+  return {
+    ...form.value,
+    tags: [...(form.value.tags || [])],
+    virtualViewCount: v === '' || v === null || Number.isNaN(v) ? null : v,
+  }
+})
+
+/* ===== 预览抽屉等比例缩放（与「首页管理」实时预览一致） =====
+ * 文章详情以 1120px 设计宽度，抽屉宽度不足以容纳原布局，
+ * 用 CSS zoom 在基准宽度上整体缩放，占位高度由浏览器按比例自动计算。 */
+const PREVIEW_BASE_WIDTH = 1120
+const drawerBodyRef = ref(null)
+const drawerWidth = ref(0)
+
+const previewScale = computed(() => {
+  if (!drawerWidth.value) return 1
+  return Math.min(1, drawerWidth.value / PREVIEW_BASE_WIDTH)
+})
+const previewScaleStyle = computed(() => ({
+  width: PREVIEW_BASE_WIDTH + 'px',
+  zoom: previewScale.value,
+}))
+
+function measurePreview() {
+  nextTick(() => {
+    if (drawerBodyRef.value) {
+      const cs = window.getComputedStyle(drawerBodyRef.value)
+      const pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0)
+      drawerWidth.value = drawerBodyRef.value.clientWidth - pad
+    }
+  })
+}
+function onWindowResize() {
+  measurePreview()
+}
+watch(previewOpen, (open) => {
+  if (open) measurePreview()
+})
 
 async function handleSave() {
   if (!form.value.title || !form.value.content || !form.value.categoryKey) {
@@ -93,14 +189,28 @@ async function handleSave() {
   }
   if (!form.value.slug) autoSlug()
 
+  const payload = { ...form.value }
+  // 真实阅读量由后端按 IP 统计，前端只读，不参与提交
+  delete payload.viewCount
+  // 清空输入框会得到空字符串，统一转成 null（= 未设置，前台回到展示真实阅读量）
+  if (
+    payload.virtualViewCount === '' ||
+    payload.virtualViewCount === null ||
+    Number.isNaN(payload.virtualViewCount)
+  ) {
+    payload.virtualViewCount = null
+  }
+
   saving.value = true
   try {
     if (isEdit.value) {
-      await api.put(`/admin/articles/${route.params.id}`, form.value)
+      await api.put(`/admin/articles/${route.params.id}`, payload)
       showToast('文章已更新', 'success')
+      // 编辑更新后停留当前页，方便继续修改
     } else {
-      await api.post('/admin/articles', form.value)
+      await api.post('/admin/articles', payload)
       showToast('文章已创建', 'success')
+      // 新建保存后返回列表
       setTimeout(() => router.push({ name: 'admin-articles' }), 800)
     }
   } catch (e) {
@@ -179,8 +289,14 @@ function goBack() {
           </div>
           <div class="field flex-1">
             <label>作者</label>
-            <input v-model="form.author" type="text" placeholder="墨堆" />
+            <input v-model="form.author" type="text" :placeholder="`留空则使用站点名称（${siteName}）`" />
           </div>
+        </div>
+
+        <div class="field">
+          <label>作者链接</label>
+          <input v-model="form.authorUrl" type="text" placeholder="作者主页链接，留空则点击作者跳转站点首页" />
+          <p class="field-hint">前台文章列表中，作者名会作为超链接跳转到该地址；填写站外地址时新窗口打开。</p>
         </div>
 
         <div class="field-row">
@@ -196,11 +312,27 @@ function goBack() {
           <div class="field flex-1">
             <label>封面图 URL</label>
             <input v-model="form.coverImage" type="text" placeholder="https://..." />
+            <button type="button" class="btn-random-cover" @click="randomCover">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              随机图片
+            </button>
           </div>
         </div>
 
         <div class="field">
-          <label>摘要</label>
+          <div class="editor-label">
+            <span>摘要</span>
+            <button
+              type="button"
+              class="btn-preview"
+              :disabled="generating"
+              :title="generating ? '正在生成…' : '读取正文内容，使用 AI 自动生成摘要'"
+              @click="generateSummary"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4z"></path><path d="M18.5 15.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"></path></svg>
+              {{ generating ? '生成中…' : '自动生成' }}
+            </button>
+          </div>
           <textarea v-model="form.summary" rows="2" placeholder="文章摘要，用于列表展示..."></textarea>
         </div>
 
@@ -223,10 +355,16 @@ function goBack() {
         </div>
 
         <div class="field">
-          <label class="editor-label">
+          <div class="editor-label">
             <span>正文 <span class="req">*</span></span>
-            <span class="md-badge">Markdown</span>
-          </label>
+            <div class="editor-label-actions">
+              <span class="md-badge">Markdown</span>
+              <button type="button" class="btn-preview" @click="previewOpen = true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path></svg>
+                实时预览
+              </button>
+            </div>
+          </div>
           <textarea
             v-model="form.content"
             class="content-editor"
@@ -234,6 +372,27 @@ function goBack() {
             spellcheck="false"
             placeholder="在此用 Markdown 撰写正文，支持 ``` 代码块 ..."
           ></textarea>
+        </div>
+
+        <div class="field-row">
+          <div class="field flex-1">
+            <label>虚拟阅读量</label>
+            <input
+              v-model.number="form.virtualViewCount"
+              type="number"
+              min="0"
+              placeholder="留空则展示真实阅读量"
+            />
+          </div>
+          <div class="field flex-1">
+            <label>&nbsp;</label>
+            <p class="field-hint">
+              真实阅读 {{ form.viewCount ?? 0 }} 次（按 IP 每天去重）
+              <template v-if="form.virtualViewCount !== null && form.virtualViewCount !== ''">
+                <br />前台将展示 {{ form.virtualViewCount }}
+              </template>
+            </p>
+          </div>
         </div>
 
         <div class="field-row toggle-row">
@@ -266,6 +425,27 @@ function goBack() {
         </div>
       </div>
     </div>
+
+    <!-- ===== 实时预览抽屉 ===== -->
+    <transition name="drawer-fade">
+      <div v-if="previewOpen" class="drawer-mask" @click="previewOpen = false"></div>
+    </transition>
+    <transition name="drawer-slide">
+      <aside v-if="previewOpen" class="preview-drawer">
+        <div class="drawer-head">
+          <span class="drawer-title">实时预览</span>
+          <button class="drawer-close" title="关闭预览" @click="previewOpen = false">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div ref="drawerBodyRef" class="drawer-body">
+          <div class="preview-scale" :style="previewScaleStyle">
+            <!-- 直接复用前台文章详情页渲染，数据为编辑中的表单内容 -->
+            <ArticleDetailView :preview-data="previewData" />
+          </div>
+        </div>
+      </aside>
+    </transition>
   </div>
 </template>
 
@@ -416,13 +596,51 @@ function goBack() {
 
 .field-row { display: flex; gap: 16px; }
 .flex-1 { flex: 1; min-width: 0; }
+.field-hint {
+  margin: 0;
+  padding-top: 6px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-tertiary);
+}
 
-/* 正文编辑器标签：标题 + Markdown 徽标 同行右对齐 */
+/* 正文编辑器标签：左侧标题 + 右侧（Markdown 徽标 / 实时预览）同行两端对齐 */
 .editor-label {
-  flex-direction: row;
+  display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
+.editor-label-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 「实时预览」按钮：次要操作，样式对齐「首页管理」的 .btn--link */
+.btn-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.btn-preview svg { width: 15px; height: 15px; flex-shrink: 0; }
+.btn-preview:hover { background-color: var(--accent-light); }
+.btn-preview:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-preview:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-preview:disabled:hover { background-color: transparent; }
 .md-badge {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -626,6 +844,30 @@ function goBack() {
   transition: background-color var(--transition);
 }
 .btn-remove-cover:hover { background: #f9e2de; }
+
+/* 封面图 URL 下方的「随机图片」按钮：与输入框同宽，弱化的次要操作 */
+.btn-random-cover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.btn-random-cover:hover {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
 :global([data-theme='dark']) .btn-remove-cover { background: #2a1a17; border-top-color: #4a2a24; }
 :global([data-theme='dark']) .btn-remove-cover:hover { background: #33211e; }
 
@@ -677,6 +919,85 @@ function goBack() {
   transform: translateX(-50%) translateY(20px);
 }
 
+/* ===== Preview Drawer ===== */
+.drawer-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+}
+.preview-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(960px, 94vw);
+  background: var(--bg-body);
+  box-shadow: var(--shadow-lg);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+}
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
+}
+.drawer-title {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+  padding-left: 14px;
+  position: relative;
+}
+.drawer-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 16px;
+  border-radius: 4px;
+  background-color: var(--accent);
+}
+.drawer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.drawer-close:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background-color: var(--accent-light);
+}
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+}
+.preview-scale {
+  transform-origin: top left;
+}
+.drawer-fade-enter-active, .drawer-fade-leave-active { transition: opacity 0.25s; }
+.drawer-fade-enter-from, .drawer-fade-leave-to { opacity: 0; }
+.drawer-slide-enter-active, .drawer-slide-leave-active { transition: transform 0.25s ease; }
+.drawer-slide-enter-from, .drawer-slide-leave-to { transform: translateX(100%); }
+
 /* ===== Responsive ===== */
 @media (max-width: 860px) {
   .page-hero { padding: 18px; }
@@ -685,5 +1006,6 @@ function goBack() {
   .edit-body { flex-direction: column; }
   .form-side { width: 100%; position: static; }
   .field-row { flex-direction: column; }
+  .drawer-body { padding: 14px; }
 }
 </style>

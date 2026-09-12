@@ -40,6 +40,7 @@ import { DigitalLifeAdminController } from './digital-life-admin.controller';
     TrainingService,
     RateLimitService,
   ],
-  exports: [TrainingService],
+  // ModelConfigService 对外导出，供文章模块复用「已启用通用模型」调用 LLM（如自动生成摘要）
+  exports: [TrainingService, ModelConfigService],
 })
 export class DigitalLifeModule {}

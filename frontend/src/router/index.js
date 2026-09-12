@@ -65,6 +65,12 @@ const routes = [
     component: () => import('@/views/ContactView.vue'),
     meta: { title: '联系我 · 墨堆', layout: 'layout-flow', navKey: 'contact' },
   },
+  {
+    path: '/friends',
+    name: 'friends',
+    component: () => import('@/views/FriendsView.vue'),
+    meta: { title: '邻居 · 墨堆', layout: 'layout-flow', navKey: 'friends' },
+  },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 
@@ -110,6 +116,12 @@ const adminRoutes = [
     name: 'admin-article-edit',
     component: () => import('@/views/admin/ArticleEditView.vue'),
     meta: { title: '编辑文章 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/friends',
+    name: 'admin-friends',
+    component: () => import('@/views/admin/FriendLinkManageView.vue'),
+    meta: { title: '友链管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
   },
   {
     path: '/admin/categories',

@@ -7,9 +7,28 @@ import ArticleCover from '@/components/ArticleCover.vue'
 import { articleContent, articleTitles } from '@/data/articleContent'
 import { renderMarkdown } from '@/utils/markdown'
 import { useApi } from '@/composables/useApi'
+import { useSiteIdentity } from '@/composables/useSiteIdentity'
+import { resolveAuthor } from '@/utils/author'
+import { isDark } from '@/composables/useTheme'
+import { renderDiagrams } from '@/utils/diagram'
 
 const route = useRoute()
 const api = useApi()
+
+const props = defineProps({
+  /**
+   * 后台「文章编辑」实时预览数据：{ title, summary, content, coverImage, categoryKey,
+   * tags, author, authorUrl, viewCount, virtualViewCount }。
+   * 传入时跳过接口加载，直接用该数据渲染，供管理端预览抽屉内复用本页渲染逻辑。
+   */
+  previewData: { type: Object, default: null },
+})
+
+/* 预览模式：由 previewData 推导。隐藏头尾导航 / 阅读进度，并禁用站内跳转 */
+const isPreview = computed(() => !!props.previewData)
+
+/* ===== 站点身份：作者名与头像与首页名片同源（后台「首页管理」配置），多页面共享 ===== */
+const { siteAvatar, siteName, loadSiteIdentity, onAvatarError } = useSiteIdentity()
 
 /* ===== 当前文章 ===== */
 const slug = computed(() => route.params.slug)
@@ -23,11 +42,50 @@ const article = ref({
   content: '',
   coverImage: '',
   author: '',
+  authorUrl: '',
   tags: [],
   categoryKey: '',
   createdAt: '',
-  viewCount: 0,
+  displayViewCount: 0,
 })
+
+/** 管理端预览：把编辑中的表单数据映射成前台展示结构 */
+function applyPreviewData(data) {
+  article.value = {
+    title: data.title || '',
+    summary: data.summary || '',
+    content: data.content || '',
+    coverImage: data.coverImage || '',
+    author: data.author || '',
+    authorUrl: data.authorUrl || '',
+    tags: Array.isArray(data.tags) ? data.tags : [],
+    categoryKey: data.categoryKey || '',
+    createdAt: '',
+    // 设置了虚拟阅读量时展示虚拟值，否则展示真实值（与前台一致）
+    displayViewCount: data.virtualViewCount ?? data.viewCount ?? 0,
+  }
+  loading.value = false
+  notFound.value = false
+}
+
+// 管理端预览：表单数据变化时刷新渲染；正文较长时 markdown + 语法高亮开销不低，
+// 首次直接渲染，后续输入做 250ms 防抖，避免边打字边卡顿。
+let previewReady = false
+let previewTimer = null
+watch(
+  () => props.previewData,
+  (data) => {
+    if (!data) return
+    if (!previewReady) {
+      previewReady = true
+      applyPreviewData(data)
+      return
+    }
+    if (previewTimer) clearTimeout(previewTimer)
+    previewTimer = setTimeout(() => applyPreviewData(data), 250)
+  },
+  { deep: true, immediate: true },
+)
 
 async function loadArticle() {
   loading.value = true
@@ -40,10 +98,12 @@ async function loadArticle() {
       content: data.content || '',
       coverImage: data.coverImage || '',
       author: data.author || '',
+      authorUrl: data.authorUrl || '',
       tags: Array.isArray(data.tags) ? data.tags : [],
       categoryKey: data.categoryKey || '',
       createdAt: data.createdAt || '',
-      viewCount: data.viewCount || 0,
+      // 后台设置了虚拟阅读量时前台展示虚拟值，否则展示真实值
+      displayViewCount: data.displayViewCount ?? data.viewCount ?? 0,
     }
   } catch (e) {
     // 降级：使用前端静态 mock 内容，保证页面不空白
@@ -54,10 +114,11 @@ async function loadArticle() {
       content: md,
       coverImage: '',
       author: '林深',
+      authorUrl: '',
       tags: [],
       categoryKey: '',
       createdAt: '',
-      viewCount: 0,
+      displayViewCount: 0,
     }
     if (e && e.message === '文章不存在或未发布') notFound.value = true
   } finally {
@@ -68,6 +129,24 @@ async function loadArticle() {
 const articleTitle = computed(() => article.value.title)
 const articleMd = computed(() => article.value.content)
 const articleHtml = computed(() => renderMarkdown(articleMd.value))
+
+/** 发布日期：createdAt 为 ISO 字符串，取到日即可 */
+const formattedDate = computed(() => {
+  const raw = article.value.createdAt
+  if (!raw) return ''
+  const d = new Date(raw)
+  if (isNaN(d)) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+})
+
+/** 前台展示的阅读量：设置了虚拟阅读量则展示虚拟值 */
+const displayViews = computed(() => Number(article.value.displayViewCount || 0).toLocaleString())
+
+/** 作者展示名与跳转链接：未设置作者时回退站点名，未设置链接时跳站点首页 */
+const authorLink = computed(() =>
+  resolveAuthor(article.value.author, article.value.authorUrl, siteName.value),
+)
 
 /* ===== 阅读进度条 ===== */
 const progress = ref(0)
@@ -216,40 +295,61 @@ function onContentClick(e) {
 }
 
 onMounted(() => {
-  loadArticle()
+  // 预览模式：数据在 setup 阶段已就绪，不再请求接口
+  if (!isPreview.value) loadArticle()
+  loadSiteIdentity()
 
   window.addEventListener('scroll', onScroll, { passive: true })
   onScroll()
   if (contentEl.value) contentEl.value.addEventListener('click', onContentClick)
+
+  if (isPreview.value) {
+    // 预览数据是初始化时就赋值的，articleHtml 的 watcher 不会首次触发，
+    // 这里手动构建目录并渲染正文里的文本绘图
+    requestAnimationFrame(() => {
+      setupContentObservers()
+      renderDiagrams(contentEl.value)
+    })
+  }
 })
 
 /* slug 变化时（同组件内路由切换）重新加载文章并重建 TOC */
 watch(slug, () => {
+  if (isPreview.value) return
   loadArticle()
 })
 
-// 正文渲染完成后重建 TOC 与滚动监听
+// 正文渲染完成后重建 TOC、滚动监听，并渲染正文里的文本绘图
 watch(articleHtml, () => {
   // 等待 v-html 把新 DOM 写入后再扫描
-  requestAnimationFrame(setupContentObservers)
+  requestAnimationFrame(() => {
+    setupContentObservers()
+    renderDiagrams(contentEl.value)
+  })
+})
+
+// 深浅色切换后 mermaid 的配色需要重绘
+watch(isDark, () => {
+  renderDiagrams(contentEl.value, { force: true })
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', onScroll)
   if (observer) observer.disconnect()
   observer = null
+  if (previewTimer) clearTimeout(previewTimer)
   if (contentEl.value) contentEl.value.removeEventListener('click', onContentClick)
 })
 </script>
 
 <template>
-  <div class="progress" :style="{ width: progress + '%' }" />
+  <div v-if="!isPreview" class="progress" :style="{ width: progress + '%' }" />
 
-  <AppHeader active-key="" />
+  <AppHeader v-if="!isPreview" active-key="" />
 
   <div class="layout">
     <article ref="contentEl" class="article">
-      <RouterLink to="/articles" class="back-link">
+      <RouterLink v-if="!isPreview" to="/articles" class="back-link">
         <svg
           width="14"
           height="14"
@@ -269,10 +369,18 @@ onBeforeUnmount(() => {
       <p v-if="loading" class="empty-hint">文章加载中…</p>
       <p v-else-if="notFound" class="empty-hint">找不到该文章，或文章尚未发布。</p>
       <template v-else>
+      <!-- 预览模式下不提供站内跳转，避免在管理端抽屉里跳出编辑页 -->
       <nav class="breadcrumb" aria-label="当前分类路径">
-        <RouterLink to="/articles">文章</RouterLink>
-        <span class="sep">/</span>
-        <a href="#">{{ article.categoryKey || '知识库' }}</a>
+        <template v-if="isPreview">
+          <span class="crumb">文章</span>
+          <span class="sep">/</span>
+          <span class="crumb">{{ article.categoryKey || '知识库' }}</span>
+        </template>
+        <template v-else>
+          <RouterLink to="/articles">文章</RouterLink>
+          <span class="sep">/</span>
+          <a href="#">{{ article.categoryKey || '知识库' }}</a>
+        </template>
         <span class="sep">/</span>
         <span class="current">{{ articleTitle }}</span>
       </nav>
@@ -292,15 +400,55 @@ onBeforeUnmount(() => {
       <p v-if="!articleHtml" class="empty-hint">该文章暂无正文内容。</p>
 
       <div v-if="article.tags.length" class="tags">
-        <a v-for="t in article.tags" :key="t" href="#" class="tag">{{ t }}</a>
+        <a v-for="t in article.tags" :key="t" href="#" class="tag" @click.prevent>{{ t }}</a>
       </div>
 
-      <div class="author-card">
-        <span class="avatar">{{ (article.author || '作')[0] }}</span>
-        <div>
-          <div class="a-name">{{ article.author || '匿名作者' }}</div>
-          <div class="a-bio">知识库作者</div>
-        </div>
+      <!-- 作者 / 日期 / 阅读量：.article-meta 系列样式此前已预留，这里补上实际渲染 -->
+      <div class="article-meta">
+        <span class="author">
+          <img
+            v-if="siteAvatar"
+            :src="siteAvatar"
+            class="avatar"
+            :alt="authorLink.name"
+            @error="onAvatarError"
+          />
+          <span v-if="isPreview" class="author-name">{{ authorLink.name }}</span>
+          <a
+            v-else-if="authorLink.isExternal"
+            class="author-name author-link"
+            :href="authorLink.href"
+            target="_blank"
+            rel="noopener"
+            :title="`访问 ${authorLink.name} 的主页`"
+          >{{ authorLink.name }}</a>
+          <router-link
+            v-else
+            class="author-name author-link"
+            :to="authorLink.href"
+            :title="`访问 ${authorLink.name} 的主页`"
+          >{{ authorLink.name }}</router-link>
+        </span>
+        <template v-if="formattedDate">
+          <span class="dot">·</span>
+          <span class="meta-item">{{ formattedDate }}</span>
+        </template>
+        <span class="dot">·</span>
+        <span class="meta-item">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          {{ displayViews }} 阅读
+        </span>
       </div>
       </template>
     </article>
@@ -360,7 +508,7 @@ onBeforeUnmount(() => {
     </aside>
   </div>
 
-  <AppFooter />
+  <AppFooter v-if="!isPreview" />
 </template>
 
 <style scoped>
@@ -426,6 +574,11 @@ onBeforeUnmount(() => {
   color: var(--text-tertiary);
 }
 
+/* 预览模式下的面包屑文本（不可跳转，配色对齐链接态） */
+.breadcrumb .crumb {
+  color: var(--text-secondary);
+}
+
 .breadcrumb .current {
   color: var(--text-primary);
   font-weight: 500;
@@ -486,7 +639,7 @@ onBeforeUnmount(() => {
   padding: 18px 0;
   border-top: 1px solid var(--border-light);
   border-bottom: 1px solid var(--border-light);
-  margin-bottom: 36px;
+  margin-top: 24px;
   font-size: 13.5px;
   color: var(--text-secondary);
 }
@@ -513,6 +666,16 @@ onBeforeUnmount(() => {
 .article-meta .author-name {
   color: var(--text-primary);
   font-weight: 500;
+}
+
+/* 作者名超链接：点击跳转作者主页（未配置时跳站点首页） */
+.article-meta a.author-link {
+  text-decoration: none;
+  transition: color var(--transition);
+}
+.article-meta a.author-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
 }
 
 .article-meta .dot {
@@ -586,7 +749,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin: 48px 0 36px;
+  margin: 48px 0 28px;
 }
 
 .tag {
@@ -621,6 +784,15 @@ onBeforeUnmount(() => {
   width: 52px;
   height: 52px;
   font-size: 20px;
+  overflow: hidden;
+}
+
+/* 站点头像：铺满圆形容器并裁切；未配置头像时回退为作者首字 */
+.author-card .avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .author-card .a-name {
@@ -894,13 +1066,13 @@ onBeforeUnmount(() => {
 }
 
 /* ===== Code block（marked + highlight.js 输出） ===== */
-/* ===== One Dark Pro 主题 ===== */
+/* ===== 黑灰-绿 主题（与站点「黑白灰 + 绿」配色统一） ===== */
 .content.markdown-body .code-block-wrap {
   margin: 0 0 26px;
-  border: 1px solid #181a1f;
+  border: 1px solid #101211;
   border-radius: var(--radius-md);
   overflow: hidden;
-  background-color: #282c34;
+  background-color: #1b1e1c;
 }
 
 .content.markdown-body .code-block-header {
@@ -908,8 +1080,8 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   padding: 8px 14px;
-  background-color: #21252b;
-  border-bottom: 1px solid #181a1f;
+  background-color: #151816;
+  border-bottom: 1px solid #101211;
 }
 
 .content.markdown-body .code-lang {
@@ -917,16 +1089,16 @@ onBeforeUnmount(() => {
   font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #abb2bf;
+  color: #7f8a84;
 }
 
 .content.markdown-body .code-copy {
   font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1;
-  color: #abb2bf;
+  color: #a8b3ad;
   background: transparent;
-  border: 1px solid #3a3f4b;
+  border: 1px solid #333834;
   border-radius: 6px;
   padding: 4px 10px;
   cursor: pointer;
@@ -935,17 +1107,17 @@ onBeforeUnmount(() => {
 
 .content.markdown-body .code-copy:hover {
   color: #ffffff;
-  border-color: #61afef;
+  border-color: #5fc59a;
 }
 
 .content.markdown-body .code-copy.copied {
-  color: #98c379;
-  border-color: #98c379;
+  color: #5fc59a;
+  border-color: #5fc59a;
 }
 
 .content.markdown-body .code-block {
-  background-color: #282c34;
-  color: #abb2bf;
+  background-color: #1b1e1c;
+  color: #c6cfc9;
   border-radius: 0;
   border: none;
   padding: 18px 22px;
@@ -966,10 +1138,10 @@ onBeforeUnmount(() => {
   color: inherit;
 }
 
-/* highlight.js token 配色 —— One Dark Pro 主题 */
+/* highlight.js token 配色 —— 黑灰-绿 主题 */
 .content.markdown-body .hljs-comment,
 .content.markdown-body .hljs-quote {
-  color: #5c6370;
+  color: #6f7a74;
   font-style: italic;
 }
 
@@ -978,19 +1150,19 @@ onBeforeUnmount(() => {
 .content.markdown-body .hljs-literal,
 .content.markdown-body .hljs-section,
 .content.markdown-body .hljs-doctag {
-  color: #c678dd;
+  color: #5fc59a;
 }
 
 .content.markdown-body .hljs-string,
 .content.markdown-body .hljs-template-tag,
 .content.markdown-body .hljs-addition,
 .content.markdown-body .hljs-regexp {
-  color: #98c379;
+  color: #9ad8b8;
 }
 
 .content.markdown-body .hljs-attr,
 .content.markdown-body .hljs-attribute {
-  color: #d19a66;
+  color: #b8c7bf;
 }
 
 .content.markdown-body .hljs-number,
@@ -999,32 +1171,32 @@ onBeforeUnmount(() => {
 .content.markdown-body .hljs-class .hljs-title,
 .content.markdown-body .hljs-symbol,
 .content.markdown-body .hljs-meta {
-  color: #d19a66;
+  color: #6cbf9f;
 }
 
 .content.markdown-body .hljs-variable,
 .content.markdown-body .hljs-property,
 .content.markdown-body .hljs-params,
 .content.markdown-body .hljs-tag {
-  color: #e06c75;
+  color: #dfe6e2;
 }
 
 .content.markdown-body .hljs-title,
 .content.markdown-body .hljs-function .hljs-title,
 .content.markdown-body .hljs-name {
-  color: #61afef;
+  color: #ffffff;
 }
 
 .content.markdown-body .hljs-meta .hljs-keyword {
-  color: #56b6c2;
+  color: #46a58a;
 }
 
 .content.markdown-body .hljs-deletion {
-  color: #e06c75;
+  color: #c98a7d;
 }
 
 .content.markdown-body .hljs-link {
-  color: #61afef;
+  color: #5fc59a;
   text-decoration: underline;
 }
 
@@ -1064,11 +1236,11 @@ onBeforeUnmount(() => {
 /* md-callout 由 :::tip / :::warning / :::info 生成，复用 .callout 全量外观，
    仅通过 data-type 切换左边框颜色区分类型 */
 .content.markdown-body .md-callout[data-type='warning'] {
-  border-left-color: #e0a458;
+  border-left-color: #c39a4e;
 }
 
 .content.markdown-body .md-callout[data-type='info'] {
-  border-left-color: #5b8def;
+  border-left-color: #4a9d8e;
 }
 
 /* ===== Figure / image / table / hr（原型 article-detail.html 对齐） ===== */
@@ -1081,7 +1253,7 @@ onBeforeUnmount(() => {
   aspect-ratio: 16/9;
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: linear-gradient(135deg, #5b8def, #2d8264 70%);
+  background: linear-gradient(135deg, #4fae86, #2d8264 70%);
 }
 
 .content.markdown-body figcaption {

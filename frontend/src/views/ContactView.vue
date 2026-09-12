@@ -18,7 +18,7 @@ const canSend = computed(
   () => form.message.trim() && !submitting.value,
 )
 const submitting = ref(false)
-const toast = reactive({ show: false })
+const toast = reactive({ show: false, message: '信已寄出，谢谢你', type: 'success' })
 
 function today() {
   const d = new Date()
@@ -28,7 +28,9 @@ function today() {
 const letterDate = ref('')
 onMounted(() => (letterDate.value = today()))
 
-function showToast() {
+function showToast(message = '信已寄出，谢谢你', type = 'success') {
+  toast.message = message
+  toast.type = type
   toast.show = true
   setTimeout(() => (toast.show = false), 2600)
 }
@@ -47,7 +49,7 @@ async function handleSubmit() {
     form.message = ''
     showToast()
   } catch (e) {
-    alert('投递失败，请稍后再试')
+    showToast('投递失败，请稍后再试', 'error')
   } finally {
     submitting.value = false
   }
@@ -139,12 +141,17 @@ async function handleSubmit() {
 
   <!-- Toast -->
   <transition name="toast">
-    <div v-if="toast.show" class="letter-toast">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <div v-if="toast.show" class="letter-toast" :class="toast.type">
+      <svg v-if="toast.type === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
         <polyline points="22 4 12 14.01 9 11.01" />
       </svg>
-      <span>信已寄出，谢谢你</span>
+      <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="15" y1="9" x2="9" y2="15" />
+        <line x1="9" y1="9" x2="15" y2="15" />
+      </svg>
+      <span>{{ toast.message }}</span>
     </div>
   </transition>
 </template>
@@ -340,6 +347,7 @@ async function handleSubmit() {
   gap: 8px;
 }
 .letter-toast svg { width: 17px; height: 17px; }
+.letter-toast.error { background-color: #e0533d; }
 .toast-enter-active, .toast-leave-active { transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(-50%) translateY(20px); }
 

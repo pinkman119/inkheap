@@ -5,6 +5,7 @@ import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UpdateRemarkDto } from './dto/update-remark.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
+import { UpdateAvatarDto } from './dto/update-avatar.dto';
 
 @Controller('admin/users')
 @UseGuards(JwtAuthGuard)
@@ -37,6 +38,12 @@ export class AdminUserController {
   @Patch(':id/remark')
   updateRemark(@Param('id') id: string, @Body() dto: UpdateRemarkDto) {
     return this.adminUserService.updateRemark(id, dto);
+  }
+
+  /** 修改头像（传空字符串表示移除） */
+  @Patch(':id/avatar')
+  updateAvatar(@Param('id') id: string, @Body() dto: UpdateAvatarDto) {
+    return this.adminUserService.updateAvatar(id, dto);
   }
 
   /** 失效 / 启用 */

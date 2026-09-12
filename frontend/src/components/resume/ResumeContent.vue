@@ -18,6 +18,17 @@ const props = defineProps({
 // 若直接用 const 快照则内容更新后组件不会重新渲染。
 const c = computed(() => props.content || {})
 
+/* 头像文字：取姓名第一个字（如「王先生」→「王」）。
+ * 姓名为空时才回退到「头像文字」配置，最后兜底为「墨」。
+ * 用 Array.from 而非 charAt，避免姓名以 emoji/生僻字（代理对）开头时截断成乱码。 */
+const avatarText = computed(() => {
+  const name = (c.value.profile?.name || '').trim()
+  const first = Array.from(name)[0]
+  if (first) return first
+  const custom = (c.value.profile?.avatarText || '').trim()
+  return custom || '墨'
+})
+
 const navRef = ref(null)
 
 function onDownload() {
@@ -144,7 +155,7 @@ function infoIcon(name) {
     <!-- Hero -->
     <section class="hero">
       <div class="hero-main">
-        <div class="avatar-xl" aria-hidden="true">{{ c.profile?.avatarText }}</div>
+        <div class="avatar-xl" aria-hidden="true">{{ avatarText }}</div>
         <div>
           <div class="hero-name-row">
             <h1 class="hero-name">{{ c.profile?.name }}</h1>
@@ -309,15 +320,6 @@ function infoIcon(name) {
             </li>
           </ul>
 
-          <div v-if="c.education" class="info-block" id="education">
-            <div class="info-block-title">教育背景</div>
-            <div class="edu-school">
-              {{ c.education.school }}
-              <span v-if="c.education.period" class="edu-year">{{ c.education.period }}</span>
-            </div>
-            <div v-if="c.education.major" class="edu-major">{{ c.education.major }}</div>
-          </div>
-
           <div v-if="(c.certificates || []).length" class="info-block">
             <div class="info-block-title">资质 / 证书</div>
             <div class="tag-group">
@@ -329,6 +331,15 @@ function infoIcon(name) {
                 >{{ cert.label }}</span
               >
             </div>
+          </div>
+
+          <div v-if="c.education" class="info-block" id="education">
+            <div class="info-block-title">教育背景</div>
+            <div class="edu-school">
+              {{ c.education.school }}
+              <span v-if="c.education.period" class="edu-year">{{ c.education.period }}</span>
+            </div>
+            <div v-if="c.education.major" class="edu-major">{{ c.education.major }}</div>
           </div>
         </div>
       </aside>

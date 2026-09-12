@@ -1,8 +1,11 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { useAdminBadges } from '@/composables/useAdminBadges'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const api = useApi()
+const { refreshUnread } = useAdminBadges()
 
 const messages = ref([])
 const total = ref(0)
@@ -76,6 +79,7 @@ async function openMessage(msg) {
     try {
       await api.put(`/admin/contact/${msg.id}/read`, { read: true })
       msg.read = true
+      refreshUnread()
     } catch (e) {
       console.error('标记已读失败', e)
     }
@@ -91,22 +95,44 @@ async function toggleRead(msg) {
   try {
     await api.put(`/admin/contact/${msg.id}/read`, { read: !msg.read })
     msg.read = !msg.read
+    refreshUnread()
     showToast(msg.read ? '已标记为已读' : '已标记为未读')
   } catch (e) {
     console.error('更新状态失败', e)
   }
 }
 
-async function removeMessage(msg) {
-  if (!confirm(`确定删除「${msg.name}」的来信吗？此操作不可恢复。`)) return
+const confirmOpen = ref(false)
+const pendingMsg = ref(null)
+const deleting = ref(false)
+
+function removeMessage(msg) {
+  pendingMsg.value = msg
+  confirmOpen.value = true
+}
+
+function cancelRemove() {
+  confirmOpen.value = false
+  pendingMsg.value = null
+}
+
+async function confirmRemove() {
+  const msg = pendingMsg.value
+  if (!msg || deleting.value) return
+  deleting.value = true
   try {
     await api.delete(`/admin/contact/${msg.id}`)
     showToast('已删除')
     if (current.value?.id === msg.id) closeDrawer()
     await load()
+    refreshUnread()
   } catch (e) {
     console.error('删除失败', e)
     showToast('删除失败')
+  } finally {
+    deleting.value = false
+    confirmOpen.value = false
+    pendingMsg.value = null
   }
 }
 
@@ -243,6 +269,19 @@ onMounted(load)
         </aside>
       </div>
     </transition>
+
+    <!-- ===== 删除确认弹窗 ===== -->
+    <ConfirmDialog
+      :open="confirmOpen"
+      title="删除来信"
+      confirm-label="删除"
+      :loading="deleting"
+      warn="此操作不可恢复。"
+      @cancel="cancelRemove"
+      @confirm="confirmRemove"
+    >
+      确定要删除 <strong>{{ pendingMsg?.name }}</strong> 的来信吗？
+    </ConfirmDialog>
   </div>
 </template>
 

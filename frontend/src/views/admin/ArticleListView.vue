@@ -60,7 +60,7 @@
             </div>
           </div>
           <p class="lede">管理站点全部文章，按分类、状态与关键词检索。</p>
-          <p class="hero-note">{{ total ?? '—' }} 篇文章 · 当前筛选：{{ statusFilter === 'published' ? '已发布' : '草稿' }} · 列表内滚动自动加载</p>
+          <p class="hero-note">{{ total ?? '—' }} 篇文章 · 当前筛选：{{ statusFilter === 'published' ? '已发布' : '草稿' }} · 拖拽行调整顺序（前台同步） · 列表内滚动自动加载</p>
         </div>
       </div>
 
@@ -102,22 +102,52 @@
             <thead class="article-table__head">
               <tr>
                 <th class="th-index">序号</th>
-                <th>标题</th>
-                <th>作者</th>
-                <th>状态</th>
-                <th>更新时间</th>
+                <th class="th-title">标题</th>
+                <th class="th-author">作者</th>
+                <th class="th-status">状态</th>
+                <th class="th-views">真实阅读</th>
+                <th class="th-views">虚拟阅读</th>
+                <th class="th-updated">更新时间</th>
                 <th class="article-table__ops">操作</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(a, index) in articles" :key="a.id" class="data-row">
-                <td class="cell-index">{{ (page - 1) * pageSize + index + 1 }}</td>
+              <tr
+                v-for="(a, index) in articles"
+                :key="a.id"
+                class="data-row"
+                :class="{
+                  'is-dragging': dragIndex === index,
+                  'is-drag-over': dragOverIndex === index && dragIndex !== index,
+                }"
+                :draggable="!savingOrder"
+                @dragstart="onDragStart($event, index)"
+                @dragover.prevent="onDragOver(index)"
+                @dragleave="onDragLeave(index)"
+                @drop.prevent="onDrop(index)"
+                @dragend="onDragEnd"
+              >
+                <td class="cell-index">
+                  <span class="cell-index__inner">
+                    <span class="drag-handle" title="拖拽调整顺序" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg>
+                    </span>
+                    <span class="cell-index__num">{{ (page - 1) * pageSize + index + 1 }}</span>
+                  </span>
+                </td>
                 <td class="cell-title">{{ a.title }}</td>
-                <td class="cell-author">{{ a.author }}</td>
+                <td class="cell-author">{{ a.author || '—' }}</td>
                 <td class="cell-status">
                   <span class="badge" :class="a.published ? 'badge--ok' : 'badge--muted'">
                     {{ a.published ? '已发布' : '草稿' }}
                   </span>
+                </td>
+                <td class="cell-views">{{ a.viewCount ?? 0 }}</td>
+                <td class="cell-views">
+                  <span v-if="a.virtualViewCount !== null && a.virtualViewCount !== undefined" class="views-virtual">
+                    {{ a.virtualViewCount }}
+                  </span>
+                  <span v-else class="views-unset">未设置</span>
                 </td>
                 <td class="cell-muted">{{ formatDate(a.updatedAt) }}</td>
                 <td class="article-table__ops">
@@ -148,141 +178,25 @@
       </div>
     </section>
 
-    <!-- ===== 编辑抽屉 ===== -->
-    <transition name="drawer">
-      <div v-if="drawerOpen" class="drawer-mask" @click="closeDrawer">
-        <div class="drawer" @click.stop>
-          <div class="drawer__header">
-            <h2 class="drawer__title">编辑文章</h2>
-            <button class="drawer__close" @click="closeDrawer" aria-label="关闭">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
+    <!-- ===== 删除确认弹窗 ===== -->
+    <ConfirmDialog
+      :open="confirmOpen"
+      title="删除文章"
+      confirm-label="删除"
+      :loading="deleting"
+      warn="删除后该文章将从站点与列表中移除，此操作不可撤销。"
+      @cancel="cancelRemove"
+      @confirm="confirmRemove"
+    >
+      确定要删除 <strong>《{{ pendingArticle?.title }}》</strong> 吗？
+    </ConfirmDialog>
 
-          <div v-if="editLoading" class="drawer__loading">
-            <span class="spinner" aria-hidden="true"></span>
-            <span>加载中…</span>
-          </div>
-
-          <div v-else class="drawer__body">
-            <div class="field">
-              <label>标题 <span class="req">*</span></label>
-              <input v-model="editForm.title" type="text" placeholder="输入文章标题" @change="autoSlug" />
-            </div>
-
-            <div class="field-row">
-              <div class="field flex-1">
-                <label>Slug</label>
-                <input v-model="editForm.slug" type="text" placeholder="url-friendly-slug" />
-              </div>
-              <div class="field flex-1">
-                <label>作者</label>
-                <input v-model="editForm.author" type="text" placeholder="墨堆" />
-              </div>
-            </div>
-
-            <div class="field">
-              <label>分类 <span class="req">*</span></label>
-              <select v-model="editForm.categoryKey">
-                <option value="" disabled>选择分类</option>
-                <option v-for="cat in editCategories" :key="cat.id" :value="cat.key">
-                  {{ cat.parentKey ? '　' : '' }}{{ cat.name }}
-                </option>
-              </select>
-            </div>
-
-            <div class="field-row field-row--cover">
-              <div class="field flex-1">
-                <label>封面图 URL</label>
-                <input v-model="editForm.coverImage" type="text" placeholder="https://..." />
-              </div>
-              <div class="field field--preview">
-                <label>&nbsp;</label>
-                <button
-                  class="btn btn--soft cover-preview-btn"
-                  type="button"
-                  :disabled="!editForm.coverImage"
-                  @click="openCoverPreview"
-                >预览封面</button>
-              </div>
-            </div>
-
-            <div class="field">
-              <label>摘要</label>
-              <textarea v-model="editForm.summary" rows="2" placeholder="文章摘要，用于列表展示..."></textarea>
-            </div>
-
-            <div class="field">
-              <label>标签</label>
-              <div class="tags-input">
-                <span v-for="t in editForm.tags" :key="t" class="tag-chip">
-                  {{ t }}
-                  <button class="tag-remove" @click="removeEditTag(t)">&times;</button>
-                </span>
-                <input
-                  v-model="editTagInput"
-                  type="text"
-                  placeholder="输入标签后回车"
-                  @keyup.enter.prevent="addEditTag"
-                />
-              </div>
-            </div>
-
-            <div class="field">
-              <label>正文 <span class="req">*</span></label>
-              <textarea v-model="editForm.content" class="content-editor" rows="14" placeholder="Markdown 内容..."></textarea>
-            </div>
-
-            <div class="field-row toggle-row">
-              <label class="toggle-label">
-                <input type="checkbox" v-model="editForm.published" /><span></span> 发布
-              </label>
-              <label class="toggle-label">
-                <input type="checkbox" v-model="editForm.featured" /><span></span> 精选
-              </label>
-            </div>
-          </div>
-
-          <div v-if="!editLoading" class="drawer__footer">
-            <span v-if="editSaving" class="saving-hint">保存中…</span>
-            <button class="btn btn--ghost" @click="closeDrawer">取消</button>
-            <button class="btn btn--primary" :disabled="editSaving" @click="saveEdit">保存修改</button>
-          </div>
-        </div>
-      </div>
-    </transition>
-
-    <!-- ===== 封面预览弹窗 ===== -->
-    <transition name="fade">
-      <div v-if="coverPreviewOpen" class="cover-modal-mask" @click="closeCoverPreview">
-        <div class="cover-modal" @click.stop>
-          <div class="cover-modal__header">
-            <span class="cover-modal__title">封面预览</span>
-            <button class="cover-modal__close" @click="closeCoverPreview" aria-label="关闭">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <div class="cover-modal__body">
-            <img
-              v-if="editForm.coverImage"
-              class="cover-modal__img"
-              :src="editForm.coverImage"
-              alt="封面"
-              @error="onCoverError"
-            />
-            <p v-if="coverLoadError" class="cover-modal__error">图片加载失败，请检查 URL 是否正确</p>
-            <p v-if="!editForm.coverImage" class="cover-modal__error">未填写封面图 URL</p>
-          </div>
-          <div class="cover-modal__footer">
-            <a
-              v-if="editForm.coverImage && !coverLoadError"
-              class="link"
-              :href="editForm.coverImage"
-              target="_blank"
-              rel="noopener"
-            >打开原图</a>
-          </div>
-        </div>
+    <!-- ===== Toast ===== -->
+    <transition name="toast-pop">
+      <div v-if="toastMsg" class="toast" :class="toastType" role="status" aria-live="polite">
+        <svg v-if="toastType === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+        <span>{{ toastMsg }}</span>
       </div>
     </transition>
   </div>
@@ -290,11 +204,13 @@
 
 <script>
 import { useApi } from '../../composables/useApi'
+import ConfirmDialog from '../../components/ConfirmDialog.vue'
 
 const api = useApi()
 
 export default {
   name: 'AdminArticleList',
+  components: { ConfirmDialog },
   data() {
     return {
       rawCategories: [],
@@ -314,21 +230,19 @@ export default {
       loadError: false,
       _observer: null,
 
-      // 编辑抽屉
-      drawerOpen: false,
-      editId: null,
-      editLoading: false,
-      editSaving: false,
-      editCategories: [],
-      editTagInput: '',
+      // 拖拽排序
+      dragIndex: null,
+      dragOverIndex: null,
+      savingOrder: false,
 
-      // 封面预览弹窗
-      coverPreviewOpen: false,
-      coverLoadError: false,
-      editForm: {
-        title: '', slug: '', summary: '', content: '', coverImage: '',
-        categoryKey: '', tags: [], author: '墨堆', published: false, featured: false
-      }
+      // 删除确认弹窗
+      confirmOpen: false,
+      pendingArticle: null,
+      deleting: false,
+
+      // 站内提示
+      toastMsg: '',
+      toastType: 'success',
     }
   },
   computed: {
@@ -361,11 +275,9 @@ export default {
     await this.loadCategories()
     await this.loadArticles(true)
     this.setupObserver()
-    window.addEventListener('keydown', this.onKeydown)
   },
   beforeUnmount() {
     if (this._observer) this._observer.disconnect()
-    window.removeEventListener('keydown', this.onKeydown)
   },
   methods: {
     async loadCategories() {
@@ -505,91 +417,60 @@ export default {
       if (this.$refs.listScroll) this.$refs.listScroll.scrollTop = 0
     },
 
-    /* ===== 编辑抽屉 ===== */
-    async openEdit(a) {
-      this.editId = a.id
-      this.drawerOpen = true
-      this.editLoading = true
-      try {
-        if (!this.editCategories.length) {
-          this.editCategories = await api.get('/admin/categories')
-        }
-        const article = await api.get(`/admin/articles/${a.id}`)
-        this.editForm = {
-          title: article.title,
-          slug: article.slug || '',
-          summary: article.summary || '',
-          content: article.content,
-          coverImage: article.coverImage || '',
-          categoryKey: article.categoryKey,
-          tags: article.tags || [],
-          author: article.author,
-          published: article.published,
-          featured: article.featured
-        }
-      } catch (e) {
-        alert('加载文章失败：' + (e?.message || e))
-        this.closeDrawer()
-      } finally {
-        this.editLoading = false
-      }
-    },
-    closeDrawer() {
-      this.drawerOpen = false
-      this.editId = null
+    /* ===== 编辑：跳转独立编辑页（与「小记管理」一致） ===== */
+    openEdit(a) {
+      this.$router.push({ name: 'admin-article-edit', params: { id: a.id } })
     },
 
-    /* ===== 封面预览弹窗 ===== */
-    openCoverPreview() {
-      if (!this.editForm.coverImage) return
-      this.coverLoadError = false
-      this.coverPreviewOpen = true
-    },
-    closeCoverPreview() {
-      this.coverPreviewOpen = false
-    },
-    onCoverError() {
-      this.coverLoadError = true
-    },
-    onKeydown(e) {
-      if (e.key === 'Escape') {
-        if (this.coverPreviewOpen) this.closeCoverPreview()
-        else if (this.drawerOpen) this.closeDrawer()
-      }
-    },
-    autoSlug() {
-      if (!this.editForm.slug) {
-        this.editForm.slug = (this.editForm.title || '')
-          .toLowerCase()
-          .replace(/\s+/g, '-')
-          .replace(/[^\w\-\u4e00-\u9fa5]+/g, '')
-          .replace(/\-\-+/g, '-')
-          .replace(/^-|-$/g, '')
-      }
-    },
-    addEditTag() {
-      const t = this.editTagInput.trim()
-      if (t && !this.editForm.tags.includes(t)) this.editForm.tags.push(t)
-      this.editTagInput = ''
-    },
-    removeEditTag(t) {
-      this.editForm.tags = this.editForm.tags.filter((x) => x !== t)
-    },
-    async saveEdit() {
-      if (!this.editForm.title || !this.editForm.content || !this.editForm.categoryKey) {
-        alert('请填写标题、内容和分类')
+    /* ===== 拖拽排序：调整当前列表顺序并同步后端，前台按同一顺序展示 ===== */
+    onDragStart(e, index) {
+      // 保存中不可拖拽；从按钮/链接上起拖时不触发排序，避免误触操作
+      if (this.savingOrder) { e.preventDefault(); return }
+      const target = e.target
+      if (target && target.closest && target.closest('button, a, input, textarea')) {
+        e.preventDefault()
         return
       }
-      if (!this.editForm.slug) this.autoSlug()
-      this.editSaving = true
+      this.dragIndex = index
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('text/plain', String(index))
+      }
+    },
+    onDragOver(index) {
+      if (this.dragIndex === null) return
+      this.dragOverIndex = index
+    },
+    onDragLeave(index) {
+      if (this.dragOverIndex === index) this.dragOverIndex = null
+    },
+    onDragEnd() {
+      this.dragIndex = null
+      this.dragOverIndex = null
+    },
+    async onDrop(index) {
+      const from = this.dragIndex
+      this.dragIndex = null
+      this.dragOverIndex = null
+      if (from === null || from === index) return
+      const list = this.articles.slice()
+      const [moved] = list.splice(from, 1)
+      list.splice(index, 0, moved)
+      this.articles = list
+      await this.saveOrder()
+    },
+    async saveOrder() {
+      if (this.savingOrder) return
+      this.savingOrder = true
       try {
-        await api.put(`/admin/articles/${this.editId}`, this.editForm)
-        this.closeDrawer()
-        this.loadArticles(true)
+        await api.put('/admin/articles/reorder', { ids: this.articles.map((a) => a.id) })
+        this.showToast('顺序已更新，前台将按此顺序展示', 'success')
       } catch (e) {
-        alert('保存失败：' + (e?.message || e))
+        this.showToast('顺序保存失败：' + (e?.message || e), 'error')
+        // 保存失败则回滚为服务端顺序
+        await this.loadArticles(true)
       } finally {
-        this.editSaving = false
+        this.savingOrder = false
       }
     },
 
@@ -606,16 +487,37 @@ export default {
         }
         // 发布/回收会改变分类下已发布文章数量与“全部”计数，刷新左侧分类树与总数
         await Promise.all([this.loadCategories(), this.syncTotals()])
-      } catch (e) { alert('操作失败：' + (e?.message || e)) }
+      } catch (e) { this.showToast('操作失败：' + (e?.message || e), 'error') }
     },
-    async removeArticle(a) {
-      if (!confirm(`确认删除《${a.title}》？`)) return
+    removeArticle(a) {
+      this.pendingArticle = a
+      this.confirmOpen = true
+    },
+    cancelRemove() {
+      this.confirmOpen = false
+      this.pendingArticle = null
+    },
+    async confirmRemove() {
+      if (!this.pendingArticle) return
+      this.deleting = true
       try {
-        await api.delete(`/admin/articles/${a.id}`)
+        await api.delete(`/admin/articles/${this.pendingArticle.id}`)
+        this.confirmOpen = false
+        this.pendingArticle = null
+        this.showToast('文章已删除', 'success')
         this.loadArticles(true)
         // 删除会改变分类下文章数量与“全部”计数，刷新左侧分类树与总数
         await Promise.all([this.loadCategories(), this.syncTotals()])
-      } catch (e) { alert('删除失败：' + (e?.message || e)) }
+      } catch (e) {
+        this.showToast('删除失败：' + (e?.message || e), 'error')
+      } finally {
+        this.deleting = false
+      }
+    },
+    showToast(msg, type = 'success') {
+      this.toastMsg = msg
+      this.toastType = type
+      setTimeout(() => { this.toastMsg = '' }, 3000)
     },
     formatDate(v) {
       if (!v) return '-'
@@ -843,13 +745,16 @@ export default {
 .btn--ghost:hover { border-color: var(--accent); color: var(--accent); background-color: var(--accent-light); }
 
 /* ===== 列表 / 表格 ===== */
-.article-list { overflow-y: auto; min-height: 0; max-height: 72vh; }
-.article-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.article-list { overflow: auto; min-height: 0; max-height: 72vh; }
+.article-table {
+  width: 100%; min-width: 820px;
+  border-collapse: collapse; table-layout: fixed;
+}
 .article-table__head {
   position: sticky; top: 0; z-index: 2; background: var(--bg-soft);
 }
 .article-table__head th {
-  text-align: left; padding: 12px 16px;
+  text-align: left; padding: 14px 16px;
   font-family: var(--font-mono);
   font-size: 11.5px; font-weight: 600;
   letter-spacing: 0.08em; text-transform: uppercase;
@@ -857,29 +762,65 @@ export default {
   border-bottom: 1px solid var(--border); white-space: nowrap;
 }
 .article-table td {
-  padding: 13px 16px; border-bottom: 1px solid var(--border-light);
+  padding: 15px 16px; border-bottom: 1px solid var(--border-light);
   font-size: 14px; color: var(--text-primary); white-space: nowrap;
 }
-.th-index { width: 56px; text-align: center; }
+/* 列宽按各自内容的实际需要分配，避免 table-layout: fixed 下平均瓜分导致文字互相压叠 */
+.th-index { width: 74px; text-align: center; }
+.th-title { width: auto; }
+.th-author { width: 92px; }
+.th-status { width: 102px; }
+.th-updated { width: 156px; }
 .cell-index {
-  width: 56px; text-align: center; font-variant-numeric: tabular-nums;
+  width: 74px; text-align: center; font-variant-numeric: tabular-nums;
   font-family: var(--font-mono);
   color: var(--text-tertiary); font-size: 12.5px;
 }
+.cell-index__inner { display: inline-flex; align-items: center; gap: 6px; }
+.cell-index__num { min-width: 18px; text-align: right; }
+.drag-handle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; flex-shrink: 0;
+  color: var(--text-tertiary); cursor: grab; border-radius: 4px;
+  transition: color var(--transition), background-color var(--transition);
+}
+.drag-handle svg { width: 15px; height: 15px; }
+.data-row:hover .drag-handle { color: var(--accent); }
+.drag-handle:active { cursor: grabbing; }
 .data-row { transition: background-color var(--transition); }
 .data-row:hover { background-color: color-mix(in srgb, var(--accent-light) 40%, transparent); }
+.data-row.is-dragging { opacity: 0.5; }
+.data-row.is-drag-over {
+  background-color: var(--accent-light);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.data-row.is-drag-over .cell-index__num { color: var(--accent); font-weight: 600; }
 .cell-title {
   font-family: var(--font-serif); font-size: 14px; font-weight: 600;
   letter-spacing: 0.01em;
   max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.cell-author { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
+.cell-author { max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
 .cell-status { white-space: nowrap; }
 .cell-muted {
   color: var(--text-tertiary); white-space: nowrap;
   font-family: var(--font-mono); font-size: 12px;
 }
-.article-table__ops { white-space: nowrap; text-align: right; }
+.th-views { width: 80px; text-align: right; }
+.cell-views {
+  width: 80px; text-align: right;
+  font-family: var(--font-mono); font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.views-virtual { color: var(--accent); font-weight: 600; }
+.views-unset { color: var(--text-tertiary); font-size: 12px; }
+.field-hint {
+  margin: 0; padding-top: 6px;
+  font-size: 12px; line-height: 1.6; color: var(--text-tertiary);
+}
+.article-table__ops { width: 124px; white-space: nowrap; text-align: right; }
+/* 末项去掉右外边距，避免整组操作按钮被多出的间距整体左移 */
+.article-table__ops .link:last-child { margin-right: 0; }
 
 .badge {
   display: inline-flex; align-items: center; gap: 5px; padding: 3px 11px;
@@ -944,193 +885,24 @@ export default {
   background: color-mix(in srgb, var(--text-tertiary) 55%, transparent);
 }
 
-/* ============ 编辑抽屉 ============ */
-.drawer-mask {
-  position: fixed; inset: 0; z-index: 1000;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex; justify-content: flex-end;
-}
-.drawer {
-  width: 460px; max-width: 92vw; height: 100%;
-  background: var(--bg-card);
+/* ===== Toast ===== */
+.toast {
+  position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%);
+  background: var(--bg-card); border: 1px solid var(--accent); color: var(--accent);
+  font-size: 14px; font-weight: 500; padding: 10px 22px; border-radius: 100px;
   box-shadow: var(--shadow-lg);
-  display: flex; flex-direction: column;
+  display: inline-flex; align-items: center; gap: 8px;
+  z-index: 4000; max-width: min(480px, 90vw);
 }
-.drawer__header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 20px; border-bottom: 1px solid var(--border-light);
+.toast svg { width: 16px; height: 16px; flex-shrink: 0; }
+.toast.error { border-color: #e0533d; color: #e0533d; }
+.toast-pop-enter-active, .toast-pop-leave-active {
+  transition: opacity 0.35s cubic-bezier(0.22, 1, 0.36, 1), transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.drawer__title {
-  font-family: var(--font-serif);
-  font-size: 16.5px; font-weight: 600;
-  color: var(--text-primary); letter-spacing: 0.02em;
-  margin: 0; padding-left: 14px; position: relative;
+.toast-pop-enter-from, .toast-pop-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(20px);
 }
-.drawer__title::before {
-  content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
-  width: 4px; height: 16px; border-radius: 4px; background-color: var(--accent);
-}
-.drawer__close {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px;
-  border: 1px solid var(--border); border-radius: 50%;
-  background: transparent; color: var(--text-tertiary);
-  cursor: pointer; transition: all var(--transition);
-}
-.drawer__close:hover {
-  color: var(--accent); border-color: var(--accent);
-  background-color: var(--accent-light);
-}
-.drawer__loading {
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  padding: 40px; color: var(--text-tertiary); font-size: 14px;
-}
-.drawer__body { flex: 1 1 auto; overflow-y: auto; padding: 22px 20px; }
-.drawer__footer {
-  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
-  padding: 14px 20px; border-top: 1px solid var(--border-light);
-  background: var(--bg-soft);
-}
-.saving-hint {
-  font-family: var(--font-mono);
-  font-size: 12.5px; color: var(--accent); margin-right: auto;
-}
-
-/* 抽屉内表单 */
-.field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 15px; }
-.field label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
-.req { color: #e0533d; margin-left: 2px; }
-.field input, .field select, .field textarea {
-  padding: 11px 13px; font-size: 14px; font-family: var(--font-sans);
-  color: var(--text-primary);
-  background: var(--bg-soft); border: 1px solid transparent;
-  border-radius: var(--radius-sm); outline: none;
-  transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
-  resize: vertical;
-}
-.field input::placeholder, .field textarea::placeholder { color: var(--text-tertiary); }
-.field input:hover, .field textarea:hover {
-  background-color: color-mix(in srgb, var(--bg-soft) 70%, var(--accent-light) 30%);
-}
-.field input:focus, .field select:focus, .field textarea:focus {
-  background-color: var(--bg-card);
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-}
-.field-row { display: flex; gap: 14px; }
-.flex-1 { flex: 1; min-width: 0; }
-.content-editor { font-family: var(--font-mono); font-size: 13px; line-height: 1.75; min-height: 260px; }
-.tags-input {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 7px 12px;
-  background: var(--bg-soft); border: 1px solid transparent;
-  border-radius: var(--radius-sm); min-height: 42px;
-  transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
-}
-.tags-input:hover { background-color: color-mix(in srgb, var(--bg-soft) 70%, var(--accent-light) 30%); }
-.tags-input:focus-within {
-  background-color: var(--bg-card);
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-}
-.tags-input input {
-  border: none; outline: none; font-size: 13px; font-family: var(--font-sans);
-  background: transparent; flex: 1; min-width: 100px; padding: 4px 0;
-  color: var(--text-primary);
-}
-.tags-input input::placeholder { color: var(--text-tertiary); }
-.tag-chip {
-  display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px;
-  font-size: 12px; font-weight: 500;
-  background: var(--accent-light); color: var(--accent);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  border-radius: 100px;
-}
-.tag-remove { border: none; background: transparent; color: inherit; font-size: 14px; line-height: 1; cursor: pointer; padding: 0; opacity: 0.6; }
-.tag-remove:hover { opacity: 1; }
-.toggle-row { align-items: center; }
-.toggle-label { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-primary); cursor: pointer; user-select: none; }
-.toggle-label input { display: none; }
-.toggle-label input + span {
-  width: 42px; height: 23px; border-radius: 100px; background: var(--border); position: relative; transition: background var(--transition); flex-shrink: 0;
-}
-.toggle-label input + span::after {
-  content: ''; position: absolute; top: 2.5px; left: 2.5px; width: 18px; height: 18px; border-radius: 50%;
-  background: #fff; transition: transform var(--transition); box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-.toggle-label input:checked + span { background: var(--accent); }
-.toggle-label input:checked + span::after { transform: translateX(19px); }
-
-/* 抽屉动画 */
-.drawer-enter-active, .drawer-leave-active { transition: opacity 0.25s ease; }
-.drawer-enter-active .drawer, .drawer-leave-active .drawer { transition: transform 0.25s ease; }
-.drawer-enter-from, .drawer-leave-to { opacity: 0; }
-.drawer-enter-from .drawer, .drawer-leave-to .drawer { transform: translateX(100%); }
-
-/* 封面图预览按钮 */
-.field--preview { flex: 0 0 auto; justify-content: flex-end; }
-.cover-preview-btn { align-self: flex-start; margin-top: 2px; }
-
-/* ============ 封面预览弹窗 ============ */
-.cover-modal-mask {
-  position: fixed; inset: 0; z-index: 1100;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(4px);
-  display: flex; align-items: center; justify-content: center; padding: 24px;
-}
-.cover-modal {
-  width: 640px; max-width: 92vw; max-height: 88vh;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  display: flex; flex-direction: column; overflow: hidden;
-}
-.cover-modal__header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 18px; border-bottom: 1px solid var(--border-light);
-}
-.cover-modal__title {
-  font-family: var(--font-serif);
-  font-size: 15.5px; font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--text-primary);
-  padding-left: 14px; position: relative;
-}
-.cover-modal__title::before {
-  content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
-  width: 4px; height: 15px; border-radius: 4px; background-color: var(--accent);
-}
-.cover-modal__close {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 30px; height: 30px;
-  border: 1px solid var(--border); border-radius: 50%;
-  background: transparent; color: var(--text-tertiary);
-  cursor: pointer; transition: all var(--transition);
-}
-.cover-modal__close:hover {
-  color: var(--accent); border-color: var(--accent);
-  background-color: var(--accent-light);
-}
-.cover-modal__body {
-  flex: 1 1 auto; overflow: auto; padding: 18px;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--bg-soft);
-}
-.cover-modal__img {
-  max-width: 100%; max-height: 60vh; border-radius: var(--radius-sm);
-  background: #fff; box-shadow: var(--shadow-sm); display: block;
-}
-.cover-modal__error { color: var(--text-tertiary); font-size: 14px; text-align: center; }
-.cover-modal__footer {
-  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
-  padding: 12px 18px; border-top: 1px solid var(--border-light);
-  background: var(--bg-soft);
-}
-.cover-modal__footer .link { margin-right: 0; }
-
-/* 弹窗淡入淡出 */
-.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
 
 /* ===== Responsive ===== */
 @media (max-width: 860px) {

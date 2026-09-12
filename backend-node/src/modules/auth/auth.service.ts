@@ -43,6 +43,7 @@ export class AuthService {
         id: user.id,
         username: user.username,
         role: user.role,
+        avatar: user.avatar,
       },
     };
   }
@@ -54,6 +55,7 @@ export class AuthService {
         id: true,
         username: true,
         role: true,
+        avatar: true,
         remark: true,
         status: true,
         lastLoginAt: true,

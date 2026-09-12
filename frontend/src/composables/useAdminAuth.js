@@ -23,5 +23,12 @@ export function useAdminAuth() {
     localStorage.removeItem(USER_KEY)
   }
 
-  return { token, user, isLoggedIn, setAuth, clearAuth }
+  /** 局部更新当前登录用户信息（如改头像后同步顶栏展示），并持久化到 localStorage */
+  function updateUser(patch) {
+    if (!user.value) return
+    user.value = { ...user.value, ...patch }
+    localStorage.setItem(USER_KEY, JSON.stringify(user.value))
+  }
+
+  return { token, user, isLoggedIn, setAuth, clearAuth, updateUser }
 }

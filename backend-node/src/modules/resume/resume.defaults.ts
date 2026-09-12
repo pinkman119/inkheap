@@ -5,7 +5,7 @@
  */
 export const DEFAULT_RESUME_CONTENT = {
   profile: {
-    avatarText: '墨',
+    avatarText: '', // 留空则自动取姓名首字
     name: '林知墨',
     handle: 'AI 全栈工程师（偏后端）',
     tagline: '专注 AI Agent 开发、后端工程与全栈架构，相信好的工程源于深入理解底层原理与持续实践。',

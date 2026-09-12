@@ -1,27 +1,50 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import { quickQuestions, welcomeDesc, loginCard } from '@/data/digitalLife'
 import { useUserAuth } from '@/composables/useUserAuth'
+import { useSiteIdentity } from '@/composables/useSiteIdentity'
+import { renderMarkdown } from '@/utils/markdown'
+import { renderDiagrams } from '@/utils/diagram'
+import { isDark } from '@/composables/useTheme'
 
 /* =========================================================
    数字生命 · 对话逻辑（已接入后端）
    - 登录：mock 微信登录（WECHAT_MOCK 开关），发送时弹登录卡片
    - 回复：POST /user/digital-life/chat，SSE 流式渲染（delta/done/error）
-   - 历史：GET /user/digital-life/messages，单一持续会话
+  - 分泡：AI 长答复按换行段落拆成多条气泡逐条冒出（短段自动并入相邻气泡），像真人微信聊天
+   - 历史：GET /user/digital-life/messages，按 sessionId 隔离会话
+   - 会话：「新会话」与「清空」都会生成新 sessionId，隔离上下文；历史记录仍保留在数据库
    - 限流：429 时按钮倒计时禁用
    ========================================================= */
 
 const { token, user, isLoggedIn, clearAuth, mockLogin } = useUserAuth()
 
-// 单一持续会话：不暴露会话管理，用户始终在一个对话里与「数字生命」交流
+// 会话隔离：sessionId 本地持久化（localStorage）
+const SESSION_STORAGE_KEY = 'dl_chat_session_id'
+
+function genSessionId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+  return `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function getSessionId() {
+  const saved = localStorage.getItem(SESSION_STORAGE_KEY)
+  if (saved) return saved
+  const id = genSessionId()
+  localStorage.setItem(SESSION_STORAGE_KEY, id)
+  return id
+}
+
+const sessionId = ref(getSessionId())
+
 const messages = reactive([])
 const isTyping = ref(false)
 const draft = ref('')
 const jumpVisible = ref(false)
 
-// 站点称呼（HomePage.siteName，与关于我署名同源）
-const siteName = ref('慕士塔格猫')
+// 站点身份（作者名 + 头像）：与首页名片同源（后台「首页管理」配置），多页面共享
+const { siteAvatar, siteName, loadSiteIdentity, onAvatarError } = useSiteIdentity()
 
 // 登录卡片
 const loginCardVisible = ref(false)
@@ -52,6 +75,122 @@ const canSend = computed(
 
 let seed = 0
 const nextId = () => (seed += 1)
+
+/* ---- AI 回答按 Markdown 渲染 + 按段落拆成多条气泡 ----
+   用户提问是纯文本，保持原样插值；AI 回答经 marked 编译 + DOMPurify 净化后 v-html 呈现。
+   为了让回答更像真人微信聊天，一段长答复会拆成多条气泡：以换行段落为单位，
+   过短的段落先攒着、与后面的段落合并，避免一两个词就单独占用一条气泡。
+   编译结果用 WeakMap 按气泡序号缓存（刻意不做响应式：渲染期写响应式状态会触发递归更新）。 */
+const BUBBLE_MIN_LEN = 20
+
+/** 全量拆分：历史消息、done 事件覆盖时使用 */
+function splitAnswerBubbles(text) {
+  const bubbles = []
+  let cur = ''
+  for (const raw of String(text).split('\n')) {
+    const line = raw.trim()
+    if (!line) continue
+    cur = cur ? `${cur}\n${line}` : line
+    if (cur.length >= BUBBLE_MIN_LEN) {
+      bubbles.push(cur)
+      cur = ''
+    }
+  }
+  if (cur) bubbles.push(cur)
+  return bubbles
+}
+
+/** 流式分泡器：边收边拆，随时给出当前的气泡快照 */
+function createBubbleStreamer() {
+  const sealed = [] // 已封板的气泡
+  let pending = '' // 已完整、但还太短，等待与后续段落合并
+  let tail = '' // 尚未收到换行的当前行
+
+  return {
+    feed(chunk) {
+      let buf = tail + chunk
+      tail = ''
+      let nl
+      while ((nl = buf.indexOf('\n')) !== -1) {
+        const line = buf.slice(0, nl).trim()
+        buf = buf.slice(nl + 1)
+        if (!line) continue // 空行只作分隔，不单独成气泡
+        pending = pending ? `${pending}\n${line}` : line
+        if (pending.length >= BUBBLE_MIN_LEN) {
+          sealed.push(pending)
+          pending = ''
+        }
+      }
+      tail = buf
+    },
+    snapshot() {
+      const list = sealed.slice()
+      const live = pending && tail ? `${pending}\n${tail}` : pending || tail
+      if (live) list.push(live)
+      return list
+    },
+  }
+}
+
+const htmlCache = new WeakMap()
+
+function bubbleHtml(message, text, index) {
+  let cache = htmlCache.get(message)
+  if (!cache) {
+    cache = { srcs: [], htmls: [] }
+    htmlCache.set(message, cache)
+  }
+  if (cache.srcs[index] === text) return cache.htmls[index]
+  // breaks: true —— 单个换行也保留为换行，符合对话阅读习惯
+  const html = renderMarkdown(text, { breaks: true })
+  cache.srcs[index] = text
+  cache.htmls[index] = html
+  return html
+}
+
+/* ---- 正文里的文本绘图（mermaid）：v-html 写入 DOM 后异步渲染 ---- */
+function renderMessageDiagrams() {
+  if (chatMessagesEl.value) renderDiagrams(chatMessagesEl.value)
+}
+
+/* ---- 代码块一键复制（事件委托，挂在消息容器上） ---- */
+function onMessagesClick(e) {
+  const btn = e.target.closest('.code-copy')
+  if (!btn) return
+  const wrap = btn.closest('.code-block-wrap')
+  const codeEl = wrap && wrap.querySelector('pre.code-block code')
+  if (!codeEl) return
+  const text = codeEl.textContent || ''
+  const done = () => {
+    const old = btn.textContent
+    btn.textContent = '已复制'
+    btn.classList.add('copied')
+    setTimeout(() => {
+      btn.textContent = old
+      btn.classList.remove('copied')
+    }, 1500)
+  }
+  const fallbackCopy = () => {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    try {
+      document.execCommand('copy')
+      done()
+    } catch (_) {
+      /* 忽略：不支持剪贴板时静默失败 */
+    }
+    document.body.removeChild(ta)
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(fallbackCopy)
+  } else {
+    fallbackCopy()
+  }
+}
 
 /* ---- API 基址（与 useApi 一致：dev 绝对地址 / 生产同源） ---- */
 const isDev =
@@ -97,20 +236,17 @@ function onJumpClick() {
   smoothBottom()
 }
 
-/* ---- 初始化：拉称呼 + 历史 ---- */
+/* ---- 初始化：拉站点身份 + 历史 ---- */
 onMounted(async () => {
-  try {
-    const res = await fetch(`${BASE}/public/home-page`)
-    if (res.ok) {
-      const data = await res.json()
-      if (data.siteName) siteName.value = data.siteName
-    }
-  } catch {
-    // 称呼拉取失败时使用默认
-  }
+  await loadSiteIdentity()
   if (isLoggedIn()) {
     await Promise.all([loadHistory(), loadGeneralModels()])
   }
+})
+
+// 深浅色切换后 mermaid 的配色需要重绘
+watch(isDark, () => {
+  if (chatMessagesEl.value) renderDiagrams(chatMessagesEl.value, { force: true })
 })
 
 /** 加载可选「通用」模型列表，并恢复上次选择 */
@@ -147,9 +283,12 @@ function selectModel(id) {
 
 async function loadHistory() {
   try {
-    const res = await fetch(`${BASE}/user/digital-life/messages`, {
-      headers: { Authorization: `Bearer ${token.value}` },
-    })
+    const res = await fetch(
+      `${BASE}/user/digital-life/messages?sessionId=${encodeURIComponent(sessionId.value)}`,
+      {
+        headers: { Authorization: `Bearer ${token.value}` },
+      },
+    )
     if (!res.ok) {
       if (res.status === 401) clearAuth() // token 过期，回到未登录态
       return
@@ -157,19 +296,50 @@ async function loadHistory() {
     const data = await res.json()
     messages.length = 0
     for (const m of data.items || []) {
-      messages.push({
-        id: m.id,
-        role: m.role === 'assistant' ? 'ai' : 'user',
-        display: m.content,
-      })
+      if (m.role === 'assistant') {
+        // 历史回答同样拆成多条气泡，和流式期间保持一致
+        messages.push({ id: m.id, role: 'ai', bubbles: splitAnswerBubbles(m.content) })
+      } else {
+        messages.push({ id: m.id, role: 'user', display: m.content })
+      }
     }
-    if (messages.length) {
-      await nextTick()
-      stickBottom()
-    }
+    await nextTick()
+    if (messages.length) stickBottom()
+    renderMessageDiagrams()
   } catch {
     // 历史加载失败不阻断页面
   }
+}
+
+/* ---- 会话管理：新会话 / 清空当前会话（均不删除数据库，仅影响前端显示） ----
+   两者都切换到全新的 sessionId：后端按 sessionId 读取上下文，
+   若不换 sessionId，清空后 LLM 仍会读到旧会话历史。 */
+function startNewSession() {
+  if (isTyping.value) return
+  sessionId.value = genSessionId()
+  localStorage.setItem(SESSION_STORAGE_KEY, sessionId.value)
+  messages.length = 0
+  jumpVisible.value = false
+}
+
+const clearConfirmVisible = ref(false)
+
+function askClearSession() {
+  if (isTyping.value || !messages.length) return
+  clearConfirmVisible.value = true
+}
+
+function confirmClearSession() {
+  // 切换到全新 sessionId，确保清空后是全新会话（旧记录仍保留在数据库中）
+  sessionId.value = genSessionId()
+  localStorage.setItem(SESSION_STORAGE_KEY, sessionId.value)
+  messages.length = 0
+  jumpVisible.value = false
+  clearConfirmVisible.value = false
+}
+
+function cancelClearSession() {
+  clearConfirmVisible.value = false
 }
 
 /* ---- 限流倒计时 ---- */
@@ -226,6 +396,7 @@ async function streamChat(text) {
       body: JSON.stringify({
         content: text,
         modelId: selectedModelId.value || undefined,
+        sessionId: sessionId.value,
       }),
     })
 
@@ -247,9 +418,11 @@ async function streamChat(text) {
     }
 
     // 进入 SSE 流：创建 AI 气泡并逐段填充
-    isTyping.value = false
-    messages.push({ id: nextId(), role: 'ai', display: '' })
+    // 注意：isTyping 先不清，等第一个 delta 落地再收起三点指示器，
+    // 否则首个字到达前页面上既没有气泡也没有指示器，会像是没反应
+    messages.push({ id: nextId(), role: 'ai', bubbles: [] })
     message = messages[messages.length - 1]
+    const streamer = createBubbleStreamer()
     await nextTick()
     followStream()
 
@@ -267,24 +440,27 @@ async function streamChat(text) {
       while ((sep = buffer.indexOf('\n\n')) !== -1) {
         const block = buffer.slice(0, sep)
         buffer = buffer.slice(sep + 2)
-        handleEventBlock(block, message)
+        handleEventBlock(block, message, streamer)
       }
     }
     // 处理尾部残余
-    if (buffer.trim()) handleEventBlock(buffer, message)
+    if (buffer.trim()) handleEventBlock(buffer, message, streamer)
   } catch (e) {
     isTyping.value = false
-    if (message && message.display) {
+    if (message && message.bubbles.length) {
       // 已有部分内容：保留
     } else {
       pushSystemError('网络异常，请稍后再试')
     }
   } finally {
     isTyping.value = false
+    // 流式结束后再渲染绘图：流式期间内容频繁变化，逐次编译 mermaid 没有意义
+    await nextTick()
+    renderMessageDiagrams()
   }
 }
 
-function handleEventBlock(block, message) {
+function handleEventBlock(block, message, streamer) {
   let event = 'message'
   let data = ''
   for (const line of block.split('\n')) {
@@ -300,21 +476,25 @@ function handleEventBlock(block, message) {
   }
 
   if (event === 'delta' && payload.text) {
-    message.display += payload.text
+    isTyping.value = false // 有内容落地，收起三点指示器
+    // 增量喂入分泡器：满一段就多冒一条气泡，未写完的尾巴实时更新
+    streamer.feed(payload.text)
+    message.bubbles = streamer.snapshot()
     followStream()
   } else if (event === 'done') {
-    message.display = payload.content || message.display
+    // 用完整内容重建，确保与流式过程中的拆分结果一致
+    if (payload.content) message.bubbles = splitAnswerBubbles(payload.content)
     followStream()
   } else if (event === 'error') {
-    if (!message.display && payload.message) {
-      message.display = payload.message
+    if (!message.bubbles.length && payload.message) {
+      message.bubbles = [payload.message]
     }
   }
 }
 
 /* ---- 系统错误气泡（以 AI 身份展示可读错误） ---- */
 function pushSystemError(text) {
-  messages.push({ id: nextId(), role: 'ai', display: `（${text}）` })
+  messages.push({ id: nextId(), role: 'ai', bubbles: [`（${text}）`] })
   scrollNew()
 }
 
@@ -383,12 +563,14 @@ onBeforeUnmount(() => {
           class="chat-messages"
           aria-live="polite"
           @scroll.passive="onScroll"
+          @click="onMessagesClick"
         >
           <div class="messages-inner">
             <!-- 欢迎态 -->
             <div v-if="!messages.length" class="welcome">
               <div class="welcome-avatar" aria-hidden="true">
-                <svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+                <img v-if="siteAvatar" :src="siteAvatar" alt="" @error="onAvatarError" />
+                <svg v-else viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
                   <circle cx="14" cy="9" r="3.2" fill="#ffffff" />
                   <rect x="7.5" y="14.5" width="13" height="2.8" rx="1.4" fill="#ffffff" />
                   <rect x="7.5" y="19" width="13" height="2.8" rx="1.4" fill="#ffffff" />
@@ -409,22 +591,35 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <!-- 消息流 -->
-            <div v-for="message in messages" :key="message.id" class="msg" :class="message.role">
-              <div v-if="message.role === 'ai'" class="msg-avatar" aria-hidden="true">
-                <svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="14" cy="9" r="3.2" fill="#ffffff" />
-                  <rect x="7.5" y="14.5" width="13" height="2.8" rx="1.4" fill="#ffffff" />
-                  <rect x="7.5" y="19" width="13" height="2.8" rx="1.4" fill="#ffffff" />
-                </svg>
+            <!-- 消息流：AI 的每段回答各自成行、各带头像，贴近微信聊天 -->
+            <template v-for="message in messages" :key="message.id">
+              <div v-if="message.role === 'user'" class="msg user">
+                <div class="bubble">{{ message.display }}</div>
               </div>
-              <div class="bubble">{{ message.display }}</div>
-            </div>
+              <template v-else>
+                <div v-for="(bubble, index) in message.bubbles" :key="index" class="msg ai">
+                  <div class="msg-avatar" aria-hidden="true">
+                    <img v-if="siteAvatar" :src="siteAvatar" alt="" @error="onAvatarError" />
+                    <svg v-else viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="14" cy="9" r="3.2" fill="#ffffff" />
+                      <rect x="7.5" y="14.5" width="13" height="2.8" rx="1.4" fill="#ffffff" />
+                      <rect x="7.5" y="19" width="13" height="2.8" rx="1.4" fill="#ffffff" />
+                    </svg>
+                  </div>
+                  <!-- eslint-disable-next-line vue/no-v-html —— AI 回答经 marked 编译 + DOMPurify 净化 -->
+                  <div
+                    class="bubble markdown-body"
+                    v-html="bubbleHtml(message, bubble, index)"
+                  ></div>
+                </div>
+              </template>
+            </template>
 
             <!-- 打字中指示器 -->
             <div v-if="isTyping" class="msg ai">
               <div class="msg-avatar" aria-hidden="true">
-                <svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+                <img v-if="siteAvatar" :src="siteAvatar" alt="" @error="onAvatarError" />
+                <svg v-else viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
                   <circle cx="14" cy="9" r="3.2" fill="#ffffff" />
                   <rect x="7.5" y="14.5" width="13" height="2.8" rx="1.4" fill="#ffffff" />
                   <rect x="7.5" y="19" width="13" height="2.8" rx="1.4" fill="#ffffff" />
@@ -497,9 +692,45 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
+        <!-- 清空当前会话确认弹窗（开启全新会话，不删除数据库） -->
+        <div v-if="clearConfirmVisible" class="login-overlay" @click.self="cancelClearSession">
+          <div class="login-card">
+            <h3>清空当前会话？</h3>
+            <p>将清空当前对话并开启一个全新的会话，AI 不会再记得之前的聊天内容；历史记录仍完整保留在数据库中。</p>
+            <div class="confirm-actions">
+              <button class="confirm-btn" type="button" @click="cancelClearSession">取消</button>
+              <button class="confirm-btn danger" type="button" @click="confirmClearSession">确认清空</button>
+            </div>
+          </div>
+        </div>
+
         <div class="chat-input">
-          <!-- 已登录：模型选择 + 昵称 + 退出 -->
+          <!-- 已登录：会话操作 + 模型选择 + 昵称 + 退出 -->
           <div v-if="isLoggedIn() && user" class="user-bar">
+            <div class="session-actions">
+              <button
+                class="session-btn"
+                type="button"
+                title="开启新会话（上下文重置）"
+                aria-label="开启新会话"
+                :disabled="isTyping"
+                @click="startNewSession"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                <span>新会话</span>
+              </button>
+              <button
+                class="session-btn"
+                type="button"
+                title="清空当前会话并开启全新会话（上下文重置）"
+                aria-label="清空当前会话"
+                :disabled="isTyping || !messages.length"
+                @click="askClearSession"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                <span>清空</span>
+              </button>
+            </div>
             <div v-if="generalModels.length" class="model-picker">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 10 10 0 0 0-10-10z"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
               <select
@@ -644,6 +875,13 @@ onBeforeUnmount(() => {
   height: 18px;
 }
 
+.msg-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .bubble {
   max-width: 72%;
   padding: 12px 16px;
@@ -652,6 +890,11 @@ onBeforeUnmount(() => {
   line-height: 1.75;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* 同一回答拆出的多条气泡相邻排列：收紧行距，与「不同消息」拉开层次 */
+.msg.ai + .msg.ai {
+  margin-top: -10px;
 }
 
 .msg.ai .bubble {
@@ -665,6 +908,228 @@ onBeforeUnmount(() => {
   background-color: var(--accent);
   color: #ffffff;
   border-bottom-right-radius: 4px;
+}
+
+/* ===== AI 气泡内的 Markdown 排版 =====
+   v-html 注入的节点不会带 scoped 的 data-v 属性，故统一用 :deep() 穿透；
+   .bubble 上的 white-space: pre-wrap 是为纯文本准备的，Markdown 已生成块级结构，
+   这里改回 normal，避免源码换行被渲染成多余空行。 */
+.bubble.markdown-body {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.bubble.markdown-body :deep(p) {
+  margin: 0 0 10px;
+}
+
+.bubble.markdown-body :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.bubble.markdown-body :deep(h1),
+.bubble.markdown-body :deep(h2),
+.bubble.markdown-body :deep(h3),
+.bubble.markdown-body :deep(h4),
+.bubble.markdown-body :deep(h5),
+.bubble.markdown-body :deep(h6) {
+  margin: 18px 0 10px;
+  font-size: 15.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text-brand);
+}
+
+.bubble.markdown-body :deep(h1) {
+  font-size: 19px;
+}
+
+.bubble.markdown-body :deep(h2) {
+  font-size: 17px;
+}
+
+.bubble.markdown-body :deep(h1:first-child),
+.bubble.markdown-body :deep(h2:first-child),
+.bubble.markdown-body :deep(h3:first-child) {
+  margin-top: 0;
+}
+
+.bubble.markdown-body :deep(ul),
+.bubble.markdown-body :deep(ol) {
+  margin: 0 0 10px;
+  padding-left: 22px;
+}
+
+.bubble.markdown-body :deep(ul) {
+  list-style: disc;
+}
+
+.bubble.markdown-body :deep(ol) {
+  list-style: decimal;
+}
+
+.bubble.markdown-body :deep(li) {
+  margin-bottom: 4px;
+}
+
+.bubble.markdown-body :deep(li:last-child) {
+  margin-bottom: 0;
+}
+
+.bubble.markdown-body :deep(a) {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.bubble.markdown-body :deep(a:hover) {
+  color: var(--accent-hover);
+}
+
+.bubble.markdown-body :deep(blockquote) {
+  margin: 0 0 10px;
+  padding: 6px 12px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background-color: var(--bg-soft);
+  color: var(--text-secondary);
+}
+
+.bubble.markdown-body :deep(blockquote p:last-child) {
+  margin-bottom: 0;
+}
+
+.bubble.markdown-body :deep(hr) {
+  margin: 14px 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+/* 行内代码 */
+.bubble.markdown-body :deep(code) {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background-color: var(--bg-soft);
+  color: var(--text-brand);
+}
+
+/* 代码块（utils/markdown.js 产出的 .code-block-wrap 结构） */
+.bubble.markdown-body :deep(.code-block-wrap) {
+  margin: 0 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.bubble.markdown-body :deep(.code-block-header) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background-color: #232624;
+  color: #a8b3ad;
+}
+
+.bubble.markdown-body :deep(.code-lang) {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.bubble.markdown-body :deep(.code-copy) {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 9px;
+  border: 1px solid #3a3f3c;
+  border-radius: 100px;
+  background: transparent;
+  color: #a8b3ad;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bubble.markdown-body :deep(.code-copy:hover) {
+  color: #ffffff;
+  border-color: #5fc59a;
+}
+
+.bubble.markdown-body :deep(.code-copy.copied) {
+  color: #5fc59a;
+  border-color: #5fc59a;
+}
+
+.bubble.markdown-body :deep(pre.code-block) {
+  margin: 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+  white-space: pre;
+  background-color: #1b1e1c;
+}
+
+.bubble.markdown-body :deep(pre.code-block code) {
+  padding: 0;
+  background: transparent;
+  color: #dfe6e2;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+/* 表格 */
+.bubble.markdown-body :deep(table) {
+  display: block;
+  width: 100%;
+  margin: 0 0 10px;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.bubble.markdown-body :deep(th),
+.bubble.markdown-body :deep(td) {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.bubble.markdown-body :deep(th) {
+  background-color: var(--bg-soft);
+  font-weight: 600;
+}
+
+.bubble.markdown-body :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+/* :::callout 提示框 */
+.bubble.markdown-body :deep(.md-callout) {
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background-color: var(--bg-soft);
+  font-size: 14px;
+}
+
+.bubble.markdown-body :deep(.md-callout[data-type='warning']) {
+  border-left-color: #c39a4e;
+}
+
+.bubble.markdown-body :deep(.md-callout[data-type='info']) {
+  border-left-color: #4a9d8e;
+}
+
+.bubble.markdown-body :deep(.md-callout .c-title) {
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.bubble.markdown-body :deep(.md-callout p:last-child) {
+  margin-bottom: 0;
 }
 
 /* Typing indicator */
@@ -727,6 +1192,13 @@ onBeforeUnmount(() => {
 .welcome .welcome-avatar svg {
   width: 38px;
   height: 38px;
+}
+
+.welcome .welcome-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .welcome h2 {
@@ -947,6 +1419,83 @@ onBeforeUnmount(() => {
   background-color: var(--bg-card);
 }
 
+/* 会话操作按钮（新会话 / 清空） */
+.session-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+}
+
+.session-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--border);
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-family: var(--font-sans);
+  padding: 5px 11px;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.session-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background-color: var(--accent-light);
+}
+
+.session-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.session-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* 清空确认弹窗操作按钮 */
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.confirm-btn {
+  flex: 1;
+  max-width: 130px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.confirm-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.confirm-btn.danger {
+  background-color: #e5484d;
+  border-color: #e5484d;
+  color: #ffffff;
+}
+
+.confirm-btn.danger:hover {
+  background-color: #d93a3f;
+  border-color: #d93a3f;
+  color: #ffffff;
+}
+
 /* Input bar */
 .chat-input {
   flex-shrink: 0;
@@ -1100,6 +1649,15 @@ onBeforeUnmount(() => {
 
   .chat-layout {
     flex-direction: column;
+  }
+
+  /* 小屏：会话按钮仅保留图标 */
+  .session-btn span {
+    display: none;
+  }
+
+  .session-btn {
+    padding: 6px 9px;
   }
 }
 </style>
