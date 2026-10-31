@@ -1,8 +1,9 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
-import { quickQuestions, welcomeDesc, loginCard } from '@/data/digitalLife'
+import { quickQuestions, welcomeDesc } from '@/data/digitalLife'
 import { useUserAuth } from '@/composables/useUserAuth'
+import { useAuthModal } from '@/composables/useAuthModal'
 import { useSiteIdentity } from '@/composables/useSiteIdentity'
 import { renderMarkdown } from '@/utils/markdown'
 import { renderDiagrams } from '@/utils/diagram'
@@ -10,7 +11,7 @@ import { isDark } from '@/composables/useTheme'
 
 /* =========================================================
    数字生命 · 对话逻辑（已接入后端）
-   - 登录：mock 微信登录（WECHAT_MOCK 开关），发送时弹登录卡片
+   - 登录：邮箱账号（全局 AuthModal 弹窗，httpOnly cookie 维持登录态），发送时弹出
    - 回复：POST /user/digital-life/chat，SSE 流式渲染（delta/done/error）
   - 分泡：AI 长答复按换行段落拆成多条气泡逐条冒出（短段自动并入相邻气泡），像真人微信聊天
    - 历史：GET /user/digital-life/messages，按 sessionId 隔离会话
@@ -18,7 +19,8 @@ import { isDark } from '@/composables/useTheme'
    - 限流：429 时按钮倒计时禁用
    ========================================================= */
 
-const { token, user, isLoggedIn, clearAuth, mockLogin } = useUserAuth()
+const { user, isLoggedIn, refresh, clearAuth, logout } = useUserAuth()
+const { open: openAuthModal } = useAuthModal()
 
 // 会话隔离：sessionId 本地持久化（localStorage）
 const SESSION_STORAGE_KEY = 'dl_chat_session_id'
@@ -46,11 +48,17 @@ const jumpVisible = ref(false)
 // 站点身份（作者名 + 头像）：与首页名片同源（后台「首页管理」配置），多页面共享
 const { siteAvatar, siteName, loadSiteIdentity, onAvatarError } = useSiteIdentity()
 
-// 登录卡片
-const loginCardVisible = ref(false)
-const loginLoading = ref(false)
-const loginError = ref('')
-let pendingMessage = '' // 被登录拦截的消息，登录后自动发送
+// 用户头像加载失败标记（回退昵称首字）；切换用户后重置
+const userAvatarFailed = ref(false)
+watch(
+  () => user.value?.id,
+  () => {
+    userAvatarFailed.value = false
+  },
+)
+
+// 登录拦截：被登录弹窗拦截的消息，登录后自动发送
+let pendingMessage = ''
 
 // 限流倒计时（秒）
 const rateLimitWait = ref(0)
@@ -236,9 +244,11 @@ function onJumpClick() {
   smoothBottom()
 }
 
-/* ---- 初始化：拉站点身份 + 历史 ---- */
+/* ---- 初始化：拉站点身份 + 登录态探测 + 历史 ---- */
 onMounted(async () => {
+  document.addEventListener('click', onDocClick)
   await loadSiteIdentity()
+  await refresh()
   if (isLoggedIn()) {
     await Promise.all([loadHistory(), loadGeneralModels()])
   }
@@ -253,7 +263,7 @@ watch(isDark, () => {
 async function loadGeneralModels() {
   try {
     const res = await fetch(`${BASE}/user/digital-life/models`, {
-      headers: { Authorization: `Bearer ${token.value}` },
+      credentials: 'include',
     })
     if (!res.ok) {
       if (res.status === 401) clearAuth()
@@ -281,16 +291,46 @@ function selectModel(id) {
   else localStorage.removeItem(MODEL_STORAGE_KEY)
 }
 
+/* ---- 模型下拉菜单（自定义弹层，替代原生 select） ---- */
+const PROVIDER_LABELS = {
+  zhipu: '智谱 AI',
+  deepseek: 'DeepSeek',
+  openai: 'OpenAI',
+  qwen: '通义千问',
+  anthropic: 'Anthropic',
+}
+const modelMenuOpen = ref(false)
+const modelPickerEl = ref(null)
+
+function providerLabel(p) {
+  return PROVIDER_LABELS[p] || p
+}
+
+function toggleModelMenu() {
+  modelMenuOpen.value = !modelMenuOpen.value
+}
+
+function pickModel(id) {
+  selectModel(id)
+  modelMenuOpen.value = false
+}
+
+function onDocClick(e) {
+  if (modelMenuOpen.value && modelPickerEl.value && !modelPickerEl.value.contains(e.target)) {
+    modelMenuOpen.value = false
+  }
+}
+
 async function loadHistory() {
   try {
     const res = await fetch(
       `${BASE}/user/digital-life/messages?sessionId=${encodeURIComponent(sessionId.value)}`,
       {
-        headers: { Authorization: `Bearer ${token.value}` },
+        credentials: 'include',
       },
     )
     if (!res.ok) {
-      if (res.status === 401) clearAuth() // token 过期，回到未登录态
+      if (res.status === 401) clearAuth() // 登录态过期，回到未登录态
       return
     }
     const data = await res.json()
@@ -360,12 +400,11 @@ async function sendMessage(raw) {
   const text = (raw || '').trim()
   if (!text || isTyping.value || rateLimitWait.value > 0) return
 
-  // 未登录：拦截并弹登录卡片
+  // 未登录：拦截并弹全局登录弹窗
   if (!isLoggedIn()) {
     pendingMessage = text
     draft.value = ''
-    loginError.value = ''
-    loginCardVisible.value = true
+    openAuthModal({ onSuccess: onAuthSuccess })
     return
   }
 
@@ -389,9 +428,9 @@ async function streamChat(text) {
   try {
     const res = await fetch(`${BASE}/user/digital-life/chat`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token.value}`,
       },
       body: JSON.stringify({
         content: text,
@@ -409,7 +448,7 @@ async function streamChat(text) {
       } else if (res.status === 401) {
         clearAuth()
         pendingMessage = text
-        loginCardVisible.value = true
+        openAuthModal({ onSuccess: onAuthSuccess })
       } else {
         pushSystemError(data.message || '服务暂时不可用，请稍后再试')
       }
@@ -498,35 +537,20 @@ function pushSystemError(text) {
   scrollNew()
 }
 
-/* ---- 登录卡片 ---- */
-async function onMockLogin() {
-  loginLoading.value = true
-  loginError.value = ''
-  try {
-    await mockLogin()
-    loginCardVisible.value = false
-    await loadHistory()
-    // 自动继续被拦截的发送
-    if (pendingMessage) {
-      const text = pendingMessage
-      pendingMessage = ''
-      await sendMessage(text)
-    }
-  } catch (e) {
-    loginError.value = e.message || '登录失败，请稍后再试'
-  } finally {
-    loginLoading.value = false
+/* ---- 登录成功（全局 AuthModal 回调）：加载历史并续发被拦截的消息 ---- */
+async function onAuthSuccess() {
+  await Promise.all([loadHistory(), loadGeneralModels()])
+  // 自动继续被拦截的发送
+  if (pendingMessage) {
+    const text = pendingMessage
+    pendingMessage = ''
+    await sendMessage(text)
   }
 }
 
-function closeLoginCard() {
-  loginCardVisible.value = false
-  pendingMessage = ''
-}
-
 /* ---- 退出登录 ---- */
-function onLogout() {
-  clearAuth()
+async function onLogout() {
+  await logout()
   messages.length = 0
   pendingMessage = ''
 }
@@ -548,6 +572,7 @@ function onKeydown(event) {
 
 onBeforeUnmount(() => {
   if (countdownTimer) clearInterval(countdownTimer)
+  document.removeEventListener('click', onDocClick)
 })
 </script>
 
@@ -594,6 +619,16 @@ onBeforeUnmount(() => {
             <!-- 消息流：AI 的每段回答各自成行、各带头像，贴近微信聊天 -->
             <template v-for="message in messages" :key="message.id">
               <div v-if="message.role === 'user'" class="msg user">
+                <!-- 用户头像：注册时填写的头像 URL，为空或加载失败回退昵称首字 -->
+                <div class="msg-avatar user-avatar" aria-hidden="true">
+                  <img
+                    v-if="user?.avatarUrl && !userAvatarFailed"
+                    :src="user.avatarUrl"
+                    alt=""
+                    @error="userAvatarFailed = true"
+                  />
+                  <span v-else class="avatar-letter">{{ (user?.nickname || '?').slice(0, 1) }}</span>
+                </div>
                 <div class="bubble">{{ message.display }}</div>
               </div>
               <template v-else>
@@ -653,47 +688,10 @@ onBeforeUnmount(() => {
           <span>新消息</span>
         </button>
 
-        <!-- 登录卡片（未登录发送时弹出） -->
-        <div v-if="loginCardVisible" class="login-overlay" @click.self="closeLoginCard">
-          <div class="login-card">
-            <button class="login-close" type="button" aria-label="关闭" @click="closeLoginCard">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-            <h3>{{ loginCard.title }}</h3>
-            <p>{{ loginCard.desc }}</p>
-            <button
-              class="login-btn"
-              type="button"
-              :disabled="loginLoading"
-              @click="onMockLogin"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-              </svg>
-              {{ loginLoading ? loginCard.loading : loginCard.button }}
-            </button>
-            <p v-if="loginError" class="login-error">{{ loginError }}</p>
-          </div>
-        </div>
+        <!-- 登录弹窗已改为全局组件（App.vue 中的 AuthModal），此处不再渲染局部登录卡片 -->
 
         <!-- 清空当前会话确认弹窗（开启全新会话，不删除数据库） -->
-        <div v-if="clearConfirmVisible" class="login-overlay" @click.self="cancelClearSession">
+        <div v-if="clearConfirmVisible" class="login-overlay" @mousedown.self="cancelClearSession" @click.self="cancelClearSession">
           <div class="login-card">
             <h3>清空当前会话？</h3>
             <p>将清空当前对话并开启一个全新的会话，AI 不会再记得之前的聊天内容；历史记录仍完整保留在数据库中。</p>
@@ -731,22 +729,61 @@ onBeforeUnmount(() => {
                 <span>清空</span>
               </button>
             </div>
-            <div v-if="generalModels.length" class="model-picker">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 10 10 0 0 0-10-10z"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-              <select
-                class="model-select"
-                :value="selectedModelId"
+            <div v-if="generalModels.length" ref="modelPickerEl" class="model-picker" :class="{ open: modelMenuOpen }">
+              <button
+                type="button"
+                class="model-picker-trigger"
                 aria-label="选择对话模型"
-                @change="selectModel($event.target.value)"
+                aria-haspopup="listbox"
+                :aria-expanded="modelMenuOpen"
+                @click="toggleModelMenu"
               >
-                <option value="">自动</option>
-                <option v-for="m in generalModels" :key="m.id" :value="m.id">
-                  {{ m.name }}（{{ m.provider }}）
-                </option>
-              </select>
-              <span class="model-picker-caret">
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-              </span>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 10 10 0 0 0-10-10z"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                <span class="model-picker-label">{{ currentModelLabel }}</span>
+                <span class="model-picker-caret">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </span>
+              </button>
+
+              <transition name="model-menu-pop">
+                <ul v-if="modelMenuOpen" class="model-menu" role="listbox" aria-label="可选模型">
+                  <li>
+                    <button
+                      type="button"
+                      class="model-menu-item"
+                      role="option"
+                      :aria-selected="!selectedModelId"
+                      :class="{ active: !selectedModelId }"
+                      @click="pickModel('')"
+                    >
+                      <span class="model-menu-main">
+                        <span class="model-menu-name">自动</span>
+                        <span class="model-menu-desc">按顺序自动切换可用模型</span>
+                      </span>
+                      <svg class="model-menu-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </button>
+                  </li>
+                  <li v-for="m in generalModels" :key="m.id">
+                    <button
+                      type="button"
+                      class="model-menu-item"
+                      role="option"
+                      :aria-selected="selectedModelId === m.id"
+                      :class="{ active: selectedModelId === m.id }"
+                      @click="pickModel(m.id)"
+                    >
+                      <span class="model-menu-main">
+                        <span class="model-menu-name">{{ m.name }}</span>
+                        <span class="model-menu-desc">
+                          <span class="model-menu-provider">{{ providerLabel(m.provider) }}</span>
+                          <span class="model-menu-id">{{ m.modelId }}</span>
+                        </span>
+                      </span>
+                      <svg v-if="selectedModelId === m.id" class="model-menu-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </button>
+                  </li>
+                </ul>
+              </transition>
             </div>
             <span class="user-chip">{{ user.nickname }}</span>
             <button class="logout-btn" type="button" @click="onLogout">退出</button>
@@ -880,6 +917,14 @@ onBeforeUnmount(() => {
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
+}
+
+/* 用户消息头像（头像 URL 回退昵称首字） */
+.user-avatar .avatar-letter {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .bubble {
@@ -1355,40 +1400,152 @@ onBeforeUnmount(() => {
   gap: 10px;
 }
 
-/* 对话模型选择 */
+/* 对话模型选择（自定义下拉） */
 .model-picker {
+  position: relative;
+}
+.model-picker-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 7px;
+  padding: 7px 12px;
   border-radius: 100px;
   background-color: var(--bg-card);
   border: 1px solid var(--border);
   color: var(--text-secondary);
+  font-family: var(--font-sans);
   font-size: 12.5px;
+  cursor: pointer;
   transition: all var(--transition);
+  white-space: nowrap;
 }
-.model-picker svg {
+.model-picker-trigger svg {
   flex-shrink: 0;
   color: var(--accent);
 }
-.model-select {
-  appearance: none;
-  -webkit-appearance: none;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-family: var(--font-sans);
-  font-size: 12.5px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  max-width: 150px;
-  padding-right: 2px;
+.model-picker-trigger:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  color: var(--text-primary);
+}
+.model-picker.open .model-picker-trigger {
+  border-color: var(--accent);
+  background-color: var(--accent-light);
+  color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+::global([data-theme='dark']) .model-picker.open .model-picker-trigger { color: var(--accent); }
+.model-picker-label {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
 }
 .model-picker-caret {
   display: inline-flex;
-  pointer-events: none;
   color: var(--text-tertiary);
+  transition: transform var(--transition);
+}
+.model-picker.open .model-picker-caret {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+
+/* 下拉菜单面板 */
+.model-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  min-width: 260px;
+  max-width: min(340px, calc(100vw - 48px));
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+}
+.model-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+}
+.model-menu-item:hover {
+  background-color: color-mix(in srgb, var(--accent-light) 55%, transparent);
+  color: var(--text-primary);
+}
+.model-menu-item.active {
+  color: var(--accent);
+  background-color: var(--accent-light);
+}
+.model-menu-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.model-menu-name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.model-menu-desc {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+.model-menu-item.active .model-menu-desc { color: color-mix(in srgb, var(--accent) 75%, var(--text-tertiary)); }
+.model-menu-provider {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  padding: 1px 8px;
+  border-radius: 100px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-light);
+  color: var(--text-tertiary);
+}
+.model-menu-item.active .model-menu-provider {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  color: inherit;
+}
+.model-menu-id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+.model-menu-check {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  color: var(--accent);
+}
+
+/* 下拉展开/收起动画 */
+.model-menu-pop-enter-active,
+.model-menu-pop-leave-active { transition: opacity 0.18s ease, transform 0.18s ease; }
+.model-menu-pop-enter-from,
+.model-menu-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
 }
 
 .user-chip {

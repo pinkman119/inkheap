@@ -19,6 +19,11 @@ import { ViewModule } from './modules/view/view.module';
 import { AdminUserModule } from './modules/admin-user/admin-user.module';
 import { FooterLinkModule } from './modules/footer-link/footer-link.module';
 import { FriendLinkModule } from './modules/friend-link/friend-link.module';
+import { SiteConfigModule } from './modules/site-config/site-config.module';
+import { FeedModule } from './modules/feed/feed.module';
+import { MailModule } from './modules/mail/mail.module';
+import { EmailAuthModule } from './modules/email-auth/email-auth.module';
+import { CommentModule } from './modules/comment/comment.module';
 
 @Module({
   imports: [
@@ -46,6 +51,11 @@ import { FriendLinkModule } from './modules/friend-link/friend-link.module';
     AdminUserModule,
     FooterLinkModule,
     FriendLinkModule,
+    SiteConfigModule,
+    FeedModule,
+    MailModule,
+    EmailAuthModule,
+    CommentModule,
   ],
   controllers: [],
   providers: [],

@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
 import SocialIcon from '@/components/SocialIcon.vue'
+import ThemeSelect from '@/components/ThemeSelect.vue'
 import { FOOTER_ICONS, DEFAULT_FOOTER_ICON, getFooterIconLabel } from '@/utils/footer-icons'
 
 const api = useApi()
@@ -331,7 +332,7 @@ function showToast(msg, type = 'success') {
     <!-- 新建/编辑 Modal -->
     <Teleport to="body">
       <transition name="modal-fade">
-        <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+        <div v-if="showModal" class="modal-overlay" @mousedown.self="showModal = false" @click.self="showModal = false">
           <div class="modal-card" :class="{ 'modal-card--wide': form.type === 'social' }" role="dialog" aria-modal="true" :aria-label="modalTitle">
             <div class="modal-head">
               <span class="modal-title">{{ modalTitle }}</span>
@@ -343,19 +344,27 @@ function showToast(msg, type = 'success') {
               <div class="form-row">
                 <div class="form-field">
                   <label class="field-label" for="fType">类型</label>
-                  <select id="fType" v-model="form.type">
-                    <option value="nav">导航（站内路由）</option>
-                    <option value="ext">扩展（外链）</option>
-                    <option value="social">社交（圆形图标）</option>
-                  </select>
+                  <ThemeSelect
+                    v-model="form.type"
+                    aria-label="类型"
+                    :options="[
+                      { value: 'nav', label: '导航', desc: '站内路由' },
+                      { value: 'ext', label: '扩展', desc: '外链' },
+                      { value: 'social', label: '社交', desc: '圆形图标' },
+                    ]"
+                  />
                 </div>
                 <div class="form-field">
                   <label class="field-label" for="fMode">显示模式</label>
-                  <select id="fMode" v-model="form.mode">
-                    <option :value="0">全模式</option>
-                    <option :value="1">仅工作</option>
-                    <option :value="2">仅生活</option>
-                  </select>
+                  <ThemeSelect
+                    v-model="form.mode"
+                    aria-label="显示模式"
+                    :options="[
+                      { value: 0, label: '全模式' },
+                      { value: 1, label: '仅工作' },
+                      { value: 2, label: '仅生活' },
+                    ]"
+                  />
                 </div>
               </div>
               <div class="form-field">
@@ -432,7 +441,7 @@ function showToast(msg, type = 'success') {
     <!-- 删除确认 Modal -->
     <Teleport to="body">
       <transition name="modal-fade">
-        <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
+        <div v-if="showDeleteModal" class="modal-overlay" @mousedown.self="showDeleteModal = false" @click.self="showDeleteModal = false">
           <div class="modal-card modal-card--confirm" role="dialog" aria-modal="true" aria-label="确认删除">
             <div class="modal-head">
               <span class="modal-title">删除链接</span>
@@ -812,13 +821,11 @@ function showToast(msg, type = 'success') {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 .input-mono { font-family: var(--font-mono); font-size: 13px; }
-.form-field select {
-  cursor: pointer; appearance: none; -webkit-appearance: none;
-  padding-right: 30px;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-}
+/* ThemeSelect 在表单内撑满宽度 */
+.form-field :deep(.tsel) { width: 100%; display: flex; }
+.form-field :deep(.tsel__trigger) { width: 100%; background: var(--bg-soft); border-color: transparent; padding: 11px 13px; border-radius: var(--radius-sm); }
+.form-field :deep(.tsel__trigger:hover:not(:disabled)) { background-color: color-mix(in srgb, var(--bg-soft) 70%, var(--accent-light) 30%); }
+.form-field :deep(.tsel.open .tsel__trigger) { background: var(--bg-card); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
 .form-row { display: flex; gap: 14px; }
 .form-row .form-field { flex: 1; min-width: 0; }
 

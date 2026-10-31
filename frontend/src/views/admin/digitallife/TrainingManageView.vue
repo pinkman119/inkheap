@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useApi } from '@/composables/useApi'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import ThemeSelect from '@/components/ThemeSelect.vue'
 
 const api = useApi()
 
@@ -42,8 +43,9 @@ const EMBEDDING_STORAGE_KEY = 'dl_training_embedding_model'
 const embeddingOptions = computed(() => {
   const items = embeddingModels.value.map((m) => ({
     value: m.id,
-    label: m.name + (m.hasApiKey ? '' : '（未配置 Key）'),
-    hasApiKey: m.hasApiKey,
+    label: m.name,
+    desc: m.hasApiKey ? '已配置 API Key' : '未配置 API Key，不可选',
+    disabled: !m.hasApiKey,
   }))
   return [{ value: '', label: '默认嵌入模型（自动选择）' }, ...items]
 })
@@ -319,27 +321,15 @@ onMounted(() => {
         <p class="hero-note">当前 {{ total }} 条数据 · 数据被编辑后会自动回到未训练状态</p>
         <div class="embedding-picker">
           <label class="picker-label" for="embeddingModelSelect">嵌入模型</label>
-          <div class="picker-select-wrap">
-            <select
-              id="embeddingModelSelect"
-              class="picker-select"
-              :value="selectedEmbeddingModel"
-              :disabled="batchRunning"
-              @change="selectEmbeddingModel($event.target.value)"
-            >
-              <option
-                v-for="opt in embeddingOptions"
-                :key="opt.value"
-                :value="opt.value"
-                :disabled="!opt.hasApiKey && opt.value !== ''"
-              >
-                {{ opt.label }}
-              </option>
-            </select>
-            <span class="picker-caret">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </span>
-          </div>
+          <ThemeSelect
+            id="embeddingModelSelect"
+            :model-value="selectedEmbeddingModel"
+            :options="embeddingOptions"
+            :disabled="batchRunning"
+            aria-label="选择嵌入模型"
+            align="right"
+            @update:model-value="selectEmbeddingModel"
+          />
           <span class="picker-hint">当前：{{ currentEmbeddingLabel }} · 在「模型管理」中维护嵌入模型</span>
         </div>
       </div>
@@ -568,20 +558,6 @@ onMounted(() => {
   background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius-sm);
 }
 .picker-label { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
-.picker-select-wrap { position: relative; display: inline-flex; align-items: center; }
-.picker-select {
-  appearance: none; -webkit-appearance: none;
-  min-width: 220px; padding: 8px 36px 8px 12px;
-  font-size: 13px; color: var(--text);
-  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  cursor: pointer; transition: all var(--transition);
-}
-.picker-select:focus { outline: none; border-color: var(--accent); }
-.picker-select:disabled { opacity: 0.6; cursor: not-allowed; }
-.picker-caret {
-  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-  pointer-events: none; color: var(--text-secondary);
-}
 .picker-hint { font-size: 12px; color: var(--text-tertiary); }
 
 /* ===== 批量进度 ===== */

@@ -3,6 +3,7 @@ import {
   Body, Param, UseGuards,
 } from '@nestjs/common';
 import { CategoryService } from './category.service';
+import { RecentCategoryService } from './recent-category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -10,7 +11,16 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 @Controller('admin/categories')
 @UseGuards(JwtAuthGuard)
 export class CategoryController {
-  constructor(private categoryService: CategoryService) {}
+  constructor(
+    private categoryService: CategoryService,
+    private recentCategoryService: RecentCategoryService,
+  ) {}
+
+  // 最近使用的分类（需声明在 @Get(':id') 之前，避免 "recent" 被动态路由当作 id 匹配）
+  @Get('recent')
+  findRecent() {
+    return this.recentCategoryService.list();
+  }
 
   @Get()
   findAll() {

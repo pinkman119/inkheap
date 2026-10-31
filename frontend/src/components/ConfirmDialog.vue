@@ -26,7 +26,7 @@ const emit = defineEmits(['confirm', 'cancel'])
 
 <template>
   <transition name="confirm-fade">
-    <div v-if="open" class="confirm-mask" @click.self="emit('cancel')">
+    <div v-if="open" class="confirm-mask" @mousedown.self="emit('cancel')" @click.self="emit('cancel')">
       <div class="confirm-card" role="dialog" aria-modal="true" :aria-label="title">
         <div class="confirm-icon">!</div>
         <h3>{{ title }}</h3>

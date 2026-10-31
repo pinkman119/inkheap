@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { UserJwtStrategy } from '../auth/user-jwt.strategy';
-import { WechatController } from './wechat.controller';
-import { WechatService } from './wechat.service';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
+import { ChatAdminService } from './chat-admin.service';
 import { ModelConfigService } from './model-config.service';
 import { PersonaService } from './persona.service';
 import { VectorService } from './vector.service';
@@ -13,10 +12,11 @@ import { RateLimitService } from './rate-limit.service';
 import { DigitalLifeAdminController } from './digital-life-admin.controller';
 
 /**
- * 数字生命模块：Mock 微信登录 + SSE 聊天 + RAG 训练 + 后台管理。
+ * 数字生命模块：SSE 聊天 + RAG 训练 + 后台管理。
  *
  * UserJwtStrategy 在本模块注册（passport 全局策略表）；
  * JwtModule 与 AuthModule 同 secret，独立注册以解耦。
+ * 访客登录入口已迁移至邮箱认证（email-auth 模块），微信 mock 登录已下线。
  */
 @Module({
   imports: [
@@ -26,14 +26,13 @@ import { DigitalLifeAdminController } from './digital-life-admin.controller';
     }),
   ],
   controllers: [
-    WechatController,
     ChatController,
     DigitalLifeAdminController,
   ],
   providers: [
     UserJwtStrategy,
-    WechatService,
     ChatService,
+    ChatAdminService,
     ModelConfigService,
     PersonaService,
     VectorService,

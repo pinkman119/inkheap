@@ -129,6 +129,42 @@ JWT_SECRET=your_jwt_secret_here
 EOF
 ```
 
+### 邮件发送（SMTP）——注册验证码 / 密码找回
+
+前台邮箱注册需要通过邮箱验证码验证，忘记密码会把密码发送到注册邮箱，
+两者都依赖 SMTP 邮件服务。在 `.env` 中追加以下配置（未配置时相关接口返回
+「邮件服务未配置」错误，不影响站点其他功能）：
+
+```bash
+cat >> .env <<EOF
+SMTP_HOST=smtp.example.com
+SMTP_PORT=465
+SMTP_USER=noreply@example.com
+SMTP_PASS=your_smtp_password
+SMTP_FROM=墨堆 <noreply@example.com>
+EOF
+```
+
+说明：
+- `SMTP_PORT=465` 走隐式 SSL；`587` 走 STARTTLS（nodemailer 自动协商）
+- `SMTP_FROM` 为发件人展示名，格式 `名称 <邮箱地址>`
+- 密码找回邮件会包含账号的明文密码（站点采用可逆加密存储，属产品决策），
+  请确保 SMTP 账号安全
+
+### 访客账号密码加密密钥（APP_ENCRYPTION_KEY）
+
+`email_users` 表的密码与数字生命模块的 API Key 共用 `APP_ENCRYPTION_KEY`
+（32 字节 hex = 64 个字符）。生产环境务必在 `.env` 中覆盖默认值：
+
+```bash
+cat >> .env <<EOF
+APP_ENCRYPTION_KEY=your_64_hex_chars_here
+EOF
+```
+
+注意：更换密钥后，旧密文（API Key 与用户密码）将无法解密，找回密码功能
+对老用户会失效，请谨慎操作并保留原密钥备份。
+
 ## 八、后续加 HTTPS（Let's Encrypt）
 
 1. 准备域名解析到服务器 IP

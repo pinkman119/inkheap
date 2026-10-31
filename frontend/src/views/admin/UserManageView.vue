@@ -377,7 +377,7 @@ onMounted(load)
     </section>
 
     <transition name="modal-fade">
-      <div v-if="modal" class="modal-mask" @click.self="closeModal">
+      <div v-if="modal" class="modal-mask" @mousedown.self="closeModal" @click.self="closeModal">
         <div class="editor-modal" role="dialog" aria-modal="true">
           <div class="modal-head">
             <span class="modal-title">

@@ -56,6 +56,11 @@ export class CreateXiaojiDto {
   @IsString()
   location?: string;
 
+  // 绑定的足迹 id（地点从足迹中选择）；空字符串 = 不绑定，地点清空
+  @IsOptional()
+  @IsString()
+  footprintId?: string;
+
   @IsOptional()
   @IsString()
   date?: string;

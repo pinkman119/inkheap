@@ -1,14 +1,10 @@
 import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { REF_TYPES, RefType } from '../training.service';
-import { MODEL_TYPES } from '../digital-life.defaults';
+import { MODEL_TYPES, PROVIDER_BASE_URLS } from '../digital-life.defaults';
 
-/** Mock 微信登录 */
-export class MockLoginDto {
-  @IsOptional()
-  @IsString()
-  openid?: string;
-}
+/** 可选厂商（OpenAI 兼容端点） */
+export const PROVIDER_KEYS = Object.keys(PROVIDER_BASE_URLS);
 
 /** 聊天提问（可指定使用某个「通用」模型） */
 export class ChatDto {
@@ -34,6 +30,28 @@ export class TrainDto {
   @IsOptional()
   @IsString()
   embeddingModelId?: string;
+}
+
+/** 模型新增（name / provider / modelId / modelType / apiKey） */
+export class CreateDlModelDto {
+  @IsString()
+  @MaxLength(60)
+  name!: string;
+
+  @IsIn(PROVIDER_KEYS as unknown as string[])
+  provider!: string;
+
+  @IsString()
+  @MaxLength(120)
+  modelId!: string;
+
+  @IsIn(MODEL_TYPES as unknown as string[])
+  modelType!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  apiKey?: string;
 }
 
 /** 模型更新（name / modelId / modelType / apiKey） */

@@ -12,15 +12,16 @@
     href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
     rel="stylesheet">
   <script>
-    // 主题前置注入：避免首屏白闪（FOUC）
+    // 主题前置注入：避免首屏白闪（FOUC）。默认深色，用户手动切换后记忆其选择
     (function () {
       try {
         var saved = localStorage.getItem('theme');
-        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        if (saved === 'dark' || (!saved && prefersDark)) {
+        if (saved !== 'light') {
           document.documentElement.setAttribute('data-theme', 'dark');
         }
-      } catch (e) { }
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
     })();
   </script>
 </head>

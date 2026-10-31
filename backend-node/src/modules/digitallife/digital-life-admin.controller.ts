@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpException,
   Param,
@@ -10,10 +11,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ChatAdminService } from './chat-admin.service';
 import { ModelConfigService } from './model-config.service';
 import { PersonaService } from './persona.service';
 import { TrainingService, REF_TYPES, RefType } from './training.service';
 import {
+  CreateDlModelDto,
   QueryTrainingDto,
   TrainDto,
   UpdateDlModelDto,
@@ -22,9 +25,11 @@ import {
 
 /**
  * 数字生命后台管理接口（管理员 JWT 鉴权）：
- * - 模型：GET …/models、PUT …/models/:id（更新）、PUT …/models/:id/toggle、POST …/models/:id/test
+ * - 模型：GET …/models、POST …/models（新增）、DELETE …/models/:id、
+ *   PUT …/models/:id（更新）、PUT …/models/:id/toggle、POST …/models/:id/test
  * - 人格：GET …/personas、GET …/personas/:id、PUT …/personas/:id
  * - 训练：GET …/training/:refType、POST …/training/:refType/:refId/train|remove
+ * - 会话：GET …/sessions（会话列表，支持 IP 搜索）、GET …/sessions/messages（会话详情）
  */
 @Controller('admin/digital-life')
 @UseGuards(JwtAuthGuard)
@@ -33,13 +38,42 @@ export class DigitalLifeAdminController {
     private readonly modelConfigService: ModelConfigService,
     private readonly personaService: PersonaService,
     private readonly trainingService: TrainingService,
+    private readonly chatAdminService: ChatAdminService,
   ) {}
+
+  // ==================== 会话管理 ====================
+
+  /** GET …/sessions?page&pageSize&ip —— 会话列表（支持按 IP 搜索） */
+  @Get('sessions')
+  listSessions(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('ip') ip?: string,
+  ) {
+    return this.chatAdminService.listSessions({ page, pageSize, ip });
+  }
+
+  /** GET …/sessions/messages?userId&sessionId —— 会话详情（全部消息，时间正序） */
+  @Get('sessions/messages')
+  sessionMessages(@Query('userId') userId: string, @Query('sessionId') sessionId?: string) {
+    return this.chatAdminService.getSessionMessages(userId, sessionId || undefined);
+  }
 
   // ==================== 模型管理 ====================
 
   @Get('models')
   listModels() {
     return this.modelConfigService.list();
+  }
+
+  @Post('models')
+  createModel(@Body() dto: CreateDlModelDto) {
+    return this.modelConfigService.create(dto);
+  }
+
+  @Delete('models/:id')
+  deleteModel(@Param('id') id: string) {
+    return this.modelConfigService.remove(id);
   }
 
   @Put('models/:id')

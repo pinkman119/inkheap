@@ -11,6 +11,7 @@ import { TrainingService } from '../digitallife/training.service';
 import { ModelConfigService } from '../digitallife/model-config.service';
 import { ViewCountService } from '../view/view.service';
 import { resolveDisplayViews } from '../view/view.util';
+import { RecentCategoryService } from '../category/recent-category.service';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { QueryArticleDto } from './dto/query-article.dto';
@@ -39,6 +40,7 @@ export class ArticleService {
     private trainingService: TrainingService,
     private viewCountService: ViewCountService,
     private modelConfig: ModelConfigService,
+    private recentCategories: RecentCategoryService,
   ) {}
 
   async findAll(query: QueryArticleDto) {
@@ -156,6 +158,8 @@ export class ArticleService {
         sortOrder,
       } as any,
     });
+    // 记录「最近使用的分类」（Redis 不可用时服务内部降级跳过，不影响保存）
+    await this.recentCategories.push(article.categoryKey);
     return this.transformArticle(article);
   }
 
@@ -178,6 +182,8 @@ export class ArticleService {
     const article = await this.prisma.article.update({ where: { id }, data });
     // 数字生命：已训练数据被编辑 → 删向量 + trainType 重置 0（需重新训练）
     await this.trainingService.invalidateIfTrained('article', id);
+    // 记录「最近使用的分类」（Redis 不可用时服务内部降级跳过，不影响保存）
+    await this.recentCategories.push(article.categoryKey);
     return this.transformArticle(article);
   }
 
@@ -319,8 +325,9 @@ export class ArticleService {
       .trim();
   }
 
-  // 按更新时间倒序返回文章列表，用于首页右侧"动态"栏目。
-  // 排序规则：updatedAt 越大越靠前；相同时间戳按毫秒级精确比较（SQLite 已存完整时间戳）。
+  // 按创建时间倒序返回文章列表，用于首页右侧"动态"栏目。
+  // 固定使用 createdAt：阅读量自增等非内容变更会刷新 updatedAt，
+  // 若按 updatedAt 排序，点开老文章会把它错误顶到动态列表最前。
   async findLatestUpdated(query: QueryArticleDto) {
     const { page = 1, pageSize = 20 } = query;
     const skip = (page - 1) * pageSize;
@@ -335,7 +342,7 @@ export class ArticleService {
         where,
         skip,
         take: pageSize,
-        orderBy: { updatedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
       }),
       this.prisma.article.count({ where }),
     ]);

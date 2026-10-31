@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useApi } from '@/composables/useApi'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const api = useApi()
 
@@ -49,6 +50,38 @@ async function toggleModel(m) {
     showToast('操作失败: ' + e.message, 'error')
   } finally {
     actionLoading.value = false
+  }
+}
+
+// ===== 删除确认弹窗 =====
+const confirmOpen = ref(false)
+const pendingItem = ref(null)
+const deleting = ref(false)
+
+function deleteModel(m) {
+  pendingItem.value = m
+  confirmOpen.value = true
+}
+
+function cancelDelete() {
+  confirmOpen.value = false
+  pendingItem.value = null
+}
+
+async function confirmDelete() {
+  const m = pendingItem.value
+  if (!m || deleting.value) return
+  deleting.value = true
+  try {
+    await api.delete(`/admin/digital-life/models/${m.id}`)
+    confirmOpen.value = false
+    pendingItem.value = null
+    showToast(`已删除 ${m.name}`, 'success')
+    await loadModels()
+  } catch (e) {
+    showToast('删除失败: ' + e.message, 'error')
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -157,6 +190,63 @@ function showToast(msg, type = 'success') {
   setTimeout(() => { toastMsg.value = '' }, 3000)
 }
 
+// ===== 新增弹窗 =====
+const PROVIDERS = [
+  { value: 'zhipu', label: '智谱 AI' },
+  { value: 'deepseek', label: 'DeepSeek' },
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'qwen', label: '通义千问' },
+  { value: 'anthropic', label: 'Anthropic' },
+]
+
+const showCreateModal = ref(false)
+const creating = ref(false)
+const createForm = ref({ name: '', provider: 'zhipu', modelId: '', modelType: 'general', apiKey: '' })
+
+/** 新增弹窗的模型 ID 输入建议（按厂商 × 类型） */
+const createPresets = computed(() => {
+  const pool = createForm.value.modelType === 'embedding' ? EMBEDDING_PRESETS : MODEL_PRESETS
+  return pool[createForm.value.provider] || []
+})
+
+function openCreate() {
+  createForm.value = { name: '', provider: 'zhipu', modelId: '', modelType: 'general', apiKey: '' }
+  showCreateModal.value = true
+}
+
+function closeCreate() {
+  if (creating.value) return
+  showCreateModal.value = false
+}
+
+async function createModel() {
+  if (creating.value) return
+  const name = createForm.value.name.trim()
+  const modelId = createForm.value.modelId.trim()
+  if (!name) { showToast('显示名称不能为空', 'error'); return }
+  if (!modelId) { showToast('模型 ID 不能为空', 'error'); return }
+
+  creating.value = true
+  try {
+    const payload = {
+      name,
+      provider: createForm.value.provider,
+      modelId,
+      modelType: createForm.value.modelType,
+    }
+    const apiKey = createForm.value.apiKey.trim()
+    if (apiKey) payload.apiKey = apiKey
+    await api.post('/admin/digital-life/models', payload)
+    showToast(`已新增模型「${name}」，默认停用，请配置后启用`, 'success')
+    showCreateModal.value = false
+    await loadModels()
+  } catch (e) {
+    showToast('新增失败: ' + e.message, 'error')
+  } finally {
+    creating.value = false
+  }
+}
+
 onMounted(async () => {
   await loadModels()
 })
@@ -181,6 +271,10 @@ onMounted(async () => {
             <span class="kicker">Digital Life · 模型</span>
             <h1>模型管理</h1>
           </div>
+          <button class="btn btn--primary" @click="openCreate()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            新增模型
+          </button>
         </div>
         <p class="lede">管理数字人生的 LLM 接入：配置 API Key、启用 / 停用模型、测试连通性。通用模型用于对话，嵌入模型用于训练与检索。</p>
         <p class="hero-note">{{ models.length }} 个模型 · 通用 {{ models.filter(m => (m.modelType || 'general') === 'general').length }} 个 · 嵌入 {{ models.filter(m => m.modelType === 'embedding').length }} 个 · 已配置 Key {{ models.filter(m => m.hasApiKey).length }} 个</p>
@@ -253,6 +347,7 @@ onMounted(async () => {
           <button class="mini-btn" :class="{ danger: m.enabled }" :disabled="actionLoading" @click="toggleModel(m)">
             {{ m.enabled ? '停用' : '启用' }}
           </button>
+          <button class="mini-btn danger" :disabled="actionLoading" @click="deleteModel(m)">删除</button>
         </div>
       </div>
     </div>
@@ -260,7 +355,7 @@ onMounted(async () => {
     <!-- ===== 配置弹窗 ===== -->
     <Teleport to="body">
       <transition name="modal-fade">
-        <div v-if="showEditModal" class="modal-overlay" @click.self="closeEdit()">
+        <div v-if="showEditModal" class="modal-overlay" @mousedown.self="closeEdit()" @click.self="closeEdit()">
           <div class="modal-card" role="dialog" aria-modal="true" aria-label="配置模型">
             <div class="modal-head">
               <span class="modal-title">配置模型 · {{ editingModel?.name }}</span>
@@ -346,7 +441,110 @@ onMounted(async () => {
           </div>
         </div>
       </transition>
+
+      <!-- ===== 新增模型弹窗 ===== -->
+      <transition name="modal-fade">
+        <div v-if="showCreateModal" class="modal-overlay" @mousedown.self="closeCreate()" @click.self="closeCreate()">
+          <div class="modal-card" role="dialog" aria-modal="true" aria-label="新增模型">
+            <div class="modal-head">
+              <span class="modal-title">新增模型</span>
+              <button class="modal-close" title="关闭" :disabled="creating" @click="closeCreate()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div class="modal-body">
+              <div class="form-field">
+                <label class="field-label" for="cProvider">厂商</label>
+                <div class="type-select-wrap">
+                  <button
+                    v-for="p in PROVIDERS"
+                    :key="p.value"
+                    type="button"
+                    class="type-option"
+                    :class="{ active: createForm.provider === p.value }"
+                    :disabled="creating"
+                    @click="createForm.provider = p.value"
+                  >
+                    {{ p.label }}
+                  </button>
+                </div>
+                <small class="hint">均通过 OpenAI 兼容端点接入，Key 加密存储</small>
+              </div>
+
+              <div class="form-field">
+                <label class="field-label" for="cName">显示名称</label>
+                <input id="cName" v-model="createForm.name" type="text" maxlength="60" placeholder="如：GLM-4.6" :disabled="creating" />
+              </div>
+
+              <div class="form-field">
+                <label class="field-label" for="cModelId">模型 ID</label>
+                <input id="cModelId" v-model="createForm.modelId" class="input-mono" type="text" list="create-model-presets" maxlength="120" placeholder="如：glm-4.6" :disabled="creating" />
+                <datalist id="create-model-presets">
+                  <option v-for="p in createPresets" :key="p" :value="p"></option>
+                </datalist>
+                <small class="hint">{{ createPresets.length ? '有本厂商常用模型建议，也可直接输入其他模型 ID' : '直接输入模型 ID' }}</small>
+              </div>
+
+              <div class="form-field">
+                <label class="field-label">模型类型</label>
+                <div class="type-select-wrap">
+                  <button
+                    v-for="t in MODEL_TYPES.filter(t => t.value !== 'all')"
+                    :key="t.value"
+                    type="button"
+                    class="type-option"
+                    :class="{ active: createForm.modelType === t.value }"
+                    :disabled="creating"
+                    @click="createForm.modelType = t.value"
+                  >
+                    {{ t.label }}
+                  </button>
+                </div>
+                <small class="hint">
+                  <template v-if="createForm.modelType === 'embedding'">嵌入模型用于训练与检索（建议选择 1024 维向量模型）</template>
+                  <template v-else>通用模型用于数字生命对话，可按顺序自动切换</template>
+                </small>
+              </div>
+
+              <div class="form-field">
+                <label class="field-label" for="cKey">API Key（可选）</label>
+                <input
+                  id="cKey"
+                  v-model="createForm.apiKey"
+                  class="input-mono"
+                  type="password"
+                  autocomplete="new-password"
+                  spellcheck="false"
+                  maxlength="300"
+                  placeholder="可稍后在「配置」中填写"
+                  :disabled="creating"
+                />
+                <small class="hint">以 AES-256-GCM 加密存入数据库，页面仅显示脱敏形式</small>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <button class="btn btn--ghost" :disabled="creating" @click="closeCreate()">取消</button>
+              <button class="btn btn--primary" :disabled="creating" @click="createModel()">
+                {{ creating ? '创建中…' : '创建模型' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </transition>
     </Teleport>
+
+    <!-- ===== 删除确认弹窗 ===== -->
+    <ConfirmDialog
+      :open="confirmOpen"
+      title="删除模型"
+      confirm-label="删除"
+      :loading="deleting"
+      warn="删除后该模型及其配置的 API Key 将一并移除，此操作不可撤销。"
+      @cancel="cancelDelete"
+      @confirm="confirmDelete"
+    >
+      确定要删除 <strong>「{{ pendingItem?.name }}」</strong> 吗？
+    </ConfirmDialog>
   </div>
 </template>
 
@@ -669,6 +867,7 @@ onMounted(async () => {
   padding: 10px 18px; border-radius: 10px; cursor: pointer;
   border: 1px solid transparent; transition: all var(--transition); white-space: nowrap;
 }
+.btn svg { width: 16px; height: 16px; flex-shrink: 0; }
 .btn--primary {
   background-color: var(--accent); color: #fff;
   border-color: var(--accent); box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 30%, transparent);

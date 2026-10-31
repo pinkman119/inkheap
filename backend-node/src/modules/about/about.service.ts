@@ -82,6 +82,10 @@ export class AboutService {
   async findFootprints() {
     return this.prisma.aboutFootprint.findMany({
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      include: {
+        // 绑定的小记（slug 供前台足迹卡片跳转，title 供后台展示）
+        blog: { select: { slug: true, title: true } },
+      },
     });
   }
 
@@ -93,7 +97,6 @@ export class AboutService {
         time: dto.time,
         location: dto.location,
         elevation: dto.elevation ?? '—',
-        note: dto.note,
         sortOrder: dto.sortOrder ?? 0,
       },
     });
@@ -108,9 +111,15 @@ export class AboutService {
     if (dto.time !== undefined) data.time = dto.time;
     if (dto.location !== undefined) data.location = dto.location;
     if (dto.elevation !== undefined) data.elevation = dto.elevation;
-    if (dto.note !== undefined) data.note = dto.note;
     if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
     const updated = await this.prisma.aboutFootprint.update({ where: { id }, data });
+    // 已绑定小记时同步地点名（小记的 location 存的就是足迹的 place）
+    if (existing.blogId && data.place !== undefined) {
+      await this.prisma.blog.update({
+        where: { id: existing.blogId },
+        data: { location: data.place },
+      });
+    }
     await this.trainingService.invalidateIfTrained('about_footprint', id);
     return updated;
   }
@@ -118,6 +127,13 @@ export class AboutService {
   async removeFootprint(id: string) {
     const existing = await this.prisma.aboutFootprint.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('足迹记录不存在');
+    // 已绑定小记时清掉小记上的地点
+    if (existing.blogId) {
+      await this.prisma.blog.update({
+        where: { id: existing.blogId },
+        data: { location: null },
+      });
+    }
     await this.trainingService.invalidateByRef('about_footprint', id);
     await this.prisma.aboutFootprint.delete({ where: { id } });
     return { success: true };

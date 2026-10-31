@@ -2,25 +2,34 @@
 /**
  * 邻居 · 前台页面（原型 prototypes/friends.html）
  * - 索引来自已通过审核的友链：GET /public/friend-links
- * - 留言展示所有申请（不显示审核状态）：GET /public/friend-applications
  * - 「申请加入」提交后在后台生成一条待审核申请：POST /public/friend-applications
+ * - 邻居留言：接入站内评论系统（targetType=friends 的固定留言板），
+ *   发表需登录（未登录弹全局 AuthModal，与知识库/小记评论区同一套基础设施）
  * - 按工作 / 生活模式过滤（后台 mode = 0 的条目两种模式都出现）
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import BrandMark from '@/components/BrandMark.vue'
+import CommentSection from '@/components/CommentSection.vue'
+import ThemeSelect from '@/components/ThemeSelect.vue'
 import { useApi } from '@/composables/useApi'
 import { useMode } from '@/composables/useMode'
 
 const api = useApi()
 const { isWork } = useMode()
 
+/** 邻居留言板固定评论目标 ID（与后端 FRIENDS_BOARD_TARGET_ID 保持一致） */
+const FRIENDS_BOARD_TARGET_ID = '00000000-0000-4000-8000-0000000000fd'
+
 // ===== 数据 =====
 const friends = ref([])
 const loading = ref(true)
 const openId = ref(null)
 const filter = ref('全部')
+
+/* 申请表单的类型下拉（ThemeSelect）选项 */
+const TYPE_OPTIONS = ['技术', '设计', '阅读', '生活', '其他'].map((t) => ({ value: t, label: t }))
 
 // ===== 站内提示 =====
 const toast = ref({ show: false, message: '', type: 'success' })
@@ -42,9 +51,6 @@ const visible = computed(() =>
   filter.value === '全部' ? friends.value : friends.value.filter((f) => f.group === filter.value),
 )
 
-/** 邻居留言：所有申请，无论通过与否都展示（不显示审核状态） */
-const messages = ref([])
-
 async function loadFriends() {
   loading.value = true
   try {
@@ -60,21 +66,10 @@ async function loadFriends() {
   }
 }
 
-async function loadMessages() {
-  try {
-    const res = await api.get('/public/friend-applications')
-    messages.value = Array.isArray(res) ? res : []
-  } catch (e) {
-    console.error('[Friends] 加载邻居留言失败', e)
-    messages.value = []
-  }
-}
-
 // 模式切换后重新拉取（工作 / 生活的友链可能不同）
 watch(isWork, loadFriends)
 onMounted(() => {
   loadFriends()
-  loadMessages()
 })
 
 // ===== 展开 / 收起 =====
@@ -120,12 +115,6 @@ function safeUrl(url) {
 }
 function isInternal(url) {
   return String(url || '').startsWith('/')
-}
-function fmtDate(iso) {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  const p = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}`
 }
 const pad2 = (n) => String(n).padStart(2, '0')
 
@@ -189,8 +178,6 @@ async function submitApply() {
       message: form.value.message.trim(),
     })
     submitDone.value = true
-    // 留言区展示所有申请（含待审核），提交后立刻能看到自己那条
-    await loadMessages()
   } catch (e) {
     showToast(e?.message || '提交失败，请稍后再试', 'error')
   } finally {
@@ -310,42 +297,19 @@ async function submitApply() {
       <p class="idx-hint">「参见」指向同一圈子里的近邻 · 灰色虚线头像表示站点暂时无法访问</p>
     </section>
 
-    <!-- ===== 邻居留言 ===== -->
+    <!-- ===== 邻居留言（评论系统，登录后可留言/回复） ===== -->
     <section class="msgs">
-      <div class="msgs__head">
-        <h2 class="msgs__title">邻居留言</h2>
-        <span class="msgs__count">{{ pad2(messages.length) }} 条</span>
-      </div>
-      <p class="msgs__note">申请加入的朋友会留在这里。通过审核后，他们的站点会正式编进上面的索引。</p>
+      <p class="msgs__note">
+        登录后可以在留言板留言、互相回复（回复会通过邮件通知对方）。
+        申请加入的朋友通过审核后，站点会正式编进上面的索引。
+      </p>
 
-      <ul class="msgs__grid">
-        <li v-if="!messages.length" class="msgs__empty">
-          <strong>还没有留言</strong>
-          点上方「申请加入」，你会是第一个。
-        </li>
-        <li v-for="m in messages" :key="m.id" class="msg">
-          <div class="msg__head">
-            <span class="msg__avatar" aria-hidden="true">
-              <img v-if="m.avatar" :src="m.avatar" :alt="''" loading="lazy" />
-              <template v-else>{{ (m.name || '?').trim().charAt(0) }}</template>
-            </span>
-            <span class="msg__who">
-              <span class="msg__name">{{ m.name }}</span>
-              <time class="msg__meta" :datetime="m.createdAt">{{ fmtDate(m.createdAt) }}</time>
-            </span>
-            <span class="msg__type">{{ m.type || '其他' }}</span>
-          </div>
-          <p class="msg__text" :class="{ 'msg__text--empty': !m.message }">
-            {{ m.message || '这位朋友没有留言' }}
-          </p>
-          <div class="msg__foot">
-            <a class="msg__link" :href="safeUrl(m.url)" target="_blank" rel="noopener noreferrer">
-              <span class="dom">{{ hostOf(m.url) }}</span>
-              <span class="go">前往 →</span>
-            </a>
-          </div>
-        </li>
-      </ul>
+      <CommentSection
+        target-type="friends"
+        :target-id="FRIENDS_BOARD_TARGET_ID"
+        title="邻居留言"
+        empty-text="还没有留言，来说两句吧～"
+      />
     </section>
   </main>
 
@@ -360,7 +324,7 @@ async function submitApply() {
     aria-labelledby="applyTitle"
     :aria-hidden="!modalOpen"
   >
-    <div class="modal__backdrop" @click="closeModal"></div>
+    <div class="modal__backdrop" @mousedown="closeModal" @click="closeModal"></div>
     <div class="modal__panel">
       <div class="modal__head">
         <div>
@@ -399,14 +363,12 @@ async function submitApply() {
 
           <div class="field" :class="{ 'has-error': errors.type }">
             <label class="field__label" for="f-type">类型<span class="req">*</span></label>
-            <select id="f-type" v-model="form.type" class="field__select" @change="clearError('type')">
-              <option value="">请选择</option>
-              <option value="技术">技术</option>
-              <option value="设计">设计</option>
-              <option value="阅读">阅读</option>
-              <option value="生活">生活</option>
-              <option value="其他">其他</option>
-            </select>
+            <ThemeSelect
+              v-model="form.type"
+              aria-label="站点类型"
+              :options="[{ value: '', label: '请选择' }, ...TYPE_OPTIONS]"
+              @update:model-value="clearError('type')"
+            />
             <p class="field__err">请选择一个类型</p>
           </div>
 
@@ -619,73 +581,12 @@ async function submitApply() {
 }
 .idx-item.is-flash > .idx-row { animation: idx-flash 0.9s ease-out; }
 
-/* ===== 留言 ===== */
-.msgs { margin: 54px auto 0; max-width: 760px; }
-.msgs__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 6px; padding: 0 4px; }
-.msgs__title {
-  font-family: var(--font-serif); font-size: 21px; font-weight: 700; letter-spacing: 0.04em;
-  display: inline-flex; align-items: center; gap: 10px;
+/* ===== 留言板（评论系统） ===== */
+.msgs { margin: 30px auto 0; max-width: 820px; }
+.msgs__note {
+  font-size: 13px; color: var(--text-tertiary); text-align: center;
+  max-width: 560px; margin: 0 auto 4px;
 }
-.msgs__title::before { content: ''; width: 4px; height: 20px; border-radius: 4px; background: var(--accent); }
-.msgs__count { font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary); }
-.msgs__note { font-size: 13px; color: var(--text-tertiary); margin-bottom: 16px; padding: 0 4px; }
-
-.msgs__grid { list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.msg {
-  position: relative; overflow: hidden;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  padding: 15px 17px;
-  display: flex; flex-direction: column; gap: 9px;
-  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
-}
-.msg::before {
-  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: var(--accent); transform: scaleY(0); transform-origin: center;
-  transition: transform var(--transition);
-}
-.msg:hover { transform: translateY(-2px); border-color: var(--border); box-shadow: var(--shadow-md); }
-.msg:hover::before { transform: scaleY(1); }
-
-.msg__head { display: flex; align-items: center; gap: 11px; }
-.msg__avatar {
-  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
-  overflow: hidden; background: var(--accent-light); color: var(--accent);
-  font-family: var(--font-serif); font-size: 16px; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-}
-.msg__avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.msg__who { min-width: 0; display: flex; flex-direction: column; line-height: 1.4; }
-.msg__name {
-  font-family: var(--font-serif); font-size: 15.5px; font-weight: 600; color: var(--text-primary);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.msg__meta { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); }
-/* 类型标签（留言不展示审核状态，只按类型区分） */
-.msg__type {
-  margin-left: auto; flex-shrink: 0; font-size: 11.5px; letter-spacing: 0.04em;
-  color: var(--accent); background: var(--accent-light); padding: 2px 9px; border-radius: 999px;
-}
-.msg__text { font-size: 14px; line-height: 1.8; color: var(--text-secondary); }
-.msg__text--empty { color: var(--text-tertiary); font-style: italic; }
-.msg__foot {
-  display: flex; align-items: center; gap: 8px;
-  padding-top: 10px; border-top: 1px solid var(--border-light);
-}
-.msg__link { display: inline-flex; align-items: center; gap: 7px; min-width: 0; font-size: 13px; color: var(--accent); text-decoration: none; font-weight: 500; }
-.msg__link .dom { font-family: var(--font-mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.msg__link:hover { color: var(--accent-hover); }
-.msg__link:hover .go { transform: translateX(3px); }
-.msg__link .go { flex-shrink: 0; transition: transform var(--transition); }
-
-.msgs__empty {
-  grid-column: 1 / -1;
-  background: var(--bg-card); border: 1px dashed var(--border);
-  border-radius: 14px; padding: 34px 24px; text-align: center;
-  color: var(--text-tertiary); font-size: 14px;
-}
-.msgs__empty strong { display: block; color: var(--text-secondary); font-family: var(--font-serif); font-weight: 600; margin-bottom: 4px; }
 
 /* ===== 弹窗 ===== */
 .modal {
@@ -735,17 +636,22 @@ async function submitApply() {
   transition: border-color var(--transition), box-shadow var(--transition), background-color var(--transition);
 }
 .field__textarea { resize: vertical; min-height: 88px; line-height: 1.7; }
-.field__select {
-  appearance: none; cursor: pointer;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 13px center;
-  padding-right: 36px;
+/* ThemeSelect 类型下拉 */
+.field :deep(.tsel) { width: 100%; display: flex; }
+.field :deep(.tsel__trigger) {
+  width: 100%; padding: 10px 13px; font-size: 14px;
+  color: var(--text-primary); background: var(--bg-body);
+  border: 1px solid var(--border); border-radius: 10px;
 }
-.field__input:focus, .field__select:focus, .field__textarea:focus {
+.field :deep(.tsel.open .tsel__trigger) {
+  border-color: var(--accent); background: var(--bg-card);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+.field.has-error :deep(.tsel__trigger) { border-color: #b4453c; }
+.field__input:focus, .field__textarea:focus {
   outline: none; border-color: var(--accent); background: var(--bg-card);
   box-shadow: 0 0 0 3px var(--accent-light);
 }
-.field.has-error .field__input, .field.has-error .field__select { border-color: #b4453c; }
 .field__err { display: none; font-size: 12px; color: #b4453c; margin-top: 5px; }
 .field.has-error .field__err { display: block; }
 
@@ -782,7 +688,6 @@ async function submitApply() {
   .idx-panel__inner { padding: 2px 16px 18px 16px; margin-left: 16px; }
   .modal { padding: 0; align-items: flex-end; }
   .modal__panel { max-width: none; max-height: 92vh; border-radius: 18px 18px 0 0; }
-  .msgs__grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) {
   .idx-num { display: none; }

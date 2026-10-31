@@ -131,6 +131,9 @@ model Blog {
   updatedAt DateTime @updatedAt @map("updated_at")
   trainType Int      @default(0) @map("train_type")
 
+  // 足迹 ↔ 小记 1-1 绑定：在小记编辑页选择足迹时建立；删除小记时置空
+  footprint AboutFootprint?
+
   @@map("blogs")
 }
 
@@ -163,12 +166,15 @@ model AboutFootprint {
   place     String
   time      String
   location  String
-  note      String
   sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   trainType Int      @default(0) @map("train_type")
   elevation String   @default("—")
+
+  // 绑定的小记（在小记编辑页选择足迹时写入）；删除小记时自动置空
+  blogId String? @unique @map("blog_id")
+  blog   Blog?   @relation(fields: [blogId], references: [id])
 
   @@map("about_footprints")
 }
@@ -209,6 +215,22 @@ model SiteVisit {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("site_visits")
+}
+
+// 访问明细：前台每次 PV 上报落一条，供后台「最近访问」列表展示（时间 / IP / 地区）。
+// ip 为明文存储（仅后台可见）；保留期由 VISIT_LOG_RETENTION_DAYS 控制（默认 180 天，<=0 表示永久保留）。
+model VisitLog {
+  id        String   @id @default(uuid())
+  // 当天 Asia/Shanghai 零点对应的 UTC 时刻，与 SiteVisit 的自然日口径对齐
+  day       DateTime @map("day")
+  ip        String
+  region    String   @default("未知")
+  path      String   @default("/")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([ip])
+  @@map("visit_logs")
 }
 
 // 阅读明细：同一 IP 对同一内容每天最多落一条，阅读量按该表去重计数。
@@ -262,6 +284,7 @@ model ChatMessage {
   sessionId String?  @map("session_id")
   role      String
   content   String
+  ip        String?  @map("ip")
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([userId, sessionId, createdAt])
@@ -401,4 +424,59 @@ model FooterConfig {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("footer_config")
+}
+
+// 邮箱注册用户（前台访客账号体系）：
+// password 存 AES-256-GCM 密文（复用 APP_ENCRYPTION_KEY），支持找回密码时解密明文发邮件。
+model EmailUser {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  password    String
+  nickname    String
+  // 用户主站链接（注册时可选填写）
+  homepageUrl String?   @map("homepage_url")
+  // 头像地址（URL）：注册时可选填写，评论区 / 数字生命聊天 / 后台用户列表展示；为空回退昵称首字
+  avatarUrl   String?   @map("avatar_url")
+  status      String    @default("active")
+  lastLoginAt DateTime? @map("last_login_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("email_users")
+}
+
+// 评论：挂在知识库文章 / 小记下，一层盖楼。
+// parentId = null 为顶层；非空必须指向同 target 下的顶层评论（回复的回复仍挂同一顶层）。
+// replyToUserId 冗余存储被回复人，仅用于前台显示「回复 @昵称」。
+model Comment {
+  id             String   @id @default(uuid())
+  // article = 知识库文章，note = 小记（与 ContentView 口径一致）
+  targetType     String   @map("target_type")
+  targetId       String   @map("target_id")
+  userId         String   @map("user_id")
+  content        String
+  parentId       String?  @map("parent_id")
+  replyToUserId  String?  @map("reply_to_user_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([targetType, targetId, createdAt])
+  @@index([parentId])
+  @@map("comments")
+}
+
+// 站点全局配置：单条记录，id 固定为 site；RSS feed（/api/feed.xml）等对外输出使用
+model SiteConfig {
+  id String @id @default("site")
+  // 站点对外访问地址，如「https://inkheap.com」（无尾斜杠）；RSS 条目链接拼接的基础，留空则回退请求 Host
+  siteUrl String @default("") @map("site_url")
+  // 站点名称，RSS channel 标题；留空则回退「墨堆」
+  siteTitle String @default("") @map("site_title")
+  // 站点描述，RSS channel description
+  siteDescription String @default("") @map("site_description")
+  // 站点作者，RSS channel managingEditor
+  author String @default("")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_config")
 }

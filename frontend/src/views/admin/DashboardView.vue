@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useApi } from '@/composables/useApi'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
@@ -43,41 +43,109 @@ function maskOpenid(id) {
   return `${id.slice(0, 6)}****${id.slice(-2)}`
 }
 
-// ===== 页面指标 + 最近文章 =====
+/** 主站链接展示：截取域名（去掉协议与路径），无则返回空 */
+function siteLabel(url) {
+  if (!url) return ''
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
+// ===== 页面指标 + 会话列表 =====
 const stats = ref({
   messages: { total: 0, unread: 0 },
   reads: { total: 0 },
   visits: { total: 0 },
   users: { total: 0 },
 })
-const recentArticles = ref([])
-const recentTotal = ref(0)
-const catNameMap = ref({})
-
-function catName(key) {
-  return catNameMap.value[key] || key
-}
-
-const recentMaxReads = computed(() =>
-  Math.max(1, ...recentArticles.value.map((a) => a.viewCount || 0)),
-)
 
 async function loadStats() {
   stats.value = await api.get('/admin/dashboard/stats')
 }
 
-async function loadRecent() {
-  const [articlesRes, catsRes] = await Promise.all([
-    api.get('/admin/articles?pageSize=10'),
-    api.get('/categories'),
-  ])
-  recentArticles.value = articlesRes.items || []
-  recentTotal.value = articlesRes.total || 0
-  const map = {}
-  for (const c of Array.isArray(catsRes) ? catsRes : catsRes.items || []) {
-    map[c.key] = c.name
+const SESSION_PAGE_SIZE = 20
+const sessions = ref({ items: [], total: 0 })
+const sessionsLoading = ref(false)
+const sessionSearch = ref('')
+const sessionPage = ref(1)
+let searchTimer = null
+
+const sessionPages = computed(() =>
+  Math.max(1, Math.ceil((sessions.value.total || 0) / SESSION_PAGE_SIZE)),
+)
+
+async function loadSessions() {
+  sessionsLoading.value = true
+  try {
+    const params = new URLSearchParams({
+      page: String(sessionPage.value),
+      pageSize: String(SESSION_PAGE_SIZE),
+    })
+    const kw = sessionSearch.value.trim()
+    if (kw) params.set('ip', kw)
+    sessions.value = await api.get(`/admin/digital-life/sessions?${params}`)
+  } finally {
+    sessionsLoading.value = false
   }
-  catNameMap.value = map
+}
+
+watch(sessionSearch, () => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    sessionPage.value = 1
+    loadSessions()
+  }, 400)
+})
+
+function clearSessionSearch() {
+  sessionSearch.value = ''
+  sessionPage.value = 1
+  loadSessions()
+}
+
+function goSessionPage(p) {
+  if (p < 1 || p > sessionPages.value || p === sessionPage.value) return
+  sessionPage.value = p
+  loadSessions()
+}
+
+// ===== 会话详情抽屉 =====
+const chatDrawerOpen = ref(false)
+const chatLoading = ref(false)
+const chatMessages = ref([])
+const activeSession = ref(null)
+const chatDrawerCloseBtn = ref(null)
+
+async function openChatDrawer(s) {
+  activeSession.value = s
+  chatMessages.value = []
+  chatDrawerOpen.value = true
+  syncScrollLock()
+  await nextTick()
+  chatDrawerCloseBtn.value?.focus()
+  chatLoading.value = true
+  try {
+    const params = new URLSearchParams({ userId: s.userId })
+    if (s.sessionId) params.set('sessionId', s.sessionId)
+    const res = await api.get(`/admin/digital-life/sessions/messages?${params}`)
+    chatMessages.value = res.items || []
+    await nextTick()
+    scrollChatToBottom()
+  } finally {
+    chatLoading.value = false
+  }
+}
+
+function scrollChatToBottom() {
+  const body = document.querySelector('.chat-drawer .drawer-body')
+  if (body) body.scrollTop = body.scrollHeight
+}
+
+function closeChatDrawer() {
+  chatDrawerOpen.value = false
+  syncScrollLock()
 }
 
 // ===== 抽屉 =====
@@ -95,8 +163,8 @@ const drawerTitles = {
 const drawerSubs = {
   messages: '来自「联系我」页面的来信',
   reads: '按阅读量从高到低排列',
-  visits: '不同时间周期的访问量变化',
-  users: '基于微信登录注册的账号',
+  visits: '访问量变化趋势与最近访问明细',
+  users: '基于邮箱注册的账号',
 }
 
 const messages = ref({ items: [], total: 0 })
@@ -105,6 +173,61 @@ const trend = ref({ series: [], sum: 0, peak: 0 })
 const trendPeriod = ref('30')
 const users = ref({ items: [], total: 0 })
 
+// ===== 用户评论明细弹窗（点击用户行「N 条评论」） =====
+const userCommentsOpen = ref(false)
+const userCommentsLoading = ref(false)
+const userComments = ref({ items: [], total: 0 })
+const activeCommentUser = ref(null) // 当前查看的用户（昵称展示用）
+
+async function openUserComments(u) {
+  activeCommentUser.value = u
+  userCommentsOpen.value = true
+  userCommentsLoading.value = true
+  try {
+    const params = new URLSearchParams({ userId: u.id, pageSize: '50' })
+    userComments.value = await api.get(`/admin/comments?${params.toString()}`)
+  } finally {
+    userCommentsLoading.value = false
+  }
+}
+
+function closeUserComments() {
+  userCommentsOpen.value = false
+  activeCommentUser.value = null
+}
+
+/** 评论来源跳转：新窗口打开对应前台页 */
+function commentSourceUrl(c) {
+  if (!c.sourceSlug) return ''
+  const base = window.location.origin + window.location.pathname
+  if (c.targetType === 'article') return `${base}#/articles/${c.sourceSlug}`
+  return `${base}#/xiaoji/${c.sourceSlug}`
+}
+
+// ===== 访问明细（时间 / IP / 地区） =====
+const VISIT_LOG_PAGE_SIZE = 20
+const visitLogs = ref({ items: [], total: 0, page: 1 })
+const visitLogsLoading = ref(false)
+const hasMoreVisitLogs = computed(
+  () => visitLogs.value.items.length < visitLogs.value.total,
+)
+
+async function loadVisitLogs(append = false) {
+  const page = append ? visitLogs.value.page + 1 : 1
+  visitLogsLoading.value = true
+  try {
+    const res = await api.get(
+      `/admin/dashboard/visit-logs?page=${page}&pageSize=${VISIT_LOG_PAGE_SIZE}`,
+    )
+    const items = res.items || []
+    visitLogs.value = append
+      ? { ...res, items: [...visitLogs.value.items, ...items], page }
+      : { ...res, items, page }
+  } finally {
+    visitLogsLoading.value = false
+  }
+}
+
 const rankMax = computed(() =>
   Math.max(1, ...ranking.value.items.map((a) => a.viewCount || 0)),
 )
@@ -112,7 +235,7 @@ const rankMax = computed(() =>
 async function openDrawer(type) {
   drawerType.value = type
   drawerOpen.value = true
-  lockScroll(true)
+  syncScrollLock()
   await nextTick()
   drawerCloseBtn.value?.focus()
   await loadDrawer(type)
@@ -120,7 +243,7 @@ async function openDrawer(type) {
 
 function closeDrawer() {
   drawerOpen.value = false
-  lockScroll(false)
+  syncScrollLock()
 }
 
 async function loadDrawer(type) {
@@ -131,7 +254,7 @@ async function loadDrawer(type) {
     } else if (type === 'reads') {
       ranking.value = await api.get('/admin/dashboard/article-ranking')
     } else if (type === 'visits') {
-      await loadTrend(trendPeriod.value)
+      await Promise.all([loadTrend(trendPeriod.value), loadVisitLogs()])
     } else if (type === 'users') {
       users.value = await api.get('/admin/dashboard/users')
     }
@@ -252,7 +375,8 @@ async function loadTrend(period) {
 }
 
 // ===== 滚动锁定 / 键盘关闭 =====
-function lockScroll(lock) {
+function syncScrollLock() {
+  const lock = drawerOpen.value || chatDrawerOpen.value
   document.body.classList.toggle('drawer-open', lock)
   // admin 布局的滚动容器是 .admin-content，需一并锁定
   const content = document.querySelector('.admin-content')
@@ -260,13 +384,18 @@ function lockScroll(lock) {
 }
 
 function onKeydown(e) {
-  if (e.key === 'Escape' && drawerOpen.value) closeDrawer()
+  if (e.key !== 'Escape') return
+  if (chatDrawerOpen.value) {
+    closeChatDrawer()
+    return
+  }
+  if (drawerOpen.value) closeDrawer()
 }
 
 onMounted(async () => {
   document.addEventListener('keydown', onKeydown)
   try {
-    await Promise.all([loadStats(), loadRecent()])
+    await Promise.all([loadStats(), loadSessions()])
   } catch (e) {
     console.error('Dashboard load error:', e)
   }
@@ -274,7 +403,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   document.removeEventListener('keydown', onKeydown)
-  lockScroll(false)
+  clearTimeout(searchTimer)
+  syncScrollLock()
 })
 </script>
 
@@ -339,28 +469,51 @@ onUnmounted(() => {
 
       <section class="recent-wrap">
         <div class="recent-head">
-          <span class="kicker">Recent · 最近</span>
-          <h2 class="recent-title">最近文章</h2>
-          <span class="recent-count">共 {{ fmt(recentTotal) }} 篇</span>
+          <span class="kicker">Sessions · 会话</span>
+          <h2 class="recent-title">会话列表</h2>
+          <span class="recent-count">共 {{ fmt(sessions.total) }} 个会话</span>
+          <div class="session-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input
+              v-model="sessionSearch"
+              type="text"
+              placeholder="按 IP 搜索会话"
+              aria-label="按 IP 搜索会话"
+            />
+            <button v-if="sessionSearch" class="session-search-clear" aria-label="清空搜索" @click="clearSessionSearch">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
         </div>
         <div class="recent-list">
-          <div v-for="a in recentArticles" :key="a.id" class="recent-row">
-            <div class="recent-main">
-              <div class="recent-title-text">{{ a.title }}</div>
-              <div class="recent-meta">
-                <span class="recent-date">{{ fmtDate(a.createdAt) }}</span>·<span class="recent-cat">{{ catName(a.categoryKey) }}</span>
+          <div v-if="sessionsLoading" class="empty-state"><p>加载中…</p></div>
+          <template v-else>
+            <div
+              v-for="s in sessions.items"
+              :key="`${s.userId}|${s.sessionId || 'default'}`"
+              class="recent-row"
+            >
+              <div class="recent-main">
+                <div class="session-preview">{{ s.firstMessage || '（无文字内容）' }}</div>
+                <div class="recent-meta">
+                  <span class="recent-date">{{ fmtTime(s.lastMessageAt) }}</span>·<span class="recent-ip">IP {{ s.ip || '未知' }}</span>·<span>{{ s.messageCount }} 条消息</span>
+                </div>
               </div>
+              <button class="session-detail-btn" @click="openChatDrawer(s)">
+                对话详情
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </button>
             </div>
-            <div class="recent-reads">
-              <div class="recent-reads-num">{{ fmt(a.viewCount) }}</div>
-              <div class="recent-reads-label">阅读</div>
-              <div class="recent-bar"><span :style="{ width: Math.round((a.viewCount / recentMaxReads) * 100) + '%' }"></span></div>
+            <div v-if="!sessions.items.length" class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+              <p>{{ sessionSearch.trim() ? '没有匹配的会话' : '暂无对话' }}</p>
             </div>
-          </div>
-          <div v-if="!recentArticles.length" class="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14,2 14,8 20,8"></polyline></svg>
-            <p>暂无文章</p>
-          </div>
+          </template>
+        </div>
+        <div v-if="sessionPages > 1 && !sessionsLoading" class="session-pager">
+          <button :disabled="sessionPage <= 1" @click="goSessionPage(sessionPage - 1)">上一页</button>
+          <span>{{ sessionPage }} / {{ sessionPages }}</span>
+          <button :disabled="sessionPage >= sessionPages" @click="goSessionPage(sessionPage + 1)">下一页</button>
         </div>
       </section>
     </div>
@@ -474,25 +627,177 @@ onUnmounted(() => {
               >{{ l.label }}</text>
             </svg>
           </div>
+
+          <!-- 访问明细列表（时间 / IP / 地区） -->
+          <div class="visit-log-section">
+            <div class="visit-log-head">
+              <span class="visit-log-title">最近访问</span>
+              <span class="visit-log-count">共 {{ fmt(visitLogs.total) }} 条</span>
+            </div>
+            <div class="visit-log-list">
+              <div v-for="v in visitLogs.items" :key="v.id" class="visit-log-row">
+                <div class="vl-time">{{ fmtTime(v.createdAt) }}</div>
+                <div class="vl-main">
+                  <span class="vl-ip">{{ v.ip }}</span>
+                  <span class="vl-region">{{ v.region }}</span>
+                </div>
+                <div class="vl-path" :title="v.path">{{ v.path }}</div>
+              </div>
+              <div v-if="!visitLogs.items.length" class="empty-state">
+                <p>暂无访问明细</p>
+              </div>
+            </div>
+            <button
+              v-if="hasMoreVisitLogs"
+              class="vl-more"
+              :disabled="visitLogsLoading"
+              @click="loadVisitLogs(true)"
+            >{{ visitLogsLoading ? '加载中…' : '加载更多' }}</button>
+            <p v-else-if="visitLogs.items.length" class="drawer-caption">已加载全部 {{ fmt(visitLogs.total) }} 条明细。</p>
+          </div>
         </template>
 
         <!-- 注册用户 -->
         <template v-else-if="drawerType === 'users'">
           <div class="user-list">
             <div v-for="u in users.items" :key="u.id" class="user-row">
-              <div class="user-avatar">{{ (u.nickname || '微').charAt(0) }}</div>
-              <div class="user-main">
-                <div class="user-name">{{ u.nickname }}</div>
-                <div class="user-meta">微信 {{ maskOpenid(u.openid) }} · 注册 {{ fmtDate(u.createdAt) }}</div>
+              <div class="user-avatar">
+                <img v-if="u.avatarUrl" :src="u.avatarUrl" alt="" loading="lazy" />
+                <template v-else>{{ (u.nickname || '?').charAt(0) }}</template>
               </div>
-              <div class="user-val">活跃 {{ fmtRelative(u.lastActiveAt) }}<br><b>{{ fmt(u.messageCount) }}</b> 条消息</div>
+              <div class="user-main">
+                <div class="user-name">
+                  {{ u.nickname }}
+                  <!-- 主站（可选）：外链小图标 -->
+                  <a
+                    v-if="u.homepageUrl"
+                    class="user-site"
+                    :href="u.homepageUrl"
+                    target="_blank"
+                    rel="noopener"
+                    :title="`访问 ${u.nickname} 的主站：${u.homepageUrl}`"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    {{ siteLabel(u.homepageUrl) }}
+                  </a>
+                </div>
+                <div class="user-meta">
+                  {{ u.email }} · 注册 {{ fmtDate(u.createdAt) }}
+                </div>
+              </div>
+              <div class="user-val">
+                活跃 {{ fmtRelative(u.lastLoginAt) }}<br>
+                <button
+                  class="comment-count-btn"
+                  :class="{ clickable: u.commentCount > 0 }"
+                  :disabled="!u.commentCount"
+                  :title="u.commentCount ? '查看该用户的评论' : '暂无评论'"
+                  @click="openUserComments(u)"
+                ><b>{{ fmt(u.commentCount) }}</b> 条评论</button>
+                · <b>{{ fmt(u.messageCount) }}</b> 条消息
+              </div>
             </div>
           </div>
-          <p class="drawer-caption">共 {{ fmt(users.total) }} 位微信访客（按注册时间倒序）。</p>
+          <p class="drawer-caption">共 {{ fmt(users.total) }} 位注册用户（按注册时间倒序）。</p>
+        </template>
+      </div>
+    </aside>
+
+    <!-- 会话详情抽屉 -->
+    <div class="drawer-overlay" :class="{ open: chatDrawerOpen }" @click="closeChatDrawer"></div>
+    <aside
+      class="drawer chat-drawer"
+      :class="{ open: chatDrawerOpen }"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="chatDrawerTitle"
+      :aria-hidden="!chatDrawerOpen"
+    >
+      <div class="drawer-head">
+        <div>
+          <div class="drawer-title" id="chatDrawerTitle">对话详情</div>
+          <div class="drawer-sub">
+            {{ activeSession ? `IP ${activeSession.ip || '未知'} · ${activeSession.messageCount} 条消息` : '' }}
+          </div>
+        </div>
+        <button ref="chatDrawerCloseBtn" class="drawer-close" aria-label="关闭" @click="closeChatDrawer">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="drawer-body chat-body">
+        <div v-if="chatLoading" class="empty-state"><p>加载中…</p></div>
+        <template v-else>
+          <div v-if="!chatMessages.length" class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <p>该会话暂无消息</p>
+          </div>
+          <div v-else class="chat-thread">
+            <div
+              v-for="m in chatMessages"
+              :key="m.id"
+              class="chat-bubble-row"
+              :class="{ mine: m.role === 'user' }"
+            >
+              <div class="chat-role">{{ m.role === 'user' ? '访客' : '数字生命' }}</div>
+              <div class="chat-bubble">{{ m.content }}</div>
+              <div class="chat-time">{{ fmtTime(m.createdAt) }}</div>
+            </div>
+          </div>
         </template>
       </div>
     </aside>
   </main>
+
+  <!-- ===== 用户评论明细弹窗（叠加在用户抽屉之上） ===== -->
+  <div
+    class="user-comments-mask"
+    :class="{ open: userCommentsOpen }"
+    @mousedown.self="closeUserComments"
+    @click.self="closeUserComments"
+  >
+    <div class="user-comments-dialog" role="dialog" aria-modal="true" aria-label="用户评论明细">
+      <div class="user-comments-head">
+        <div>
+          <div class="drawer-title">
+            {{ activeCommentUser ? `${activeCommentUser.nickname} 的评论` : '用户评论' }}
+          </div>
+          <div class="user-comments-sub">
+            共 {{ fmt(userComments.total) }} 条（按时间倒序，最多展示最近 50 条）
+          </div>
+        </div>
+        <button class="drawer-close" aria-label="关闭" @click="closeUserComments">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <div class="user-comments-body">
+        <div v-if="userCommentsLoading" class="empty-state"><p>加载中…</p></div>
+        <div v-else-if="!userComments.items.length" class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <p>该用户暂无评论</p>
+        </div>
+        <template v-else>
+          <div v-for="c in userComments.items" :key="c.id" class="uc-item">
+            <div class="uc-meta">
+              <span class="uc-type" :class="c.targetType">{{ c.targetType === 'article' ? '知识库' : '小记' }}</span>
+              <a
+                v-if="c.sourceSlug"
+                class="uc-source"
+                :href="commentSourceUrl(c)"
+                target="_blank"
+                rel="noopener"
+                :title="`跳转到《${c.sourceTitle}》`"
+              >《{{ c.sourceTitle }}》 ↗</a>
+              <span v-else class="uc-source deleted">已删除</span>
+              <span class="uc-level">{{ c.isReply ? '回复' : '评论' }}</span>
+              <span class="uc-time">{{ fmtTime(c.createdAt) }}</span>
+            </div>
+            <p class="uc-content">{{ c.content }}</p>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
 
   <!-- ===== 删除确认弹窗 ===== -->
   <ConfirmDialog
@@ -645,14 +950,73 @@ onUnmounted(() => {
 .user-avatar {
   width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: #fff;
   display: flex; align-items: center; justify-content: center; font-family: var(--font-serif);
-  font-weight: 600; font-size: 17px; flex-shrink: 0;
+  font-weight: 600; font-size: 17px; flex-shrink: 0; overflow: hidden;
 }
+.user-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 [data-theme='dark'] .user-avatar { color: #0f0f0f; }
 .user-main { flex: 1; min-width: 0; }
-.user-name { font-size: 15px; color: var(--text-primary); font-weight: 500; }
+.user-name { font-size: 15px; color: var(--text-primary); font-weight: 500; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .user-meta { font-size: 12.5px; color: var(--text-tertiary); font-family: var(--font-mono); margin-top: 2px; }
 .user-val { font-family: var(--font-mono); font-size: 12.5px; color: var(--text-secondary); text-align: right; white-space: nowrap; flex-shrink: 0; }
 .user-val b { color: var(--accent); font-weight: 500; }
+
+/* 主站外链（昵称旁） */
+.user-site {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 12px; font-family: var(--font-mono); color: var(--accent);
+  text-decoration: none; border-bottom: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+  padding-bottom: 1px; font-weight: 400;
+}
+.user-site:hover { border-bottom-style: solid; }
+.user-site svg { width: 12px; height: 12px; }
+
+/* 评论数按钮（可点击查看明细） */
+.comment-count-btn {
+  border: none; background: transparent; cursor: default;
+  font: inherit; color: inherit; padding: 0;
+}
+.comment-count-btn.clickable { cursor: pointer; }
+.comment-count-btn.clickable:hover { text-decoration: underline; }
+
+/* ===== 用户评论明细弹窗（叠加在抽屉之上） ===== */
+.user-comments-mask {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45);
+  opacity: 0; visibility: hidden; transition: opacity 0.25s ease, visibility 0.25s ease;
+  z-index: 400; display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.user-comments-mask.open { opacity: 1; visibility: visible; }
+.user-comments-dialog {
+  width: 100%; max-width: 620px; max-height: 80vh;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.user-comments-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 18px 22px 14px; border-bottom: 1px solid var(--border-light);
+}
+.user-comments-sub { font-size: 12.5px; color: var(--text-tertiary); margin-top: 3px; }
+.user-comments-body { padding: 6px 22px 18px; overflow-y: auto; }
+.uc-item { padding: 13px 0; border-bottom: 1px solid var(--border-light); }
+.uc-item:last-child { border-bottom: none; }
+.uc-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+.uc-type {
+  font-family: var(--font-mono); font-size: 11px; padding: 1px 9px; border-radius: 100px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.uc-source { color: var(--text-primary); font-weight: 600; text-decoration: none; }
+.uc-source:hover { color: var(--accent); }
+.uc-source.deleted { color: var(--text-tertiary); font-style: italic; font-weight: 400; }
+.uc-level {
+  font-size: 11px; padding: 1px 9px; border-radius: 100px;
+  border: 1px solid var(--border); color: var(--text-tertiary);
+}
+.uc-time { margin-left: auto; font-family: var(--font-mono); color: var(--text-tertiary); }
+.uc-content {
+  margin: 7px 0 0; font-size: 13.5px; line-height: 1.7; color: var(--text-primary);
+  white-space: pre-wrap; word-break: break-word;
+}
 
 /* ===== Chart ===== */
 .chart-summary { display: flex; gap: 28px; margin-bottom: 16px; }
@@ -681,7 +1045,35 @@ onUnmounted(() => {
 .chart-grad-top { stop-color: var(--accent); stop-opacity: 0.28; }
 .chart-grad-bot { stop-color: var(--accent); stop-opacity: 0; }
 
-/* ===== Recent articles ===== */
+/* ===== Visit logs（访问明细） ===== */
+.visit-log-section { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border-light); }
+.visit-log-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+.visit-log-title { font-family: var(--font-serif); font-size: 16px; font-weight: 600; color: var(--text-primary); }
+.visit-log-count { font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary); }
+.visit-log-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border-light); }
+.visit-log-row:last-child { border-bottom: none; }
+.vl-time { font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary); flex-shrink: 0; white-space: nowrap; }
+.vl-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vl-ip { font-family: var(--font-mono); font-size: 13px; color: var(--text-primary); word-break: break-all; }
+.vl-region {
+  font-size: 11.5px; color: var(--accent); padding: 1px 9px; border-radius: 100px;
+  background-color: var(--accent-light);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent); white-space: nowrap;
+}
+.vl-path {
+  font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary);
+  max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0;
+}
+.vl-more {
+  width: 100%; margin-top: 12px; font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+  padding: 9px 0; border-radius: var(--radius-sm); cursor: pointer;
+  border: 1px dashed var(--border); background: transparent; color: var(--text-secondary);
+  transition: all var(--transition);
+}
+.vl-more:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background-color: var(--accent-light); }
+.vl-more:disabled { opacity: 0.6; cursor: default; }
+
+/* ===== 会话列表 ===== */
 .recent-wrap { padding: 8px 0 12px; }
 .recent-head {
   display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
@@ -693,6 +1085,33 @@ onUnmounted(() => {
   color: var(--text-primary); letter-spacing: 0.02em; line-height: 1;
 }
 .recent-count { font-family: var(--font-mono); font-size: 12.5px; color: var(--text-tertiary); }
+.session-search {
+  margin-left: auto; position: relative; display: flex; align-items: center;
+  min-width: 220px; max-width: 320px; flex: 1;
+}
+.session-search > svg {
+  width: 15px; height: 15px; color: var(--text-tertiary);
+  position: absolute; left: 12px; pointer-events: none;
+}
+.session-search input {
+  width: 100%; font-family: var(--font-sans); font-size: 13.5px;
+  padding: 9px 34px 9px 34px; border-radius: 100px;
+  border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.session-search input::placeholder { color: var(--text-tertiary); }
+.session-search input:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.session-search-clear {
+  position: absolute; right: 8px; width: 20px; height: 20px;
+  border: none; border-radius: 50%; cursor: pointer;
+  background: var(--border); color: var(--text-secondary);
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition); padding: 0;
+}
+.session-search-clear:hover { background: var(--accent); color: #fff; }
 .recent-list { display: flex; flex-direction: column; }
 .recent-row {
   display: flex; align-items: center; gap: 18px; padding: 16px 18px;
@@ -706,24 +1125,62 @@ onUnmounted(() => {
   border-color: color-mix(in srgb, var(--accent) 40%, transparent);
 }
 .recent-main { flex: 1; min-width: 0; }
-.recent-title-text {
-  font-family: var(--font-serif); font-size: 16.5px; font-weight: 600;
-  color: var(--text-primary); line-height: 1.45;
+.session-preview {
+  font-family: var(--font-serif); font-size: 15.5px; font-weight: 500;
+  color: var(--text-primary); line-height: 1.5;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .recent-meta {
   display: flex; align-items: center; gap: 10px; margin-top: 6px;
   font-family: var(--font-mono); font-size: 12.5px; color: var(--text-tertiary);
 }
-.recent-cat {
-  font-family: var(--font-sans); font-size: 11.5px; font-weight: 500; color: var(--accent);
-  padding: 1px 9px; border-radius: 100px; background-color: var(--accent-light);
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+.recent-ip { color: var(--accent); }
+.session-detail-btn {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+  padding: 7px 16px; border-radius: 100px; cursor: pointer;
+  border: 1px solid var(--border); background: transparent; color: var(--text-secondary);
+  transition: all var(--transition);
 }
-.recent-reads { text-align: right; flex-shrink: 0; min-width: 116px; }
-.recent-reads-num { font-family: var(--font-mono); font-size: 16px; color: var(--accent); font-weight: 500; line-height: 1.1; }
-.recent-reads-label { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
-.recent-bar { height: 4px; border-radius: 100px; background: var(--bg-soft); margin-top: 7px; overflow: hidden; }
-.recent-bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #3fae86); border-radius: 100px; }
+.session-detail-btn svg { width: 13px; height: 13px; }
+.session-detail-btn:hover {
+  border-color: var(--accent); color: var(--accent); background-color: var(--accent-light);
+}
+.session-pager {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  margin-top: 18px;
+}
+.session-pager span { font-family: var(--font-mono); font-size: 13px; color: var(--text-tertiary); }
+.session-pager button {
+  font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+  padding: 7px 18px; border-radius: 100px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-card); color: var(--text-secondary);
+  transition: all var(--transition);
+}
+.session-pager button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.session-pager button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ===== 会话详情抽屉 ===== */
+.chat-drawer .drawer-body { padding: 20px 22px; }
+.chat-thread { display: flex; flex-direction: column; gap: 16px; }
+.chat-bubble-row { display: flex; flex-direction: column; align-items: flex-start; max-width: 88%; }
+.chat-bubble-row.mine { align-items: flex-end; margin-left: auto; }
+.chat-role {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary);
+  letter-spacing: 0.06em; margin-bottom: 4px;
+}
+.chat-bubble {
+  font-family: var(--font-serif); font-size: 14.5px; line-height: 1.8;
+  color: var(--text-primary); white-space: pre-wrap; word-break: break-word;
+  padding: 10px 14px; border-radius: 14px;
+  background: var(--bg-soft); border: 1px solid var(--border-light);
+  border-top-left-radius: 4px;
+}
+.chat-bubble-row.mine .chat-bubble {
+  background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-top-left-radius: 14px; border-top-right-radius: 4px;
+}
+.chat-time { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); margin-top: 4px; }
 
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text-tertiary); }
 .empty-state svg { width: 50px; height: 50px; color: var(--accent); opacity: 0.5; margin-bottom: 14px; }
@@ -746,7 +1203,7 @@ onUnmounted(() => {
   .stat-grid { grid-template-columns: 1fr; }
   .drawer { width: 100%; }
   .recent-row { gap: 12px; padding: 14px; }
-  .recent-reads { min-width: 92px; }
-  .recent-title-text { font-size: 15px; }
+  .session-preview { font-size: 14.5px; }
+  .session-search { min-width: 100%; }
 }
 </style>

@@ -8,6 +8,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useAdminBadges } from '@/composables/useAdminBadges'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import ThemeSelect from '@/components/ThemeSelect.vue'
 
 const api = useApi()
 const { refreshPendingFriends } = useAdminBadges()
@@ -30,6 +31,20 @@ const MODE_OPTIONS = [
 const STATUS_OPTIONS = [
   { v: 'active', label: '正常' },
   { v: 'dormant', label: '失联' },
+]
+/* 主题化下拉（ThemeSelect）的选项 */
+const MODE_SELECT_OPTIONS = MODE_OPTIONS.map((o) => ({ value: o.v, label: o.label }))
+const STATUS_SELECT_OPTIONS = STATUS_OPTIONS.map((o) => ({ value: o.v, label: o.label }))
+const LINK_STATUS_FILTERS = [
+  { value: 'all', label: '全部状态' },
+  { value: 'active', label: '正常' },
+  { value: 'dormant', label: '失联' },
+]
+const APP_STATUS_FILTERS = [
+  { value: 'all', label: '全部申请' },
+  { value: 'pending', label: '待审核' },
+  { value: 'approved', label: '已通过' },
+  { value: 'rejected', label: '已拒绝' },
 ]
 const APP_STATUS = {
   pending: { label: '待审核', cls: 'pending' },
@@ -337,17 +352,20 @@ onMounted(async () => {
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input v-model="linkKeyword" type="text" placeholder="搜索名称 / 网址 / 分组" />
         </div>
-        <select v-if="tab === 'links'" v-model="linkStatus" class="select">
-          <option value="all">全部状态</option>
-          <option value="active">正常</option>
-          <option value="dormant">失联</option>
-        </select>
-        <select v-else v-model="appStatus" class="select">
-          <option value="all">全部申请</option>
-          <option value="pending">待审核</option>
-          <option value="approved">已通过</option>
-          <option value="rejected">已拒绝</option>
-        </select>
+        <ThemeSelect
+          v-if="tab === 'links'"
+          v-model="linkStatus"
+          :options="LINK_STATUS_FILTERS"
+          aria-label="友链状态筛选"
+          align="right"
+        />
+        <ThemeSelect
+          v-else
+          v-model="appStatus"
+          :options="APP_STATUS_FILTERS"
+          aria-label="申请状态筛选"
+          align="right"
+        />
         <button v-if="tab === 'links'" class="btn btn--primary" @click="openCreate">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           新增友链
@@ -455,7 +473,7 @@ onMounted(async () => {
 
     <!-- ===== 友链编辑弹窗 ===== -->
     <transition name="fade">
-      <div v-if="editorOpen" class="modal-mask" @click.self="closeEditor">
+      <div v-if="editorOpen" class="modal-mask" @mousedown.self="closeEditor" @click.self="closeEditor">
         <div class="modal-card" role="dialog" aria-modal="true">
           <header class="modal-head">
             <h3>{{ editingId ? '编辑友链' : '新增友链' }}</h3>
@@ -493,15 +511,11 @@ onMounted(async () => {
             <div class="field-row">
               <label class="field">
                 <span>显示模式</span>
-                <select v-model.number="linkForm.mode">
-                  <option v-for="o in MODE_OPTIONS" :key="o.v" :value="o.v">{{ o.label }}</option>
-                </select>
+                <ThemeSelect v-model="linkForm.mode" :options="MODE_SELECT_OPTIONS" aria-label="显示模式" />
               </label>
               <label class="field">
                 <span>状态</span>
-                <select v-model="linkForm.status">
-                  <option v-for="o in STATUS_OPTIONS" :key="o.v" :value="o.v">{{ o.label }}</option>
-                </select>
+                <ThemeSelect v-model="linkForm.status" :options="STATUS_SELECT_OPTIONS" aria-label="状态" />
               </label>
               <label class="field field--narrow">
                 <span>排序</span>
@@ -525,7 +539,7 @@ onMounted(async () => {
 
     <!-- ===== 通过申请弹窗 ===== -->
     <transition name="fade">
-      <div v-if="approveOpen" class="modal-mask" @click.self="approveOpen = false">
+      <div v-if="approveOpen" class="modal-mask" @mousedown.self="approveOpen = false" @click.self="approveOpen = false">
         <div class="modal-card" role="dialog" aria-modal="true">
           <header class="modal-head">
             <h3>通过申请</h3>
@@ -559,9 +573,7 @@ onMounted(async () => {
             </label>
             <label class="field">
               <span>显示模式</span>
-              <select v-model.number="approveForm.mode">
-                <option v-for="o in MODE_OPTIONS" :key="o.v" :value="o.v">{{ o.label }}</option>
-              </select>
+              <ThemeSelect v-model="approveForm.mode" :options="MODE_SELECT_OPTIONS" aria-label="显示模式" />
             </label>
           </div>
           <footer class="modal-foot">
@@ -844,6 +856,10 @@ onMounted(async () => {
 .field input:focus, .field select:focus, .field textarea:focus {
   border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light);
 }
+/* ThemeSelect 在表单内撑满宽度 */
+.field :deep(.tsel) { width: 100%; display: flex; }
+.field :deep(.tsel__trigger) { width: 100%; background: var(--bg-body); }
+.field :deep(.tsel.open .tsel__trigger) { background: var(--accent-light); }
 .field-row { display: flex; gap: 12px; }
 .check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--text-secondary); cursor: pointer; }
 .check input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }

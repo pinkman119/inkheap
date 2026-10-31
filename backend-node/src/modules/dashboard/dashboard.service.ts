@@ -10,7 +10,7 @@ export class DashboardService {
    * - messages：用户来信（总数 / 未读数）
    * - reads：总阅读量（全部知识库文章 viewCount 之和）
    * - visits：总访问量（SiteVisit 每日 PV 之和）
-   * - users：总用户量（微信访客数）
+   * - users：总用户量（邮箱注册用户数；微信 mock 登录已下线）
    */
   async getStats() {
     const [msgTotal, msgUnread, readsAgg, visitsAgg, userTotal] =
@@ -22,7 +22,7 @@ export class DashboardService {
           _sum: { viewCount: true },
         }),
         this.prisma.siteVisit.aggregate({ _sum: { count: true } }),
-        this.prisma.wechatUser.count(),
+        this.prisma.emailUser.count(),
       ]);
 
     return {
@@ -133,41 +133,76 @@ export class DashboardService {
   }
 
   /**
-   * 注册用户列表（抽屉明细）：微信访客按注册时间倒序，
-   * 附带每人与数字生命的消息条数（ChatMessage 计数）。
+   * 访问明细列表（抽屉明细）：每次 PV 上报的访客记录（时间 / IP / 地区），按时间倒序分页。
+   */
+  async getVisitLogs(page = 1, pageSize = 20) {
+    const p = Math.max(1, Number(page) || 1);
+    const size = Math.min(100, Math.max(1, Number(pageSize) || 20));
+
+    const [items, total] = await Promise.all([
+      this.prisma.visitLog.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip: (p - 1) * size,
+        take: size,
+        select: { id: true, ip: true, region: true, path: true, createdAt: true },
+      }),
+      this.prisma.visitLog.count(),
+    ]);
+
+    return { items, total, page: p, pageSize: size };
+  }
+
+  /**
+   * 注册用户列表（抽屉明细）：邮箱注册用户按注册时间倒序，
+   * 附带每人的评论数与数字生命消息数（ChatMessage 计数）。
+   * 用户评论明细由 /admin/comments?userId= 提供（CommentService.adminList）。
    */
   async getUsers() {
-    const [users, msgGroups, total] = await Promise.all([
-      this.prisma.wechatUser.findMany({
+    const [users, commentGroups, msgGroups, total] = await Promise.all([
+      this.prisma.emailUser.findMany({
         orderBy: { createdAt: 'desc' },
         take: 100,
         select: {
           id: true,
-          openid: true,
+          email: true,
           nickname: true,
+          homepageUrl: true,
+          avatarUrl: true,
+          lastLoginAt: true,
           createdAt: true,
-          updatedAt: true,
         },
+      }),
+      this.prisma.comment.groupBy({
+        by: ['userId'],
+        _count: { _all: true },
       }),
       this.prisma.chatMessage.groupBy({
         by: ['userId'],
         _count: { _all: true },
       }),
-      this.prisma.wechatUser.count(),
+      this.prisma.emailUser.count(),
     ]);
 
-    const countByUser = new Map<string, number>();
+    const commentByUser = new Map<string, number>();
+    for (const g of commentGroups) {
+      commentByUser.set(g.userId, g._count._all);
+    }
+    const msgByUser = new Map<string, number>();
     for (const g of msgGroups) {
-      countByUser.set(g.userId, g._count._all);
+      msgByUser.set(g.userId, g._count._all);
     }
 
     const items = users.map((u) => ({
       id: u.id,
       nickname: u.nickname,
-      openid: u.openid,
+      email: u.email,
+      homepageUrl: u.homepageUrl,
+      avatarUrl: u.avatarUrl,
       createdAt: u.createdAt,
-      lastActiveAt: u.updatedAt,
-      messageCount: countByUser.get(u.id) ?? 0,
+      // 活跃时间：最后一次登录（注册即视为一次登录，恒有值；兜底 null）
+      lastLoginAt: u.lastLoginAt,
+      commentCount: commentByUser.get(u.id) ?? 0,
+      messageCount: msgByUser.get(u.id) ?? 0,
     }));
 
     return { items, total };

@@ -15,6 +15,7 @@ import { XiaojiService } from './xiaoji.service';
 import { CreateXiaojiDto } from './dto/create-xiaoji.dto';
 import { UpdateXiaojiDto } from './dto/update-xiaoji.dto';
 import { QueryXiaojiDto } from './dto/query-xiaoji.dto';
+import { GenerateSummaryDto } from './dto/generate-summary.dto';
 
 /** 后台小记管理接口（JWT 鉴权） */
 @Controller('admin/xiaoji')
@@ -30,6 +31,13 @@ export class AdminXiaojiController {
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.xiaojiService.findOne(id);
+  }
+
+  // 自动生成摘要：读取正文内容，调用后台已启用的通用模型生成一段摘要。
+  // 注意需声明在 @Post() 之前，避免被动态路由误匹配。
+  @Post('generate-summary')
+  generateSummary(@Body() dto: GenerateSummaryDto) {
+    return this.xiaojiService.generateSummary(dto.content, dto.title);
   }
 
   @Post()

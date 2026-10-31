@@ -69,10 +69,15 @@ services:
       DB_PORT: 5432
       # 数字生命：Redis 限流
       REDIS_URL: "redis://redis:6379"
-      # 数字生命：Mock 微信登录开关（备案完成后接入真实微信扫码时改为 false）
-      WECHAT_MOCK: "true"
       # 数字生命：API Key 加密密钥（32 字节 hex，生产环境务必覆盖）
+      # 同时用于邮箱用户密码的 AES-256-GCM 加密（email-auth 模块）
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      # 邮件发送（SMTP）：注册验证码 / 密码找回（未配置时相关接口返回服务不可用）
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-墨堆 <noreply@inkheap.com>}
     volumes:
       # 上传文件持久化（Docker volume）
       - upload-files:/app/files

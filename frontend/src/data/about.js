@@ -107,7 +107,9 @@ function groupByProvince(footprints) {
       time: f.time,
       location: f.location,
       elevation: f.elevation,
-      note: f.note,
+      // 绑定的小记：有则点击卡片跳转小记详情
+      noteSlug: f.blog?.slug || null,
+      noteTitle: f.blog?.title || null,
     })
   }
   return order.map((p) => map[p])

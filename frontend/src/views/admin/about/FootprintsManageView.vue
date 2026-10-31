@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useApi } from '@/composables/useApi'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
@@ -11,7 +11,7 @@ const toastType = ref('success')
 
 const modalOpen = ref(false)
 const editing = ref(null)
-const form = ref({ province: '', place: '', time: '', location: '', elevation: '', note: '', sortOrder: 0 })
+const form = ref({ province: '', place: '', time: '', location: '', elevation: '', sortOrder: 0 })
 const saving = ref(false)
 
 // 删除确认弹窗卡片（替换原生 confirm，与事件日历一致）
@@ -64,13 +64,13 @@ async function load() {
 
 function openNew() {
   editing.value = null
-  form.value = { province: '', place: '', time: '', location: '', elevation: '—', note: '', sortOrder: list.value.length }
+  form.value = { province: '', place: '', time: '', location: '', elevation: '—', sortOrder: list.value.length }
   modalOpen.value = true
 }
 
 function openEdit(item) {
   editing.value = item
-  form.value = { province: item.province, place: item.place, time: item.time, location: item.location, elevation: item.elevation, note: item.note, sortOrder: item.sortOrder ?? 0 }
+  form.value = { province: item.province, place: item.place, time: item.time, location: item.location, elevation: item.elevation, sortOrder: item.sortOrder ?? 0 }
   modalOpen.value = true
 }
 
@@ -84,7 +84,6 @@ async function save() {
       time: form.value.time.trim(),
       location: form.value.location.trim(),
       elevation: form.value.elevation.trim() || '—',
-      note: form.value.note.trim(),
       sortOrder: Number(form.value.sortOrder) || 0,
     }
     if (editing.value) {
@@ -139,7 +138,26 @@ function showToast(msg, type = 'success') {
   setTimeout(() => { toastMsg.value = '' }, 3000)
 }
 
-onMounted(load)
+// 关闭编辑弹窗：保存中不允许关闭；
+// 遮罩用 mousedown + click 双保险 —— 触屏轻扫或按下后微移时浏览器不派发 click，
+// 仅靠 @click.self 会出现「点遮罩没反应」的情况
+function closeModal() {
+  if (saving.value) return
+  modalOpen.value = false
+}
+
+function onKeydown(e) {
+  if (e.key === 'Escape' && modalOpen.value) closeModal()
+}
+
+onMounted(() => {
+  load()
+  document.addEventListener('keydown', onKeydown)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onKeydown)
+})
 </script>
 
 <template>
@@ -184,6 +202,7 @@ onMounted(load)
             <th class="col-place">地点</th>
             <th class="col-time">时间</th>
             <th class="col-elev">海拔</th>
+            <th class="col-blog">绑定小记</th>
             <th class="col-ops">操作</th>
           </tr>
         </thead>
@@ -197,7 +216,7 @@ onMounted(load)
                 <span class="province-name">{{ group.province }}</span>
                 <span class="count-chip">{{ group.children.length }} 条</span>
               </td>
-              <td colspan="4"></td>
+              <td colspan="5"></td>
             </tr>
             <template v-if="isExpanded(group.province)">
               <tr v-for="item in group.children" :key="item.id" class="child-row">
@@ -205,6 +224,12 @@ onMounted(load)
                 <td class="cell-place">{{ item.place }}</td>
                 <td class="cell-time">{{ item.time }}</td>
                 <td class="cell-elev">{{ item.elevation }}</td>
+                <td class="cell-blog">
+                  <span v-if="item.blog?.title" class="blog-chip" :title="'跳转到小记：' + item.blog.title">
+                    《{{ item.blog.title }}》
+                  </span>
+                  <span v-else class="cell-blog--none">—</span>
+                </td>
                 <td class="cell-ops">
                   <button class="link" @click="openEdit(item)">编辑</button>
                   <button class="link link--danger" @click="askDelete(item)">删除</button>
@@ -213,7 +238,7 @@ onMounted(load)
             </template>
           </template>
           <tr v-if="!tree.length">
-            <td colspan="5" class="empty-row">
+            <td colspan="6" class="empty-row">
               <div class="empty empty--block">
                 <div class="empty__illus">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -229,7 +254,7 @@ onMounted(load)
 
     <!-- ===== 新增 / 编辑弹窗 ===== -->
     <transition name="modal-fade">
-      <div v-if="modalOpen" class="modal-mask" @click.self="modalOpen = false">
+      <div v-if="modalOpen" class="modal-mask" @mousedown.self="closeModal" @click.self="closeModal">
         <div class="editor-modal" role="dialog" aria-modal="true">
           <div class="modal-head">
             <span class="modal-title">{{ editing ? '编辑足迹' : '新增足迹' }}</span>
@@ -262,13 +287,10 @@ onMounted(load)
               <input id="fpElevation" v-model="form.elevation" class="form-input" type="text" maxlength="40" placeholder="如：7546 m，无则填 —" />
             </div>
             <div class="form-field">
-              <label class="field-label" for="fpNote">笔记</label>
-              <textarea id="fpNote" v-model="form.note" class="form-input form-textarea" rows="3" placeholder="这趟旅程的感受"></textarea>
-            </div>
-            <div class="form-field">
               <label class="field-label" for="fpSort">排序</label>
               <input id="fpSort" v-model.number="form.sortOrder" class="form-input form-input--sm" type="number" min="0" />
             </div>
+            <p class="field-hint">小记的绑定在小记编辑页选择「地点」时建立；绑定后前台足迹卡片可点击跳转到对应小记。</p>
           </div>
           <div class="modal-foot">
             <button class="btn btn--ghost" type="button" :disabled="saving" @click="modalOpen = false">取消</button>
@@ -419,6 +441,7 @@ onMounted(load)
 .col-place { width: 180px; }
 .col-time { width: 100px; }
 .col-elev { width: 100px; }
+.col-blog { width: 180px; }
 .col-ops { width: 120px; text-align: right; }
 
 /* 树形：省份父节点 */
@@ -463,6 +486,14 @@ onMounted(load)
 .cell-elev {
   font-family: var(--font-mono); font-size: 12px;
   color: var(--text-tertiary); white-space: nowrap;
+}
+.cell-blog { font-size: 12.5px; }
+.cell-blog--none { color: var(--text-tertiary); }
+.blog-chip {
+  display: inline-block; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 2px 10px; border-radius: 100px;
+  background: var(--accent-light); color: var(--accent);
+  font-size: 11.5px; vertical-align: middle;
 }
 .cell-ops { text-align: right; white-space: nowrap; }
 .cell-ops .link {

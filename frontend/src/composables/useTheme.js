@@ -8,7 +8,7 @@ function detectInitialTheme() {
   if (attr === 'dark' || attr === 'light') return attr
   const saved = localStorage.getItem(STORAGE_KEY)
   if (saved === 'dark' || saved === 'light') return saved
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  return 'dark'
 }
 
 /** 全站唯一的主题状态（模块级单例，跨组件共享） */
@@ -27,7 +27,7 @@ function applyTheme(value) {
 applyTheme(theme.value)
 
 /**
- * 主题切换：与原型一致的「系统偏好 + localStorage 记忆」策略。
+ * 主题切换：「默认深色 + localStorage 记忆」策略。
  * 深色时给 <html> 加 data-theme="dark"，浅色时移除该属性。
  */
 export function useTheme() {

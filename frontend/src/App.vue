@@ -2,11 +2,17 @@
 import { watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import AdminShell from '@/layouts/AdminShell.vue'
+import AuthModal from '@/components/AuthModal.vue'
+import { useUserAuth } from '@/composables/useUserAuth'
 
 const route = useRoute()
 
 const isAdmin = computed(() => route.path.startsWith('/admin') && route.meta.layout !== 'layout-login')
 const isLogin = computed(() => route.meta.layout === 'layout-login')
+
+// 前台访客登录态：应用启动时通过 me 接口探测（cookie 维持，14 天）
+const { refresh } = useUserAuth()
+refresh()
 
 /**
  * 原型把布局差异写在 <body> 上（首页/关于我/小记是 flex 列，数字生命是满屏不滚动）。
@@ -46,4 +52,7 @@ watch(
   <RouterView v-else v-slot="{ Component }">
     <component :is="Component" />
   </RouterView>
+
+  <!-- 全局登录弹窗（数字生命 / 评论区共用） -->
+  <AuthModal />
 </template>

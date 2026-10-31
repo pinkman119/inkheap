@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
+import CommentSection from '@/components/CommentSection.vue'
 import { useApi } from '@/composables/useApi'
 import { renderMarkdown } from '@/utils/markdown'
 import { renderDiagrams } from '@/utils/diagram'
@@ -38,6 +39,8 @@ function normalize(item, isStatic = false) {
     cover,
     content: item.content || item.body || '',
     excerpt: item.summary || item.excerpt || '',
+    // 评论区仅对真实落库的小记开放（静态降级数据没有可关联的数据库 id）
+    fromApi: !isStatic,
   }
 }
 
@@ -256,6 +259,13 @@ function fallbackImg(e) {
           <span class="nt">{{ next.title }}</span>
         </RouterLink>
       </div>
+
+      <!-- 评论区（仅真实落库的小记） -->
+      <CommentSection
+        v-if="note.fromApi && note.id"
+        target-type="note"
+        :target-id="String(note.id)"
+      />
     </div>
     </template>
   </main>
@@ -269,6 +279,7 @@ function fallbackImg(e) {
     role="dialog"
     aria-modal="true"
     aria-label="照片查看"
+    @mousedown.self="closeLb"
     @click.self="closeLb"
   >
     <button ref="closeBtn" class="lightbox__btn lightbox__close" aria-label="关闭" @click="closeLb">
@@ -550,6 +561,23 @@ function fallbackImg(e) {
 .d-prose :deep(p) {
   margin-bottom: 22px;
   color: var(--text-primary);
+}
+
+/* 全局 reset 清掉了 ul/ol 的默认 padding，列表圆点会悬挂到容器外。
+   这里补回缩进（与文章详情页 .markdown-body 的规则一致），
+   让列表对齐段落文字、渲染在段落之后。 */
+.d-prose :deep(ul),
+.d-prose :deep(ol) {
+  margin: 0 0 22px;
+  padding-left: 22px;
+}
+
+.d-prose :deep(li) {
+  margin-bottom: 6px;
+}
+
+.d-prose :deep(li > p) {
+  margin-bottom: 0;
 }
 
 .d-prose :deep(h3) {

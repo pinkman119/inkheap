@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
 import { useTheme } from '@/composables/useTheme'
 
@@ -22,6 +23,16 @@ const props = defineProps({
 })
 
 const { isDark } = useTheme()
+const router = useRouter()
+
+/**
+ * 点击地点卡片：绑定了小记则在新页面打开小记详情，未绑定不响应。
+ */
+function openNote(record) {
+  if (!record?.noteSlug) return
+  const href = router.resolve(`/xiaoji/${record.noteSlug}`).href
+  window.open(href, '_blank')
+}
 
 /* ===== 数据准备 ===== */
 // 全称 → 记录数组
@@ -345,7 +356,14 @@ onBeforeUnmount(() => {
               </span>
             </div>
             <ul v-if="drawerHasRecords" class="fp-list">
-              <li v-for="(r, i) in drawerRecords" :key="i" class="fp-item">
+              <li
+                v-for="(r, i) in drawerRecords"
+                :key="i"
+                class="fp-item"
+                :class="{ 'fp-item--linked': r.noteSlug }"
+                :role="r.noteSlug ? 'link' : undefined"
+                @click="openNote(r)"
+              >
                 <div class="fp-item-top">
                   <span class="fp-place">{{ r.place }}</span>
                   <span class="fp-time">{{ r.time }}</span>
@@ -354,7 +372,10 @@ onBeforeUnmount(() => {
                   <span class="fp-chip"><b>地点</b> {{ r.location }}</span>
                   <span class="fp-chip"><b>海拔</b> {{ r.elevation }}</span>
                 </div>
-                <p class="fp-note">{{ r.note }}</p>
+                <p v-if="r.noteSlug" class="fp-note-link">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  阅读小记《{{ r.noteTitle || '未命名' }}》
+                </p>
               </li>
             </ul>
             <p v-else class="fp-empty">
@@ -591,6 +612,29 @@ onBeforeUnmount(() => {
   border-color: color-mix(in srgb, var(--accent) 40%, transparent);
   box-shadow: var(--shadow-sm);
 }
+.fp-item--linked {
+  cursor: pointer;
+}
+.fp-item--linked:hover {
+  border-color: var(--accent);
+}
+.fp-item--linked:hover .fp-place {
+  color: var(--accent);
+}
+.fp-note-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+}
+.fp-note-link svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
 .fp-item-top {
   display: flex;
   align-items: baseline;
@@ -625,12 +669,6 @@ onBeforeUnmount(() => {
 .fp-chip b {
   color: var(--accent);
   font-weight: 600;
-}
-.fp-note {
-  font-size: 13.5px;
-  line-height: 1.8;
-  color: var(--text-secondary);
-  margin: 0;
 }
 .fp-empty {
   color: var(--text-tertiary);

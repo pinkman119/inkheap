@@ -581,7 +581,7 @@ onBeforeUnmount(() => {
     <!-- ===== 社交链接：新建 / 编辑 Modal ===== -->
     <Teleport to="body">
       <transition name="modal-fade">
-        <div v-if="socialModalOpen" class="modal-overlay" @click.self="socialModalOpen = false">
+        <div v-if="socialModalOpen" class="modal-overlay" @mousedown.self="socialModalOpen = false" @click.self="socialModalOpen = false">
           <div class="modal-card modal-card--wide" role="dialog" aria-modal="true" aria-label="社交链接配置">
             <div class="modal-head">
               <span class="modal-title">{{ socialEditingIndex >= 0 ? '编辑社交链接' : '添加社交链接' }}</span>

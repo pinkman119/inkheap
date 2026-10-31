@@ -10,7 +10,7 @@ const routes = [
     path: '/',
     name: 'home',
     component: () => import('@/views/HomeView.vue'),
-    meta: { title: '王五 - 产品经理 / 设计师 · 墨堆', layout: 'layout-column', navKey: 'home' },
+    meta: { title: '墨堆 · 光阴易逝，数字永生', layout: 'layout-column', navKey: 'home' },
   },
   {
     path: '/articles',
@@ -100,6 +100,12 @@ const adminRoutes = [
     meta: { title: '收信箱 · 墨堆 Admin', layout: 'layout-admin', auth: true },
   },
   {
+    path: '/admin/comments',
+    name: 'admin-comments',
+    component: () => import('@/views/admin/CommentManageView.vue'),
+    meta: { title: '评论管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
     path: '/admin/articles',
     name: 'admin-articles',
     component: () => import('@/views/admin/ArticleListView.vue'),
@@ -140,6 +146,12 @@ const adminRoutes = [
     name: 'admin-footer',
     component: () => import('@/views/admin/FooterManageView.vue'),
     meta: { title: '底部管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/site-config',
+    name: 'admin-site-config',
+    component: () => import('@/views/admin/SiteConfigManageView.vue'),
+    meta: { title: '站点设置 · 墨堆 Admin', layout: 'layout-admin', auth: true },
   },
   {
     path: '/admin/resume',

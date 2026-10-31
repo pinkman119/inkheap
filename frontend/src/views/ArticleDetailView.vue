@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import ArticleCover from '@/components/ArticleCover.vue'
+import CommentSection from '@/components/CommentSection.vue'
 import { articleContent, articleTitles } from '@/data/articleContent'
 import { renderMarkdown } from '@/utils/markdown'
 import { useApi } from '@/composables/useApi'
@@ -37,6 +38,7 @@ const slug = computed(() => route.params.slug)
 const loading = ref(true)
 const notFound = ref(false)
 const article = ref({
+  id: '',
   title: '',
   summary: '',
   content: '',
@@ -48,6 +50,9 @@ const article = ref({
   createdAt: '',
   displayViewCount: 0,
 })
+
+/** 评论区可用：仅真实文章（有数据库 id）且非预览模式时渲染 */
+const showComments = computed(() => !isPreview.value && !!article.value.id)
 
 /** 管理端预览：把编辑中的表单数据映射成前台展示结构 */
 function applyPreviewData(data) {
@@ -93,6 +98,7 @@ async function loadArticle() {
   try {
     const data = await api.get(`/articles/slug/${encodeURIComponent(slug.value)}`)
     article.value = {
+      id: data.id || '',
       title: data.title || '',
       summary: data.summary || '',
       content: data.content || '',
@@ -508,10 +514,29 @@ onBeforeUnmount(() => {
     </aside>
   </div>
 
+  <!-- 评论区（仅真实文章） -->
+  <div v-if="showComments" class="comment-wrap">
+    <CommentSection target-type="article" :target-id="article.id" />
+  </div>
+
   <AppFooter v-if="!isPreview" />
 </template>
 
 <style scoped>
+/* ===== 评论区容器（与 .layout 同宽对齐） ===== */
+.comment-wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 24px 24px;
+  border-top: 1px solid var(--border-light);
+}
+
+@media (max-width: 768px) {
+  .comment-wrap {
+    padding: 0 16px 16px;
+  }
+}
+
 /* ===== Reading progress ===== */
 .progress {
   position: fixed;

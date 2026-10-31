@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
+import ThemeSelect from '@/components/ThemeSelect.vue'
 
 const api = useApi()
 
@@ -19,6 +20,9 @@ const yearOptions = computed(() => {
   })
   return Array.from(years).sort((a, b) => (a < b ? 1 : -1))
 })
+
+/* 年份筛选（ThemeSelect）选项 */
+const yearSelectOptions = computed(() => yearOptions.value.map((y) => ({ value: y, label: `${y} 年` })))
 
 /* 事件列表 */
 const events = ref([])
@@ -184,9 +188,7 @@ onMounted(async () => {
             <h1>事件日历</h1>
           </div>
           <div class="hero-side">
-            <select v-model="yearValue" class="filter-select">
-              <option v-for="y in yearOptions" :key="y" :value="y">{{ y }} 年</option>
-            </select>
+            <ThemeSelect v-model="yearValue" :options="yearSelectOptions" aria-label="年份筛选" align="right" />
             <button class="btn btn--primary" type="button" @click="openCreate">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               新增事件
@@ -238,7 +240,7 @@ onMounted(async () => {
 
     <!-- ===== 编辑弹窗 ===== -->
     <transition name="modal-fade">
-      <div v-if="editorOpen && editing" class="modal-mask" @click.self="closeEditor">
+      <div v-if="editorOpen && editing" class="modal-mask" @mousedown.self="closeEditor" @click.self="closeEditor">
         <div class="editor-modal" role="dialog" aria-modal="true" aria-label="编辑事件">
           <div class="modal-head">
             <span class="modal-title">{{ editing.id ? '编辑事件' : '新增事件' }}</span>
@@ -280,7 +282,7 @@ onMounted(async () => {
     </transition>
 
     <!-- ===== 删除确认弹窗卡片 ===== -->
-    <div v-if="confirmOpen" class="modal-mask" @click.self="cancelDelete">
+    <div v-if="confirmOpen" class="modal-mask" @mousedown.self="cancelDelete" @click.self="cancelDelete">
       <div class="confirm-card" role="dialog" aria-modal="true" aria-label="删除确认">
         <div class="confirm-icon">!</div>
         <h3>删除事件</h3>
@@ -344,23 +346,6 @@ onMounted(async () => {
 }
 .hero-side {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-}
-
-/* 筛选下拉 */
-.filter-select {
-  font-family: var(--font-sans); font-size: 13.5px; color: var(--text-primary);
-  background-color: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 10px; padding: 9px 34px 9px 14px; cursor: pointer; outline: none;
-  appearance: none; -webkit-appearance: none;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  transition: border-color var(--transition), box-shadow var(--transition);
-}
-.filter-select:hover { border-color: var(--accent); }
-.filter-select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 /* ===== Buttons ===== */

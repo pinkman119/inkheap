@@ -116,11 +116,17 @@ export class ChatService {
     userId: string,
     sessionId: string | undefined,
     content: string,
-    callbacks: ChatStreamCallbacks & { modelId?: string },
+    callbacks: ChatStreamCallbacks & { modelId?: string; clientIp?: string },
   ): Promise<void> {
-    // 1. 用户消息先入库（生成失败也保留提问）
+    // 1. 用户消息先入库（生成失败也保留提问；ip 为明文存储，仅后台可见）
     await this.prisma.chatMessage.create({
-      data: { userId, sessionId: sessionId || null, role: 'user', content },
+      data: {
+        userId,
+        sessionId: sessionId || null,
+        role: 'user',
+        content,
+        ip: callbacks.clientIp ?? null,
+      },
     });
 
     // 2. RAG 检索（409 未配置 Key 时此处抛出，由 controller 转为 SSE error）
@@ -178,7 +184,13 @@ export class ChatService {
     }
 
     const saved = await this.prisma.chatMessage.create({
-      data: { userId, sessionId: sessionId || null, role: 'assistant', content: full },
+      data: {
+        userId,
+        sessionId: sessionId || null,
+        role: 'assistant',
+        content: full,
+        ip: callbacks.clientIp ?? null,
+      },
     });
     callbacks.onDone(saved.id, full);
   }

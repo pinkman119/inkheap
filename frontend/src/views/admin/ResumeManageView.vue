@@ -4,6 +4,7 @@ import { useApi } from '@/composables/useApi'
 import { defaultResumeContent } from '@/data/resume'
 import ResumeContent from '@/components/resume/ResumeContent.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import ThemeSelect from '@/components/ThemeSelect.vue'
 
 const api = useApi()
 
@@ -19,6 +20,15 @@ const createOpen = ref(false)
 const createName = ref('')
 const createBaseCurrent = ref(true)
 const creating = ref(false)
+
+/* 联系方式图标下拉（ThemeSelect）选项 */
+const ICON_OPTIONS = [
+  { value: 'mail', label: '邮箱' },
+  { value: 'chat', label: '微信' },
+  { value: 'location', label: '地址' },
+  { value: 'user', label: '用户' },
+  { value: 'badge', label: '徽章' },
+]
 
 /* ===== 预览抽屉等比例缩放 =====
  * ResumeContent 以 1120px 宽度设计（.page max-width），抽屉宽度不足以容纳原布局。
@@ -547,13 +557,7 @@ const hasVersions = computed(() => versions.value.length > 0)
               <span class="section-title">个人信息（侧栏）</span>
             </div>
             <div v-for="(item, i) in (form.info || [])" :key="'info' + i" class="repeat-row">
-              <select v-model="item.icon" class="form-input" title="图标">
-                <option value="mail">邮箱</option>
-                <option value="chat">微信</option>
-                <option value="location">地址</option>
-                <option value="user">用户</option>
-                <option value="badge">徽章</option>
-              </select>
+              <ThemeSelect v-model="item.icon" class="w-icon" aria-label="图标" :options="ICON_OPTIONS" />
               <input v-model="item.label" class="form-input w-sm" type="text" placeholder="标签" />
               <input v-model="item.value" class="form-input flex-1" type="text" placeholder="内容" />
               <input v-model="item.href" class="form-input w-lg" type="text" placeholder="链接(可选)" />
@@ -707,7 +711,7 @@ const hasVersions = computed(() => versions.value.length > 0)
 
     <!-- ===== 新建版本弹窗 ===== -->
     <transition name="modal-fade">
-      <div v-if="createOpen" class="modal-mask" @click.self="closeCreate">
+      <div v-if="createOpen" class="modal-mask" @mousedown.self="closeCreate" @click.self="closeCreate">
         <div class="create-modal" role="dialog" aria-modal="true" aria-label="新建简历版本">
           <div class="modal-head">
             <span class="modal-title">新建简历版本</span>
@@ -749,7 +753,7 @@ const hasVersions = computed(() => versions.value.length > 0)
 
     <!-- ===== 删除版本确认弹窗 ===== -->
     <transition name="modal-fade">
-      <div v-if="deleteOpen" class="modal-mask" @click.self="closeDelete">
+      <div v-if="deleteOpen" class="modal-mask" @mousedown.self="closeDelete" @click.self="closeDelete">
         <div class="create-modal confirm-modal" role="dialog" aria-modal="true" aria-label="删除简历版本">
           <div class="modal-head">
             <span class="modal-title">删除简历版本</span>
@@ -1016,14 +1020,10 @@ const hasVersions = computed(() => versions.value.length > 0)
   font-size: 13.5px; line-height: 1.7;
   resize: vertical; min-height: 44px;
 }
-select.form-input {
-  width: auto; flex: 0 0 auto; cursor: pointer;
-  appearance: none; -webkit-appearance: none;
-  padding-right: 30px;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-}
+/* ThemeSelect 图标下拉（repeat 行内布局） */
+.w-icon { width: 104px; flex: 0 0 auto; }
+.w-icon :deep(.tsel__trigger) { padding: 8px 12px; font-size: 13.5px; background: var(--bg-soft); border-color: transparent; border-radius: var(--radius-sm); }
+.w-icon :deep(.tsel.open .tsel__trigger) { background: var(--bg-card); }
 
 /* 宽度工具类（repeat 行内布局） */
 .w-sm { width: 90px; flex: 0 0 auto; }

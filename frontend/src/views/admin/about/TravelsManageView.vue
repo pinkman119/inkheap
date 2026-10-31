@@ -150,7 +150,7 @@ onMounted(load)
     </section>
 
     <transition name="fade">
-      <div v-if="modalOpen" class="modal-mask" @click.self="modalOpen = false">
+      <div v-if="modalOpen" class="modal-mask" @mousedown.self="modalOpen = false" @click.self="modalOpen = false">
         <div class="modal">
           <div class="modal-head">
             <span>{{ editing ? '编辑旅行' : '新增旅行' }}</span>

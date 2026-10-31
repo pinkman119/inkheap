@@ -347,7 +347,7 @@ const breadcrumbPath = computed(() =>
 /* ===== 移动端分类树折叠（≤1024px 生效） ===== */
 const treeCollapsed = ref(false)
 
-/* ===== 右侧「动态」栏：按更新时间倒序加载（支持滚动触底追加下一页） ===== */
+/* ===== 右侧「动态」栏：按创建时间倒序加载（支持滚动触底追加下一页） ===== */
 const refreshing = ref(false)
 const feedList = ref([])
 const FEED_PAGE_SIZE = 20
@@ -363,11 +363,12 @@ function mapFeedItem(a) {
   return {
     slug: a.slug,
     title: a.title,
-    date: a.updatedAt ? a.updatedAt.slice(0, 10) : '',
+    // 固定显示创建时间：阅读量自增等操作会刷新 updatedAt，不能作为动态时间
+    date: a.createdAt ? a.createdAt.slice(0, 10) : '',
   }
 }
 
-// 拉取动态列表：后端已按 updatedAt 倒序返回（相同时间戳越大越靠前）
+// 拉取动态列表：后端已按 createdAt 倒序返回（创建越晚越靠前，顺序不随浏览行为变化）
 // reset=true 时重新加载第一页（首屏 / 刷新），否则追加下一页
 async function loadFeed(reset = true) {
   try {

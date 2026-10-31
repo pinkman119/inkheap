@@ -22,9 +22,6 @@ export class CreateFootprintDto {
   @MaxLength(40)
   elevation?: string;
 
-  @IsString()
-  note: string;
-
   @IsOptional()
   @IsInt()
   @Min(0)

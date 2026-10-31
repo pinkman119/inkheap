@@ -19,6 +19,11 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
+      // 代理 API 请求到后端（含 RSS：/api/feed.xml），与线上 Nginx 转发行为保持一致
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
     },
   },
   build: {

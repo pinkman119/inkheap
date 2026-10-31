@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { UserJwtAuthGuard } from '../auth/user-jwt.guard';
+import { normalizeClientIp } from '../view/view.util';
 import { ChatService } from './chat.service';
 import { RateLimitService } from './rate-limit.service';
 import { ModelConfigService } from './model-config.service';
@@ -77,6 +78,8 @@ export class ChatController {
 
     try {
       await this.chatService.run(req.user.id, dto.sessionId || undefined, content, {
+        // trust proxy 已开启，req.ip 取自 X-Forwarded-For 的真实客户端地址
+        clientIp: normalizeClientIp(req.ip),
         modelId: dto.modelId,
         onDelta: (text) => {
           if (!closed) writeEvent('delta', { text });

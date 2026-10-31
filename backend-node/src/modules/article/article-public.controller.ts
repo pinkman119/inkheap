@@ -23,7 +23,7 @@ export class PublicArticleController {
     return this.articleService.findOneBySlug(slug, req.ip);
   }
 
-  // 按更新时间倒序返回文章列表，用于首页右侧"动态"栏目
+  // 按创建时间倒序返回文章列表，用于首页右侧"动态"栏目
   @Get('feed')
   feed(@Query() query: QueryArticleDto) {
     return this.articleService.findLatestUpdated(query);

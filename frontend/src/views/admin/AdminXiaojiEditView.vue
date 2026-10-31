@@ -15,8 +15,9 @@
           </div>
           <div class="hero-side">
             <span v-if="saving" class="saving-hint">保存中…</span>
+            <span v-else-if="lastSavedAtText" class="saving-hint">上次保存 {{ lastSavedAtText }}</span>
             <router-link class="btn btn--ghost" :to="{ name: 'admin-xiaoji' }">取消</router-link>
-            <button class="btn btn--primary" :disabled="saving" @click="save">
+            <button class="btn btn--primary" :disabled="saving" @click="save" title="快捷键：Ctrl + S">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
               {{ saving ? '保存中…' : '保存' }}
             </button>
@@ -56,8 +57,14 @@
 
           <div class="field-row">
             <div class="field flex-1">
-              <label class="field-label">地点</label>
-              <input v-model="form.location" type="text" placeholder="如：四姑娘山" />
+              <label class="field-label">地点（来自足迹）</label>
+              <ThemeSelect v-model="form.footprintId" aria-label="地点（来自足迹）" :options="footprintSelectOptions" />
+              <p v-if="footprintTakenByOther" class="field-hint field-hint--warn">
+                该足迹当前绑定在小记《{{ selectedFootprint.blog?.title || '其他小记' }}》上，保存后将改绑到本篇。
+              </p>
+              <p v-else-if="selectedFootprint" class="field-hint">
+                保存后「关于我」页面的足迹卡片将可点击跳转到本篇小记。
+              </p>
             </div>
             <div class="field flex-1">
               <label class="field-label">日期</label>
@@ -83,8 +90,20 @@
           </div>
 
           <div class="field">
-            <label class="field-label">摘要</label>
-            <textarea v-model="form.summary" rows="2" placeholder="列表展示的摘要文字"></textarea>
+            <div class="label-row">
+              <label class="field-label">摘要</label>
+              <button
+                class="ai-btn"
+                type="button"
+                :disabled="!form.content.trim() || generatingSummary"
+                :title="form.content.trim() ? '根据正文内容 AI 自动生成摘要' : '请先填写正文'"
+                @click="generateSummary"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg>
+                {{ generatingSummary ? '生成中…' : 'AI 生成' }}
+              </button>
+            </div>
+            <textarea v-model="form.summary" rows="2" placeholder="列表展示的摘要文字；可点击右上角按钮由 AI 根据正文生成"></textarea>
           </div>
 
           <div v-if="form.type === 'essay'" class="field">
@@ -93,8 +112,12 @@
           </div>
 
           <div class="field">
-            <label class="field-label">正文（Markdown） <span class="req">*</span></label>
-            <textarea v-model="form.content" class="content-editor" rows="16" placeholder="支持 Markdown 语法，与文章一致"></textarea>
+            <label class="field-label">正文（Markdown，左编辑右预览） <span class="req">*</span></label>
+            <MarkdownSplitEditor
+              v-model="form.content"
+              placeholder="支持 Markdown 语法，与文章一致"
+              min-height="380px"
+            />
           </div>
 
           <div class="field">
@@ -170,18 +193,28 @@
 
 <script>
 import { useApi } from '../../composables/useApi'
+import MarkdownSplitEditor from '../../components/MarkdownSplitEditor.vue'
+import ThemeSelect from '../../components/ThemeSelect.vue'
 
 const api = useApi()
 
 export default {
   name: 'AdminXiaojiEdit',
+  components: {
+    MarkdownSplitEditor,
+    ThemeSelect,
+  },
   data() {
     return {
       loading: false,
       saving: false,
+      generatingSummary: false,
+      lastSavedAt: null,
       toastMsg: '',
       toastType: 'success',
       tagInput: '',
+      // 「关于我」足迹列表：地点从这里选择
+      footprints: [],
       form: {
         title: '',
         slug: '',
@@ -190,7 +223,7 @@ export default {
         content: '',
         summary: '',
         quote: '',
-        location: '',
+        footprintId: '',
         date: '',
         photos: [],
         published: false,
@@ -203,6 +236,34 @@ export default {
     isNew() {
       return !this.$route.params.id
     },
+    /** 当前选中的足迹 */
+    selectedFootprint() {
+      return this.footprints.find((f) => f.id === this.form.footprintId) || null
+    },
+    /** 地点下拉（ThemeSelect）选项 */
+    footprintSelectOptions() {
+      return [
+        { value: '', label: '不关联地点' },
+        ...this.footprints.map((f) => ({ value: f.id, label: f.place, desc: f.location })),
+      ]
+    },
+    /** 选中的足迹是否已绑定到其他小记 */
+    footprintTakenByOther() {
+      if (!this.selectedFootprint?.blogId) return false
+      return this.selectedFootprint.blogId !== this.$route.params.id
+    },
+    /** 上次保存时间的展示文本（今天只显示时分秒，往日带上日期） */
+    lastSavedAtText() {
+      if (!this.lastSavedAt) return ''
+      const d = new Date(this.lastSavedAt)
+      if (Number.isNaN(d.getTime())) return ''
+      const today = new Date()
+      const sameDay = d.getFullYear() === today.getFullYear()
+        && d.getMonth() === today.getMonth()
+        && d.getDate() === today.getDate()
+      const time = d.toLocaleTimeString('zh-CN', { hour12: false })
+      return sameDay ? time : d.toLocaleString('zh-CN', { hour12: false })
+    },
     /** 照片上限：相册不限（Infinity），随笔最多 9 张 */
     photoLimit() {
       return this.form.type === 'album' ? Infinity : 9
@@ -211,20 +272,67 @@ export default {
       return Number.isFinite(this.photoLimit) && this.form.photos.length >= this.photoLimit
     },
   },
-  created() {
+  async created() {
+    // 先加载足迹列表，编辑态才能按 blogId 反查出当前绑定的足迹
+    await this.loadFootprints()
     if (!this.isNew) this.load()
+  },
+  mounted() {
+    window.addEventListener('keydown', this.onKeydown)
+  },
+  beforeUnmount() {
+    window.removeEventListener('keydown', this.onKeydown)
   },
   methods: {
     assetUrl: (p) => api.assetUrl(p),
+    /** Ctrl/Cmd + S 触发保存，并拦截浏览器默认的「保存网页」行为 */
+    onKeydown(e) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault()
+        if (!this.loading && !this.saving) this.save()
+      }
+    },
     showToast(msg, type = 'success') {
       this.toastMsg = msg
       this.toastType = type
       setTimeout(() => { this.toastMsg = '' }, 3000)
     },
+    /** AI 根据正文自动生成摘要，成功后填入摘要输入框（不覆盖未保存的手动修改之外的逻辑） */
+    async generateSummary() {
+      if (!this.form.content.trim() || this.generatingSummary) return
+      this.generatingSummary = true
+      try {
+        const d = await api.post('/admin/xiaoji/generate-summary', {
+          content: this.form.content,
+          title: this.form.title.trim() || undefined,
+        })
+        if (d?.summary) {
+          this.form.summary = d.summary
+          this.showToast('摘要已生成')
+        } else {
+          this.showToast('模型未返回摘要，请稍后再试', 'error')
+        }
+      } catch (e) {
+        this.showToast('生成失败：' + (e?.message || e), 'error')
+      } finally {
+        this.generatingSummary = false
+      }
+    },
+    async loadFootprints() {
+      try {
+        this.footprints = await api.get('/about/footprints')
+      } catch {
+        // 地点选择非关键数据，失败不打断编辑
+        this.footprints = []
+      }
+    },
     async load() {
       this.loading = true
       try {
         const d = await api.get(`/admin/xiaoji/${this.$route.params.id}`)
+        this.lastSavedAt = d.updatedAt || null
+        // 绑定的足迹：按足迹上的 blogId 反查（足迹列表由 loadFootprints 并行加载）
+        const bound = this.footprints.find((f) => f.blogId === d.id)
         this.form = {
           title: d.title || '',
           slug: d.slug || '',
@@ -233,7 +341,7 @@ export default {
           content: d.content || '',
           summary: d.summary || '',
           quote: d.quote || '',
-          location: d.location || '',
+          footprintId: bound?.id || '',
           date: d.date || '',
           photos: (d.photos || []).map((p) => ({ url: p.url, caption: p.caption || '' })),
           published: !!d.published,
@@ -343,7 +451,8 @@ export default {
           content: this.form.content,
           summary: this.form.summary.trim(),
           quote: this.form.quote.trim(),
-          location: this.form.location.trim(),
+          // 地点从足迹中选择：传足迹 id，后端据此写入地点并建立绑定（空 = 不绑定）
+          footprintId: this.form.footprintId || '',
           date: this.form.date.trim(),
           photos: this.form.photos,
           published: this.form.published,
@@ -351,11 +460,16 @@ export default {
           virtualViewCount: this.normalizeVirtualViews(this.form.virtualViewCount),
         }
         if (this.isNew) {
-          await api.post('/admin/xiaoji', payload)
+          const d = await api.post('/admin/xiaoji', payload)
+          // 原地切换到编辑态：URL 携带新 id，后续保存走更新而非重复创建
+          if (d?.id) this.$router.replace({ name: 'admin-xiaoji-edit', params: { id: d.id } })
+          this.lastSavedAt = d?.updatedAt || new Date().toISOString()
+          this.showToast('已保存')
         } else {
-          await api.put(`/admin/xiaoji/${this.$route.params.id}`, payload)
+          const d = await api.put(`/admin/xiaoji/${this.$route.params.id}`, payload)
+          this.lastSavedAt = d?.updatedAt || new Date().toISOString()
+          this.showToast('已保存')
         }
-        this.$router.push({ name: 'admin-xiaoji' })
       } catch (e) {
         this.showToast('保存失败：' + (e?.message || e), 'error')
       } finally {
@@ -525,6 +639,25 @@ export default {
 .field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 16px; }
 .field:last-child { margin-bottom: 0; }
 .field-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.label-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.ai-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 12px; font-size: 12px; font-weight: 500;
+  font-family: var(--font-sans); cursor: pointer;
+  color: var(--accent); background: var(--accent-light);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 100px;
+  transition: all var(--transition);
+}
+.ai-btn svg { width: 13px; height: 13px; }
+.ai-btn:hover:not(:disabled) {
+  background: var(--accent); color: #fff;
+  border-color: var(--accent);
+}
+::global([data-theme='dark']) .ai-btn:hover:not(:disabled) { color: #0f0f0f; }
+.ai-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .req { color: #e0533d; margin-left: 2px; }
 .field input, .field select, .field textarea {
   padding: 11px 14px; font-size: 14px; font-family: var(--font-sans);
@@ -537,6 +670,16 @@ export default {
 .field input:hover, .field textarea:hover {
   background-color: color-mix(in srgb, var(--bg-soft) 70%, var(--accent-light) 30%);
 }
+/* ThemeSelect 地点下拉 */
+.field :deep(.tsel) { width: 100%; display: flex; }
+.field :deep(.tsel__trigger) {
+  width: 100%; padding: 11px 14px; font-size: 14px;
+  background: var(--bg-soft); border-color: transparent; border-radius: var(--radius-sm);
+}
+.field :deep(.tsel.open .tsel__trigger) {
+  background-color: var(--bg-card); border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
 .field input:focus, .field select:focus, .field textarea:focus {
   background-color: var(--bg-card);
   border-color: var(--accent);
@@ -544,12 +687,10 @@ export default {
 }
 .field-row { display: flex; gap: 14px; }
 .flex-1 { flex: 1; min-width: 0; }
-.content-editor {
-  font-family: var(--font-mono); font-size: 13px; line-height: 1.75; min-height: 340px;
-}
 .field-hint {
   margin: 0; font-size: 12px; line-height: 1.6; color: var(--text-tertiary);
 }
+.field-hint--warn { color: #d97a1f; }
 
 /* ===== Tags input ===== */
 .tags-input {

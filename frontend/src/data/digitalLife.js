@@ -15,11 +15,3 @@ export const quickQuestions = [
 export const welcomeDesc =
   '这是{name}的「数字生命」—— 由他的性格、经历、文字与作品提炼而成的数字化分身。' +
   '现在和我聊聊他的登山故事、他打磨的项目，或者随便聊点什么。'
-
-/** 登录卡片文案（mock 阶段） */
-export const loginCard = {
-  title: '登录后开始对话',
-  desc: '数字生命功能需要登录后使用。当前为模拟登录阶段，点击下方按钮即可体验；后续将接入微信扫码。',
-  button: '模拟微信扫码登录',
-  loading: '登录中…',
-}

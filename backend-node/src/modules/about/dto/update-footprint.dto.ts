@@ -27,10 +27,6 @@ export class UpdateFootprintDto {
   elevation?: string;
 
   @IsOptional()
-  @IsString()
-  note?: string;
-
-  @IsOptional()
   @IsInt()
   @Min(0)
   sortOrder?: number;

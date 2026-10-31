@@ -86,14 +86,27 @@ export class ViewCountService implements OnModuleInit, OnModuleDestroy {
   private async bump(targetType: ViewTargetType, targetId: string) {
     try {
       if (targetType === 'article') {
+        // Prisma @updatedAt：update 时未显式传值就会自动刷新时间戳。
+        // 阅读量自增属于非内容变更，须先读原值再回写（与 article.service.reorder 同一约定），
+        // 否则点开老文章会把 updatedAt 刷成今天，污染所有按更新时间排序/展示的场景。
+        const article = await this.prisma.article.findUnique({
+          where: { id: targetId },
+          select: { updatedAt: true },
+        });
+        if (!article) return;
         await this.prisma.article.update({
           where: { id: targetId },
-          data: { viewCount: { increment: 1 } },
+          data: { viewCount: { increment: 1 }, updatedAt: article.updatedAt },
         });
       } else {
+        const note = await this.prisma.blog.findUnique({
+          where: { id: targetId },
+          select: { updatedAt: true },
+        });
+        if (!note) return;
         await this.prisma.blog.update({
           where: { id: targetId },
-          data: { viewCount: { increment: 1 } },
+          data: { viewCount: { increment: 1 }, updatedAt: note.updatedAt },
         });
       }
     } catch (e) {

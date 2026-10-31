@@ -17,7 +17,7 @@ import {
   MODEL_TYPES,
   PROVIDER_BASE_URLS,
 } from './digital-life.defaults';
-import { UpdateDlModelDto } from './dto/digital-life.dto';
+import { UpdateDlModelDto, CreateDlModelDto } from './dto/digital-life.dto';
 
 /**
  * 数字生命模型服务（多模型启停管理）：
@@ -32,11 +32,28 @@ export class ModelConfigService implements OnModuleInit {
 
   constructor(private prisma: PrismaService) {}
 
-  /** 启动时校验加密密钥（fail-fast：缺失或格式错误直接启动失败）、迁移旧数据、写入模型种子 */
+  /**
+   * 启动时校验加密密钥（fail-fast：缺失或格式错误直接启动失败）、迁移旧数据、写入模型种子。
+   * RESET_MODEL=true 时改为：清空「模型管理」全部模型（含加密 API Key），需重新配置，
+   * 且不再补种默认模型，保证列表真正为空。
+   */
   async onModuleInit() {
     ensureEncryptionKey();
+    if (process.env.RESET_MODEL === 'true') {
+      await this.resetModels();
+      return;
+    }
     await this.migrateModelTypes();
     await this.seedModels();
+  }
+
+  /** 安全重置：启动时清空模型列表（含加密 API Key），仅 RESET_MODEL=true 时执行 */
+  private async resetModels() {
+    const count = await this.prisma.dlModel.count();
+    await this.prisma.dlModel.deleteMany({});
+    this.logger.warn(
+      `RESET_MODEL=true：已清空「模型管理」模型列表 ${count} 条（含加密 API Key），请重新配置模型`,
+    );
   }
 
   /** 模型列表（含 hasApiKey 标记与 modelType，不返回 Key 明文/密文） */
@@ -86,6 +103,34 @@ export class ModelConfigService implements OnModuleInit {
     return { id: updated.id, enabled: updated.enabled };
   }
 
+  /** 新增模型（name / provider / modelId / modelType / apiKey），追加到列表末尾，默认停用 */
+  async create(dto: CreateDlModelDto) {
+    if (!MODEL_TYPES.includes(dto.modelType as any)) {
+      throw new BadRequestException(`不支持的模型类型：${dto.modelType}`);
+    }
+    if (!PROVIDER_BASE_URLS[dto.provider]) {
+      throw new BadRequestException(`不支持的厂商：${dto.provider}`);
+    }
+    const name = dto.name.trim();
+    const modelId = dto.modelId.trim();
+    if (!name) throw new BadRequestException('显示名称不能为空');
+    if (!modelId) throw new BadRequestException('模型 ID 不能为空');
+
+    const last = await this.prisma.dlModel.findFirst({ orderBy: { sortOrder: 'desc' } });
+    const model = await this.prisma.dlModel.create({
+      data: {
+        name,
+        provider: dto.provider,
+        modelId,
+        modelType: dto.modelType,
+        apiKeyEnc: dto.apiKey?.trim() ? encryptSecret(dto.apiKey.trim()) : null,
+        enabled: false,
+        sortOrder: (last?.sortOrder ?? -1) + 1,
+      },
+    });
+    return { id: model.id, success: true };
+  }
+
   /** 更新模型（name / modelId / modelType / apiKey；apiKey 提供则更新密文，空串清除，未提供保留） */
   async update(id: string, dto: UpdateDlModelDto) {
     const model = await this.prisma.dlModel.findUnique({ where: { id } });
@@ -110,6 +155,14 @@ export class ModelConfigService implements OnModuleInit {
       data.apiKeyEnc = key ? encryptSecret(key) : null;
     }
     await this.prisma.dlModel.update({ where: { id }, data });
+    return { success: true };
+  }
+
+  /** 删除模型（物理删除，含密文 Key；DlModel 无外键关联，可安全删除） */
+  async remove(id: string) {
+    const model = await this.prisma.dlModel.findUnique({ where: { id } });
+    if (!model) throw new NotFoundException('模型不存在');
+    await this.prisma.dlModel.delete({ where: { id } });
     return { success: true };
   }
 

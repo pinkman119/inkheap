@@ -7,6 +7,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
  * - GET /api/admin/dashboard/stats              四项指标（来信 / 阅读量 / 访问量 / 用户量）
  * - GET /api/admin/dashboard/article-ranking    文章阅读量排行（抽屉明细）
  * - GET /api/admin/dashboard/visits-trend       访问量趋势（抽屉明细，period=7|30|90|all）
+ * - GET /api/admin/dashboard/visit-logs         访问明细列表（抽屉明细，时间/IP/地区）
  * - GET /api/admin/dashboard/users              注册用户列表（抽屉明细）
  */
 @Controller('admin/dashboard')
@@ -27,6 +28,11 @@ export class DashboardController {
   @Get('visits-trend')
   getVisitsTrend(@Query('period') period: string = '30') {
     return this.dashboardService.getVisitsTrend(period);
+  }
+
+  @Get('visit-logs')
+  getVisitLogs(@Query('page') page = '1', @Query('pageSize') pageSize = '20') {
+    return this.dashboardService.getVisitLogs(Number(page), Number(pageSize));
   }
 
   @Get('users')

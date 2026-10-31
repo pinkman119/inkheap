@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useApi } from '@/composables/useApi'
 import { useSiteIdentity } from '@/composables/useSiteIdentity'
-import ArticleDetailView from '@/views/ArticleDetailView.vue'
+import MarkdownSplitEditor from '@/components/MarkdownSplitEditor.vue'
+import ThemeSelect from '@/components/ThemeSelect.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -37,12 +38,74 @@ const form = ref({
 const tagInput = ref('')
 const categories = ref([])
 
+/* 分类下拉选项（ThemeSelect）：label 显示完整路径（父 / 子），搜索仅匹配分类名 */
+const RECENT_CATEGORY_COUNT = 5
+
+// key -> 分类映射，用于沿 parentKey 回溯祖先名称
+const categoryByKey = computed(() => new Map(categories.value.map((c) => [c.key, c])))
+
+// 完整路径：如「前端 / Vue」（含自身名称），带循环引用保护
+function categoryPath(cat) {
+  const names = []
+  let cur = cat
+  const seen = new Set()
+  while (cur && !seen.has(cur.key)) {
+    seen.add(cur.key)
+    names.unshift(cur.name)
+    cur = categoryByKey.value.get(cur.parentKey)
+  }
+  return names.join(' / ')
+}
+
+// 相对创建时间（用于「最近使用」分组的 desc）
+function relativeCreatedTime(iso) {
+  const t = new Date(iso).getTime()
+  if (!t) return ''
+  const days = Math.floor((Date.now() - t) / 86400000)
+  if (days <= 0) return '今天创建'
+  if (days < 30) return `${days} 天前创建`
+  if (days < 365) return `${Math.floor(days / 30)} 个月前创建`
+  return `${Math.floor(days / 365)} 年前创建`
+}
+
+// 最近使用的分类：后端 Redis 全站共享，文章保存成功后置顶（Redis 不可用时按文章数据推导）
+const recentCategories = ref([])
+
+async function loadRecentCategories() {
+  try {
+    recentCategories.value = (await api.get('/admin/categories/recent')) || []
+  } catch (e) { /* ignore */ }
+}
+
+const categorySelectOptions = computed(() => {
+  // 按路径排序，父分类与其子分类自然相邻，呈现树状分组效果
+  const all = categories.value
+    .map((cat) => ({
+      value: cat.key,
+      label: categoryPath(cat),
+      searchText: cat.name,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'zh'))
+  // 分类总数不多于回显条数时，最近列表与全量完全重复，直接展示全量
+  if (categories.value.length <= RECENT_CATEGORY_COUNT) return all
+  const recent = recentCategories.value
+    .slice(0, RECENT_CATEGORY_COUNT)
+    .map((cat) => ({
+      value: cat.key,
+      label: categoryPath(cat),
+      searchText: cat.name,
+      desc: relativeCreatedTime(cat.createdAt),
+    }))
+  if (!recent.length) return all
+  return [{ header: '最近使用' }, ...recent, { header: '全部分类' }, ...all]
+})
+
 onMounted(async () => {
-  window.addEventListener('resize', onWindowResize)
   loadSiteIdentity()
   try {
     categories.value = await api.get('/admin/categories')
   } catch (e) { /* ignore */ }
+  loadRecentCategories()
 
   if (isEdit.value) {
     loading.value = true
@@ -69,10 +132,6 @@ onMounted(async () => {
       loading.value = false
     }
   }
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', onWindowResize)
 })
 
 function autoSlug() {
@@ -137,50 +196,7 @@ async function generateSummary() {
   }
 }
 
-/* ===== 实时预览：抽屉内直接复用前台文章详情页渲染 ===== */
-const previewOpen = ref(false)
-
-// 传编辑中的全量字段；虚拟阅读量清空时统一为 null，与提交逻辑保持一致
-const previewData = computed(() => {
-  const v = form.value.virtualViewCount
-  return {
-    ...form.value,
-    tags: [...(form.value.tags || [])],
-    virtualViewCount: v === '' || v === null || Number.isNaN(v) ? null : v,
-  }
-})
-
-/* ===== 预览抽屉等比例缩放（与「首页管理」实时预览一致） =====
- * 文章详情以 1120px 设计宽度，抽屉宽度不足以容纳原布局，
- * 用 CSS zoom 在基准宽度上整体缩放，占位高度由浏览器按比例自动计算。 */
-const PREVIEW_BASE_WIDTH = 1120
-const drawerBodyRef = ref(null)
-const drawerWidth = ref(0)
-
-const previewScale = computed(() => {
-  if (!drawerWidth.value) return 1
-  return Math.min(1, drawerWidth.value / PREVIEW_BASE_WIDTH)
-})
-const previewScaleStyle = computed(() => ({
-  width: PREVIEW_BASE_WIDTH + 'px',
-  zoom: previewScale.value,
-}))
-
-function measurePreview() {
-  nextTick(() => {
-    if (drawerBodyRef.value) {
-      const cs = window.getComputedStyle(drawerBodyRef.value)
-      const pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0)
-      drawerWidth.value = drawerBodyRef.value.clientWidth - pad
-    }
-  })
-}
-function onWindowResize() {
-  measurePreview()
-}
-watch(previewOpen, (open) => {
-  if (open) measurePreview()
-})
+/* ===== 正文预览：由 MarkdownSplitEditor 分栏实时渲染（左编辑 / 右预览） ===== */
 
 async function handleSave() {
   if (!form.value.title || !form.value.content || !form.value.categoryKey) {
@@ -206,10 +222,12 @@ async function handleSave() {
     if (isEdit.value) {
       await api.put(`/admin/articles/${route.params.id}`, payload)
       showToast('文章已更新', 'success')
-      // 编辑更新后停留当前页，方便继续修改
+      // 编辑更新后停留当前页，方便继续修改；刷新最近使用列表（本次使用的分类置顶）
+      loadRecentCategories()
     } else {
       await api.post('/admin/articles', payload)
       showToast('文章已创建', 'success')
+      loadRecentCategories()
       // 新建保存后返回列表
       setTimeout(() => router.push({ name: 'admin-articles' }), 800)
     }
@@ -302,12 +320,14 @@ function goBack() {
         <div class="field-row">
           <div class="field flex-1">
             <label>分类 <span class="req">*</span></label>
-            <select v-model="form.categoryKey">
-              <option value="" disabled>选择分类</option>
-              <option v-for="cat in categories" :key="cat.id" :value="cat.key">
-                {{ cat.parentKey ? '  ' : '' }}{{ cat.name }}
-              </option>
-            </select>
+            <ThemeSelect
+              v-model="form.categoryKey"
+              placeholder="选择分类"
+              aria-label="选择分类"
+              :options="categorySelectOptions"
+              searchable
+              search-placeholder="搜索分类"
+            />
           </div>
           <div class="field flex-1">
             <label>封面图 URL</label>
@@ -357,21 +377,13 @@ function goBack() {
         <div class="field">
           <div class="editor-label">
             <span>正文 <span class="req">*</span></span>
-            <div class="editor-label-actions">
-              <span class="md-badge">Markdown</span>
-              <button type="button" class="btn-preview" @click="previewOpen = true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path></svg>
-                实时预览
-              </button>
-            </div>
+            <span class="md-badge">Markdown · 左编辑右预览</span>
           </div>
-          <textarea
+          <MarkdownSplitEditor
             v-model="form.content"
-            class="content-editor"
-            rows="18"
-            spellcheck="false"
             placeholder="在此用 Markdown 撰写正文，支持 ``` 代码块 ..."
-          ></textarea>
+            min-height="440px"
+          />
         </div>
 
         <div class="field-row">
@@ -425,27 +437,6 @@ function goBack() {
         </div>
       </div>
     </div>
-
-    <!-- ===== 实时预览抽屉 ===== -->
-    <transition name="drawer-fade">
-      <div v-if="previewOpen" class="drawer-mask" @click="previewOpen = false"></div>
-    </transition>
-    <transition name="drawer-slide">
-      <aside v-if="previewOpen" class="preview-drawer">
-        <div class="drawer-head">
-          <span class="drawer-title">实时预览</span>
-          <button class="drawer-close" title="关闭预览" @click="previewOpen = false">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <div ref="drawerBodyRef" class="drawer-body">
-          <div class="preview-scale" :style="previewScaleStyle">
-            <!-- 直接复用前台文章详情页渲染，数据为编辑中的表单内容 -->
-            <ArticleDetailView :preview-data="previewData" />
-          </div>
-        </div>
-      </aside>
-    </transition>
   </div>
 </template>
 
@@ -586,9 +577,20 @@ function goBack() {
 .field textarea:hover {
   background-color: color-mix(in srgb, var(--bg-soft) 70%, var(--accent-light) 30%);
 }
+/* ThemeSelect 分类下拉 */
+.field :deep(.tsel) { width: 100%; display: flex; }
+.field :deep(.tsel__trigger) {
+  width: 100%; padding: 11px 14px; font-size: 14px; color: var(--text-primary);
+  background: var(--bg-soft); border-color: transparent; border-radius: var(--radius-sm);
+}
+.field :deep(.tsel__trigger:hover:not(:disabled)) { background-color: color-mix(in srgb, var(--bg-soft) 70%, var(--accent-light) 30%); }
+.field :deep(.tsel.open .tsel__trigger) {
+  background-color: var(--bg-card); border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
 .field input:focus,
 .field select:focus,
-.field textarea:not(.content-editor):focus {
+.field textarea:focus {
   background-color: var(--bg-card);
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
@@ -604,7 +606,7 @@ function goBack() {
   color: var(--text-tertiary);
 }
 
-/* 正文编辑器标签：左侧标题 + 右侧（Markdown 徽标 / 实时预览）同行两端对齐 */
+/* 正文编辑器标签：左侧标题 + 右侧（Markdown 徽标）同行两端对齐 */
 .editor-label {
   display: flex;
   align-items: center;
@@ -613,11 +615,6 @@ function goBack() {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
-}
-.editor-label-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 /* 「实时预览」按钮：次要操作，样式对齐「首页管理」的 .btn--link */
@@ -653,68 +650,7 @@ function goBack() {
   padding: 2px 10px;
 }
 
-/* ===== Markdown 编辑器：深色代码主体 ===== */
-.content-editor {
-  font-family: var(--font-mono) !important;
-  font-size: 13px !important;
-  line-height: 1.7;
-  min-height: 420px;
-  tab-size: 2;
-  white-space: pre;
-  overflow-wrap: normal;
-  word-break: normal;
-
-  /* 深色主体 —— One Dark Pro（!important 覆盖 .field textarea 的基础背景/边框） */
-  color: #abb2bf !important;
-  background-color: #282c34 !important;
-  border: 1px solid #181a1f !important;
-  border-radius: var(--radius-md);
-  caret-color: #61afef;
-}
-:root[data-theme='dark'] .content-editor {
-  background-color: #282c34 !important;
-  border-color: #181a1f !important;
-  color: #abb2bf !important;
-}
-
-/* 聚焦：保持深色，边框/光晕改用 One Dark 蓝，不再套浅色阴影 */
-.content-editor:focus {
-  border-color: #61afef;
-  box-shadow: 0 0 0 3px rgba(97, 175, 239, 0.18);
-}
-
-/* 占位符 */
-.content-editor::placeholder {
-  color: #5c6370;
-  opacity: 1;
-}
-
-/* 选区 */
-.content-editor::selection {
-  background-color: rgba(97, 175, 239, 0.32);
-  color: #ffffff;
-}
-
-/* 自定义滚动条（One Dark Pro） */
-.content-editor::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-.content-editor::-webkit-scrollbar-track {
-  background: transparent;
-}
-.content-editor::-webkit-scrollbar-thumb {
-  background: #3a3f4b;
-  border-radius: 100px;
-  border: 2px solid #282c34;
-}
-.content-editor::-webkit-scrollbar-thumb:hover {
-  background: #4b5263;
-}
-.content-editor {
-  scrollbar-color: #3a3f4b #282c34;
-  scrollbar-width: thin;
-}
+/* ===== Markdown 编辑器：由 MarkdownSplitEditor 组件提供（深色编辑 + 右侧实时预览） ===== */
 
 /* ===== Tags ===== */
 .tags-input {
@@ -919,85 +855,6 @@ function goBack() {
   transform: translateX(-50%) translateY(20px);
 }
 
-/* ===== Preview Drawer ===== */
-.drawer-mask {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  z-index: 1000;
-}
-.preview-drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(960px, 94vw);
-  background: var(--bg-body);
-  box-shadow: var(--shadow-lg);
-  z-index: 1001;
-  display: flex;
-  flex-direction: column;
-}
-.drawer-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px;
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-light);
-}
-.drawer-title {
-  font-family: var(--font-serif);
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--text-primary);
-  padding-left: 14px;
-  position: relative;
-}
-.drawer-title::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 16px;
-  border-radius: 4px;
-  background-color: var(--accent);
-}
-.drawer-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: all var(--transition);
-}
-.drawer-close:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-  background-color: var(--accent-light);
-}
-.drawer-body {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 24px;
-}
-.preview-scale {
-  transform-origin: top left;
-}
-.drawer-fade-enter-active, .drawer-fade-leave-active { transition: opacity 0.25s; }
-.drawer-fade-enter-from, .drawer-fade-leave-to { opacity: 0; }
-.drawer-slide-enter-active, .drawer-slide-leave-active { transition: transform 0.25s ease; }
-.drawer-slide-enter-from, .drawer-slide-leave-to { transform: translateX(100%); }
-
 /* ===== Responsive ===== */
 @media (max-width: 860px) {
   .page-hero { padding: 18px; }
@@ -1006,6 +863,5 @@ function goBack() {
   .edit-body { flex-direction: column; }
   .form-side { width: 100%; position: static; }
   .field-row { flex-direction: column; }
-  .drawer-body { padding: 14px; }
 }
 </style>

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import ThemeSelect from '@/components/ThemeSelect.vue'
 
 const api = useApi()
 
@@ -14,7 +15,7 @@ const toastType = ref('success')
 const showModal = ref(false)
 const saving = ref(false)
 const editingId = ref(null)   // null = 新建
-const form = ref({ name: '', key: '', parentKey: '', sortOrder: 0, icon: '' })
+const form = ref({ name: '', key: '', parentKey: '', sortOrder: 0 })
 const keyTouched = ref(false) // 用户是否手改过 key
 
 // ===== 删除确认 =====
@@ -68,6 +69,12 @@ const parentOptions = computed(() => {
   return flat.value.filter((c) => !exclude.has(c.key))
 })
 
+/* 父级下拉（ThemeSelect）选项 */
+const parentSelectOptions = computed(() => [
+  { value: '', label: '（无，作为一级分类）' },
+  ...parentOptions.value.map((o) => ({ value: o.key, label: o.name, desc: o.key })),
+])
+
 function findByKey(key) {
   const walk = (nodes) => {
     for (const n of nodes) {
@@ -112,7 +119,7 @@ function onNameInput() {
 function openCreate(parentKey = '') {
   editingId.value = null
   keyTouched.value = false
-  form.value = { name: '', key: '', parentKey, sortOrder: 0, icon: '' }
+  form.value = { name: '', key: '', parentKey, sortOrder: 0 }
   showModal.value = true
 }
 
@@ -124,7 +131,6 @@ function openEdit(node) {
     key: node.key,
     parentKey: node.parentKey || '',
     sortOrder: node.sortOrder ?? 0,
-    icon: node.icon || '',
   }
   showModal.value = true
 }
@@ -144,7 +150,6 @@ async function save() {
     key: form.value.key.trim(),
     parentKey: form.value.parentKey || undefined,
     sortOrder: Number(form.value.sortOrder) || 0,
-    icon: form.value.icon.trim(),
   }
   try {
     if (editingId.value) {
@@ -260,7 +265,6 @@ function showToast(msg, type = 'success') {
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
-          <span v-if="node.icon" class="cat-icon">{{ node.icon }}</span>
           <span class="cat-name" :class="{ root: node.depth === 1 }">{{ node.name }}</span>
           <span class="cat-key">/ {{ node.key }}</span>
           <span class="cat-count" :class="{ zero: !node.articleCount }">{{ node.articleCount }}</span>
@@ -289,7 +293,7 @@ function showToast(msg, type = 'success') {
     <!-- 新建/编辑 Modal -->
     <Teleport to="body">
       <transition name="modal-fade">
-        <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+        <div v-if="showModal" class="modal-overlay" @mousedown.self="showModal = false" @click.self="showModal = false">
           <div class="modal-card" role="dialog" aria-modal="true" :aria-label="editingId ? '编辑分类' : '新建分类'">
             <div class="modal-head">
               <span class="modal-title">{{ editingId ? '编辑分类' : '新建分类' }}</span>
@@ -317,20 +321,11 @@ function showToast(msg, type = 'success') {
               </div>
               <div class="form-field">
                 <label class="field-label" for="cParent">父级</label>
-                <select id="cParent" v-model="form.parentKey">
-                  <option value="">（无，作为一级分类）</option>
-                  <option v-for="opt in parentOptions" :key="opt.key" :value="opt.key">{{ opt.name }} / {{ opt.key }}</option>
-                </select>
+                <ThemeSelect v-model="form.parentKey" aria-label="父级分类" :options="parentSelectOptions" />
               </div>
-              <div class="form-row">
-                <div class="form-field">
-                  <label class="field-label" for="cOrder">排序</label>
-                  <input id="cOrder" v-model="form.sortOrder" type="number" />
-                </div>
-                <div class="form-field">
-                  <label class="field-label" for="cIcon">图标</label>
-                  <input id="cIcon" v-model="form.icon" type="text" placeholder="可选" />
-                </div>
+              <div class="form-field">
+                <label class="field-label" for="cOrder">排序</label>
+                <input id="cOrder" v-model="form.sortOrder" type="number" />
               </div>
             </div>
             <div class="modal-foot">
@@ -345,7 +340,7 @@ function showToast(msg, type = 'success') {
     <!-- 删除确认 Modal -->
     <Teleport to="body">
       <transition name="modal-fade">
-        <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
+        <div v-if="showDeleteModal" class="modal-overlay" @mousedown.self="showDeleteModal = false" @click.self="showDeleteModal = false">
           <div class="modal-card modal-card--confirm" role="dialog" aria-modal="true" aria-label="确认删除">
             <div class="modal-head">
               <span class="modal-title">删除分类</span>
@@ -512,7 +507,6 @@ function showToast(msg, type = 'success') {
 .twisty:not(.collapsed) svg { transform: rotate(90deg); }
 .twisty.leaf { visibility: hidden; }
 
-.cat-icon { font-size: 15px; flex-shrink: 0; }
 .cat-name {
   font-size: 14px; font-weight: 500; color: var(--text-primary);
   letter-spacing: 0.01em;
@@ -679,13 +673,11 @@ function showToast(msg, type = 'success') {
   opacity: 0.75;
 }
 .input-mono { font-family: var(--font-mono); font-size: 13px; }
-.form-field select {
-  cursor: pointer; appearance: none; -webkit-appearance: none;
-  padding-right: 30px;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-}
+/* ThemeSelect 父级下拉 */
+.form-field :deep(.tsel) { width: 100%; display: flex; }
+.form-field :deep(.tsel__trigger) { width: 100%; background: var(--bg-soft); border-color: transparent; padding: 11px 13px; border-radius: var(--radius-sm); }
+.form-field :deep(.tsel__trigger:hover:not(:disabled)) { background-color: color-mix(in srgb, var(--bg-soft) 70%, var(--accent-light) 30%); }
+.form-field :deep(.tsel.open .tsel__trigger) { background: var(--bg-card); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
 .form-row { display: flex; gap: 14px; }
 .form-row .form-field { flex: 1; min-width: 0; }
 .hint {
