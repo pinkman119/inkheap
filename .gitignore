@@ -16,3 +16,9 @@ home.yaml
 snapshot.txt
 *_tmp.json
 *.tar
+.codebuddy
+.codegraph
+.vscode
+.idea
+.vacode
+.vscode
