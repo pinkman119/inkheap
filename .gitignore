@@ -7,7 +7,11 @@
 /files
 /backend-node/files
 /backend-node/node_modules
-/deploy
+# deploy 目录：脚本与文档纳入版本管理，仅忽略证书与镜像等产物
+/deploy/*.pem
+/deploy/*.key
+/deploy/*.tar
+/deploy/.env
 
 # 调试临时产物（截图/快照/日志）
 /.playwright-cli/
