@@ -236,6 +236,11 @@ function onKeydown(e) {
           <!-- 二层回复（不再提供回复入口） -->
           <div v-if="c.replies && c.replies.length" class="reply-list">
             <div v-for="r in c.replies" :key="r.id" class="reply-item">
+              <div class="reply-avatar" aria-hidden="true">
+                <img v-if="r.author.avatarUrl" :src="r.author.avatarUrl" alt="" loading="lazy" />
+                <template v-else>{{ (r.author.nickname || '?').slice(0, 1) }}</template>
+              </div>
+              <div class="reply-main">
               <div class="comment-meta">
                 <a
                   v-if="r.author.homepageUrl"
@@ -249,6 +254,7 @@ function onKeydown(e) {
                 <span class="comment-time">{{ formatTime(r.createdAt) }}</span>
               </div>
               <p class="comment-content">{{ r.content }}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -487,7 +493,36 @@ function onKeydown(e) {
 }
 
 .reply-item {
+  display: flex;
+  gap: 10px;
   padding: 8px 0;
+}
+
+.reply-avatar {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent, #2d8264);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.reply-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.reply-main {
+  flex: 1;
+  min-width: 0;
 }
 
 .reply-item + .reply-item {
