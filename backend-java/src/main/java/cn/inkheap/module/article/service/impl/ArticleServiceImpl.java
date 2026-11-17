@@ -301,13 +301,17 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     @Override
     public QueryWrapper getQueryWrapper(ArticleQueryRequest request) {
-        // 1、基础条件：type 固定 article；status=draft 才查草稿（与原有行为一致，all 不含草稿）
+        // 1、基础条件：type 固定 article；status 三态：all 不限、draft 只查草稿、其余按已发布
         QueryWrapper wrapper = QueryWrapper.create()
                 .eq(Article::getId, request.getId(), StrUtil.isNotBlank(request.getId()))
                 .eq(Article::getSlug, request.getSlug(), StrUtil.isNotBlank(request.getSlug()))
                 .eq(Article::getAuthor, request.getAuthor(), StrUtil.isNotBlank(request.getAuthor()))
-                .eq(Article::getType, "article")
-                .eq(Article::getPublished, !"draft".equals(request.getStatus()));
+                .eq(Article::getType, "article");
+        if ("draft".equals(request.getStatus())) {
+            wrapper.eq(Article::getPublished, false);
+        } else if (!"all".equals(request.getStatus())) {
+            wrapper.eq(Article::getPublished, true);
+        }
 
         // 2、分类：父分类展开为「自身 + 全部后代」，无有效 key 时用哨兵条件返回空集
         if (StrUtil.isNotBlank(request.getCategoryKey())) {

@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * 文章管理接口（后台）。注意 status=all 时依然不返回草稿（沿用原实现的反直觉行为）。
+ * 文章管理接口（后台）。status 三态：all 返回全部（含草稿）、draft 仅草稿、其余（含缺省）仅已发布。
  */
 @Tag(name = "文章（后台）")
 @Auth
@@ -39,7 +39,7 @@ public class ArticleAdminController {
     @Resource
     private ArticleService articleService;
 
-    @Operation(summary = "文章列表", description = "status=all 时仍只返回已发布文章（原实现行为）；声明返回 BaseResponse<PageVO>，实际响应体为 {items,total,page,pageSize,totalPages}")
+    @Operation(summary = "文章列表", description = "status：all=全部（含草稿）/ draft=仅草稿 / 其他或缺省=仅已发布；声明返回 BaseResponse<PageVO>，实际响应体为 {items,total,page,pageSize,totalPages}")
     @GetMapping
     public BaseResponse<PageVO<ArticleVO>> findAll(ArticleQueryRequest request) {
         return ResultUtils.ok(articleService.findAll(request));
