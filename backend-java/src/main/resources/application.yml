@@ -1,0 +1,111 @@
+server:
+  # 端口固定 3000：前端 useApi.js 与 vite 代理均硬编码 localhost:3000，开发期零改动
+  port: ${PORT:3000}
+  shutdown: graceful
+  tomcat:
+    connection-timeout: 60s
+  error:
+    whitelabel:
+      enabled: false
+
+spring:
+  application:
+    name: inkheap-java
+  profiles:
+    active: ${PROFILE:dev}
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://127.0.0.1:5432/personal_profile}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 10000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: inkheap-hikari
+  jackson:
+    default-property-inclusion: always
+    serialization:
+      write-dates-as-timestamps: false
+      fail-on-empty-beans: false
+    time-zone: Asia/Shanghai
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:465}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASS:}
+    default-encoding: UTF-8
+    properties:
+      mail:
+        transport:
+          protocol: smtp
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          starttls:
+            enable: false
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 800ms
+      connect-timeout: 800ms
+      lettuce:
+        shutdown-timeout: 100ms
+
+mybatis-flex:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    print-banner: false
+    logic-delete-column:
+    normal-value-of-logic-delete:
+    deleted-value-of-logic-delete:
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+  group-configs:
+    - group: default
+      packages-to-scan: cn.inkheap.module
+
+app:
+  # 上传文件落盘目录，静态映射到 /files/**（不带 /api 前缀）
+  upload-dir: ${UPLOAD_DIR:./files}
+  mail-from: ${SMTP_FROM:墨堆 <noreply@inkheap.com>}
+  # AES-256-GCM 密钥：必须与 Node 端 APP_ENCRYPTION_KEY 一致，否则老数据无法解密
+  encryption-key: ${APP_ENCRYPTION_KEY:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+  jwt:
+    secret: ${JWT_SECRET:inkheap-admin-secret-key-2026}
+    admin-expire-days: 7
+    user-expire-days: 14
+  retention:
+    visit-log-days: ${VISIT_LOG_RETENTION_DAYS:180}
+    content-view-days: ${CONTENT_VIEW_RETENTION_DAYS:90}
+  site:
+    timezone: Asia/Shanghai
+
+logging:
+  level:
+    root: info
+    cn.inkheap: info

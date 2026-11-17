@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://127.0.0.1:5432/personal_profile}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 20
+
+knife4j:
+  # 生产环境默认关闭接口文档
+  enable: ${KNIFE4J_ENABLE:false}
+
+logging:
+  level:
+    root: warn
+    cn.inkheap: info
