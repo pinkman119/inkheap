@@ -60,13 +60,14 @@
             </div>
           </div>
           <p class="lede">管理站点全部文章，按分类、状态与关键词检索。</p>
-          <p class="hero-note">{{ total ?? '—' }} 篇文章 · 当前筛选：{{ statusFilter === 'published' ? '已发布' : '草稿' }} · 拖拽行调整顺序（前台同步） · 列表内滚动自动加载</p>
+          <p class="hero-note">{{ total ?? '—' }} 篇文章 · 当前筛选：{{ statusLabel }} · 拖拽行调整顺序（前台同步） · 列表内滚动自动加载</p>
         </div>
       </div>
 
       <div class="card">
         <div class="toolbar">
           <div class="seg">
+            <button class="seg__item" :class="{ active: statusFilter === 'all' }" @click="setStatus('all')">全部</button>
             <button class="seg__item" :class="{ active: statusFilter === 'published' }" @click="setStatus('published')">已发布</button>
             <button class="seg__item" :class="{ active: statusFilter === 'draft' }" @click="setStatus('draft')">草稿</button>
           </div>
@@ -218,7 +219,7 @@ export default {
       allExpanded: true,
       selectedCategoryKey: null,
       searchInput: '',
-      statusFilter: 'published',
+      statusFilter: 'all',
       articles: [],
       total: null,
       allTotal: null,
@@ -248,6 +249,11 @@ export default {
   computed: {
     hasMore() {
       return this.page < this.totalPages
+    },
+    statusLabel() {
+      if (this.statusFilter === 'draft') return '草稿'
+      if (this.statusFilter === 'all') return '全部（含草稿）'
+      return '已发布'
     },
     flatNodes() {
       const out = []
@@ -404,7 +410,7 @@ export default {
     onFilterChange() { this.loadArticles(true); this.scrollTopReset() },
     resetFilters() {
       this.searchInput = ''
-      this.statusFilter = 'published'
+      this.statusFilter = 'all'
       this.selectCategory(null)
     },
     selectCategory(key) {
@@ -478,12 +484,18 @@ export default {
       const next = !a.published
       try {
         await api.put(`/admin/articles/${a.id}`, { published: next })
-        // 发布/回收后文章已不属于当前状态筛选视图，直接从列表移除该卡片，
-        // 避免带着原状态过滤重新拉取导致整页数据“消失”。
-        const idx = this.articles.findIndex((x) => x.id === a.id)
-        if (idx >= 0) {
-          this.articles.splice(idx, 1)
-          if (typeof this.total === 'number') this.total = Math.max(0, this.total - 1)
+        if (this.statusFilter === 'all') {
+          // 「全部」视图同时展示草稿与已发布，切换状态后文章仍在列表中，只更新状态徽标
+          const target = this.articles.find((x) => x.id === a.id)
+          if (target) target.published = next
+        } else {
+          // 按状态筛选时文章不再属于当前视图，直接从列表移除该卡片，
+          // 避免带着原状态过滤重新拉取导致整页数据“消失”。
+          const idx = this.articles.findIndex((x) => x.id === a.id)
+          if (idx >= 0) {
+            this.articles.splice(idx, 1)
+            if (typeof this.total === 'number') this.total = Math.max(0, this.total - 1)
+          }
         }
         // 发布/回收会改变分类下已发布文章数量与“全部”计数，刷新左侧分类树与总数
         await Promise.all([this.loadCategories(), this.syncTotals()])
