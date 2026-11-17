@@ -196,6 +196,12 @@ const adminRoutes = [
     component: () => import('@/views/admin/about/EventsManageView.vue'),
     meta: { title: '关于我·事件日历 · 墨堆 Admin', layout: 'layout-admin', auth: true },
   },
+  {
+    path: '/admin/about/travels',
+    name: 'admin-about-travels',
+    component: () => import('@/views/admin/about/TravelsManageView.vue'),
+    meta: { title: '关于我·旅行 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
   // ===== 数字生命管理 =====
   {
     path: '/admin/digital-life/model',
@@ -214,6 +220,12 @@ const adminRoutes = [
     name: 'admin-digital-life-training',
     component: () => import('@/views/admin/digitallife/TrainingManageView.vue'),
     meta: { title: '数字生命·训练管理 · 墨堆 Admin', layout: 'layout-admin', auth: true },
+  },
+  {
+    path: '/admin/digital-life/sessions',
+    name: 'admin-digital-life-sessions',
+    component: () => import('@/views/admin/digitallife/SessionListView.vue'),
+    meta: { title: '数字生命·会话列表 · 墨堆 Admin', layout: 'layout-admin', auth: true },
   },
   // ===== 系统管理 =====
   {

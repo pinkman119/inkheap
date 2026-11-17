@@ -2,6 +2,7 @@
 
 /frontend/node_modules
 /backend/target
+/backend-java/target
 
 # 上传文件目录（运行时生成，含头像等）
 /files

@@ -472,6 +472,7 @@ onUnmounted(() => {
           <span class="kicker">Sessions · 会话</span>
           <h2 class="recent-title">会话列表</h2>
           <span class="recent-count">共 {{ fmt(sessions.total) }} 个会话</span>
+          <router-link class="recent-all" to="/admin/digital-life/sessions">全部会话 →</router-link>
           <div class="session-search">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             <input
@@ -1085,6 +1086,11 @@ onUnmounted(() => {
   color: var(--text-primary); letter-spacing: 0.02em; line-height: 1;
 }
 .recent-count { font-family: var(--font-mono); font-size: 12.5px; color: var(--text-tertiary); }
+.recent-all {
+  font-size: 12.5px; color: var(--accent); text-decoration: none;
+  transition: opacity var(--transition);
+}
+.recent-all:hover { opacity: 0.75; }
 .session-search {
   margin-left: auto; position: relative; display: flex; align-items: center;
   min-width: 220px; max-width: 320px; flex: 1;
