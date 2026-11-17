@@ -1,0 +1,482 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id           String    @id @default(uuid())
+  username     String    @unique
+  password     String
+  role         String    @default("admin")
+  // 头像地址：上传接口返回的 /files/... 相对路径或外链，为空时前端回退为用户名首字
+  avatar       String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  lastLoginAt  DateTime? @map("last_login_at")
+  remark       String?
+  status       String    @default("active")
+
+  @@map("admin_users")
+}
+
+model Article {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  title       String
+  summary     String?
+  content     String
+  coverImage  String?  @map("cover_image")
+  categoryKey String   @map("category_key")
+  tags        String   @default("[]")
+  author      String
+  // 作者主页链接：为空时前台点击作者默认跳转站点首页
+  authorUrl   String?  @map("author_url")
+  published   Boolean  @default(false)
+  featured    Boolean  @default(false)
+  // 真实阅读量：按「同一 IP 每天最多计一次」去重后的累计值
+  viewCount   Int      @default(0) @map("view_count")
+  // 虚拟阅读量：null = 未设置（前台展示真实值）；>= 0 时前台直接展示该值，真实值仅后台可见
+  virtualViewCount Int? @map("virtual_view_count")
+  type        String   @default("article") @map("type")
+  // 排序权重：升序展示，数值越小越靠前。后台可拖拽调整，前台列表按同一顺序渲染。
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  trainType   Int      @default(0) @map("train_type")
+
+  @@map("articles")
+}
+
+model HomePage {
+  id String @id @default("home")
+  siteName String @default("INKHEAP") @map("site_name")
+  // 通用配置：对应模式的专属配置为空时回退到这里
+  personTitle String @default("Digital Gardener & Lifelong Learner") @map("person_title")
+  codeContent String @default("") @map("code_content")
+  // 工作模式专属
+  workPersonTitle String @default("") @map("work_person_title")
+  workCodeContent String @default("") @map("work_code_content")
+  // 生活模式专属
+  lifePersonTitle String @default("") @map("life_person_title")
+  lifeCodeContent String @default("") @map("life_code_content")
+  avatar String? @map("avatar")
+  // 首页头像下方的社交链接，JSON 字符串：[{ label, url, icon, svg }]
+  socialLinks String @default("[]") @map("social_links")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("home_page")
+}
+
+model File {
+  id           String   @id @default(uuid())
+  filename     String   @map("filename")
+  originalName String?  @map("original_name")
+  url          String   @unique @map("url")
+  mimeType     String?  @map("mime_type")
+  size         Int
+  relativePath String   @map("relative_path")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("files")
+}
+
+model Resume {
+  id        String   @id @default(uuid())
+  name      String   @default("默认版本")
+  content   String   @default("{}")
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  trainType Int      @default(0) @map("train_type")
+
+  @@map("resume")
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  name      String
+  parentKey String?  @map("parent_key")
+  sortOrder Int      @default(0) @map("sort_order")
+  icon      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("categories")
+}
+
+model Blog {
+  id        String   @id @default(uuid())
+  slug      String   @unique
+  title     String
+  type      String   @default("album")
+  tags      String   @default("[]")
+  content   String   @default("")
+  summary   String?
+  quote     String?
+  location  String?
+  date      String?
+  photos    String   @default("[]")
+  published Boolean  @default(false)
+  // 真实阅读量：按「同一 IP 每天最多计一次」去重后的累计值
+  viewCount Int      @default(0) @map("view_count")
+  // 虚拟阅读量：null = 未设置（前台展示真实值）；>= 0 时前台直接展示该值，真实值仅后台可见
+  virtualViewCount Int? @map("virtual_view_count")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  trainType Int      @default(0) @map("train_type")
+
+  // 足迹 ↔ 小记 1-1 绑定：在小记编辑页选择足迹时建立；删除小记时置空
+  footprint AboutFootprint?
+
+  @@map("blogs")
+}
+
+model BlogCategory {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("blog_categories")
+}
+
+model AboutProfile {
+  id              String   @id @default("about")
+  kicker          String   @default("About Me")
+  lede            String   @default("")
+  evaluationQuote String   @default("") @map("evaluation_quote")
+  evaluationBy    String   @default("") @map("evaluation_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  trainType       Int      @default(0) @map("train_type")
+
+  @@map("about_profile")
+}
+
+model AboutFootprint {
+  id        String   @id @default(uuid())
+  province  String
+  place     String
+  time      String
+  location  String
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  trainType Int      @default(0) @map("train_type")
+  elevation String   @default("—")
+
+  // 绑定的小记（在小记编辑页选择足迹时写入）；删除小记时自动置空
+  blogId String? @unique @map("blog_id")
+  blog   Blog?   @relation(fields: [blogId], references: [id])
+
+  @@map("about_footprints")
+}
+
+model AboutTravel {
+  id        String   @id @default(uuid())
+  glyph     String
+  place     String
+  meta      String
+  note      String
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  trainType Int      @default(0) @map("train_type")
+
+  @@map("about_travels")
+}
+
+model AboutEvent {
+  id        String   @id @default(uuid())
+  date      DateTime
+  title     String
+  desc      String
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  trainType Int      @default(0) @map("train_type")
+  isRing    Boolean  @default(false) @map("is_ring")
+
+  @@map("about_events")
+}
+
+model SiteVisit {
+  id        String   @id @default(uuid())
+  day       DateTime @unique
+  count     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_visits")
+}
+
+// 访问明细：前台每次 PV 上报落一条，供后台「最近访问」列表展示（时间 / IP / 地区）。
+// ip 为明文存储（仅后台可见）；保留期由 VISIT_LOG_RETENTION_DAYS 控制（默认 180 天，<=0 表示永久保留）。
+model VisitLog {
+  id        String   @id @default(uuid())
+  // 当天 Asia/Shanghai 零点对应的 UTC 时刻，与 SiteVisit 的自然日口径对齐
+  day       DateTime @map("day")
+  ip        String
+  region    String   @default("未知")
+  path      String   @default("/")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([ip])
+  @@map("visit_logs")
+}
+
+// 阅读明细：同一 IP 对同一内容每天最多落一条，阅读量按该表去重计数。
+// ip 为明文存储（后台可查访客明细），保留期由 CONTENT_VIEW_RETENTION_DAYS 控制（默认 90 天）。
+model ContentView {
+  id         String   @id @default(uuid())
+  // article = 知识库文章，note = 小记
+  targetType String   @map("target_type")
+  targetId   String   @map("target_id")
+  ip         String
+  // 当天 Asia/Shanghai 零点对应的 UTC 时刻，用于按「自然日」去重
+  day        DateTime @map("day")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([targetType, targetId, ip, day])
+  @@index([targetType, day])
+  @@index([createdAt])
+  @@map("content_views")
+}
+
+model ContactMessage {
+  id        String   @id @default(uuid())
+  name      String?
+  email     String?
+  phone     String?
+  subject   String?  @map("subject")
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  contact   String?  @map("contact")
+
+  @@index([createdAt])
+  @@map("contact_messages")
+}
+
+model WechatUser {
+  id        String   @id @default(uuid())
+  openid    String   @unique
+  nickname  String   @default("微信用户")
+  avatar    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("wechat_users")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  sessionId String?  @map("session_id")
+  role      String
+  content   String
+  ip        String?  @map("ip")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, sessionId, createdAt])
+  @@map("chat_messages")
+}
+
+model DlModel {
+  id        String   @id @default(uuid())
+  name      String
+  provider  String
+  modelId   String   @map("model_id")
+  enabled   Boolean  @default(false)
+  sortOrder Int      @default(0) @map("sort_order")
+  apiKeyEnc String?  @map("api_key_enc")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  modelType String   @default("general") @map("type")
+
+  @@map("dl_models")
+}
+
+model DlPersona {
+  id              String   @id @default(uuid())
+  name            String
+  greeting        String   @default("")
+  description     String   @default("")
+  // 基本信息：站主填写的事实性资料（姓名/职业/城市/兴趣等），注入 system prompt 供前台问答
+  basicInfo       String   @default("") @map("basic_info")
+  styleHint       String   @default("") @map("style_hint")
+  accentColor     String   @default("#2d8264") @map("accent_color")
+  avatarEmoji     String   @default("") @map("avatar_emoji")
+  personalityType String   @default("") @map("personality_type")
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("dl_personas")
+}
+
+// dl_vectors 表由 prisma/pgvector-init.ts 与 VectorService 原生 SQL 管理，
+// 此处仅保留定义以兼容 schema 自检（Prisma 不支持 vector 列）。
+model dl_vectors {
+  id          String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ref_type    String
+  ref_id      String
+  chunk_index Int
+  content     String
+  embedding   Unsupported("vector")
+  created_at  DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime              @default(now()) @db.Timestamptz(6)
+
+  @@unique([ref_type, ref_id, chunk_index])
+}
+
+model FooterLink {
+  id        String   @id @default(uuid())
+  // nav = 导航（站内路由），ext = 扩展（外链），social = 社交图标（圆形图标栏）
+  type      String
+  mode      Int      @default(0)
+  label     String
+  url       String
+  // 社交图标：icon = 预设图标 key；svg = 自定义 SVG 源码（优先级更高）
+  icon      String?
+  svg       String?
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([type, sortOrder])
+  @@map("footer_links")
+}
+
+// 友链（前台「邻居」页）：后台维护，落库的条目即为「已通过申请」的友链，
+// 前台只展示这里的数据 —— 未经审核通过的申请不会进入本表。
+model FriendLink {
+  id        String   @id @default(uuid())
+  name      String
+  url       String
+  // 头像地址；为空时前台用昵称首字兜底
+  avatar    String?
+  desc      String?
+  // 一句话标签（列表右侧文字），如「技术周刊」
+  tag       String?
+  // 分组：技术 / 设计 / 阅读 / 生活 / 本站，用于前台筛选
+  group     String?
+  // 通过申请时带入的留言，非空时会出现在前台「邻居留言」
+  message   String?
+  // 0 = 全模式显示；1 = 仅工作模式；2 = 仅生活模式
+  mode      Int      @default(0)
+  // active = 正常；dormant = 失联（前台置灰但仍保留条目）
+  status    String   @default("active")
+  // 本站自己（前台高亮 + 用品牌印记代替头像）
+  isSelf     Boolean  @default(false) @map("is_self")
+  sortOrder  Int      @default(0) @map("sort_order")
+  // 来源申请：由审核通过生成时记录，用于「同一申请不重复建链」
+  applicationId String? @unique @map("application_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([sortOrder, createdAt])
+  @@map("friend_links")
+}
+
+// 友链加入申请：前台「申请加入」提交的每一条评论都会在这里生成一条申请，
+// 后台审核通过后才会写入 friend_links 并展示到前台。
+model FriendApplication {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  url       String
+  // 申请时填写的站点头像；通过后会带入生成的友链
+  avatar    String?
+  type      String   @default("其他")
+  message   String?
+  // pending = 待审核；approved = 已通过；rejected = 已拒绝
+  status    String   @default("pending")
+  // 后台备注（拒绝原因等）
+  remark    String?
+  // 通过后生成的友链 id
+  linkId    String?  @map("link_id")
+  handledAt DateTime? @map("handled_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@map("friend_applications")
+}
+
+// 页脚全局配置：与 footer_links（多条链接）互补的单条记录，id 固定为 footer
+model FooterConfig {
+  id String @id @default("footer")
+  // 备案号，如「苏ICP备2024125779号」；为空则前台不展示备案信息
+  icpNo String @default("") @map("icp_no")
+  // 备案号跳转地址；为空时前台回退到工信部备案查询系统
+  icpUrl String @default("") @map("icp_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("footer_config")
+}
+
+// 邮箱注册用户（前台访客账号体系）：
+// password 存 AES-256-GCM 密文（复用 APP_ENCRYPTION_KEY），支持找回密码时解密明文发邮件。
+model EmailUser {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  password    String
+  nickname    String
+  // 用户主站链接（注册时可选填写）
+  homepageUrl String?   @map("homepage_url")
+  // 头像地址（URL）：注册时可选填写，评论区 / 数字生命聊天 / 后台用户列表展示；为空回退昵称首字
+  avatarUrl   String?   @map("avatar_url")
+  status      String    @default("active")
+  lastLoginAt DateTime? @map("last_login_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("email_users")
+}
+
+// 评论：挂在知识库文章 / 小记下，一层盖楼。
+// parentId = null 为顶层；非空必须指向同 target 下的顶层评论（回复的回复仍挂同一顶层）。
+// replyToUserId 冗余存储被回复人，仅用于前台显示「回复 @昵称」。
+model Comment {
+  id             String   @id @default(uuid())
+  // article = 知识库文章，note = 小记（与 ContentView 口径一致）
+  targetType     String   @map("target_type")
+  targetId       String   @map("target_id")
+  userId         String   @map("user_id")
+  content        String
+  parentId       String?  @map("parent_id")
+  replyToUserId  String?  @map("reply_to_user_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([targetType, targetId, createdAt])
+  @@index([parentId])
+  @@map("comments")
+}
+
+// 站点全局配置：单条记录，id 固定为 site；RSS feed（/api/feed.xml）等对外输出使用
+model SiteConfig {
+  id String @id @default("site")
+  // 站点对外访问地址，如「https://inkheap.com」（无尾斜杠）；RSS 条目链接拼接的基础，留空则回退请求 Host
+  siteUrl String @default("") @map("site_url")
+  // 站点名称，RSS channel 标题；留空则回退「墨堆」
+  siteTitle String @default("") @map("site_title")
+  // 站点描述，RSS channel description
+  siteDescription String @default("") @map("site_description")
+  // 站点作者，RSS channel managingEditor
+  author String @default("")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_config")
+}
