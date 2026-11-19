@@ -4,7 +4,7 @@ import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.inkheap.common.exception.BusinessException;
 import cn.inkheap.module.digitallife.cache.ChatContextCache;
-import cn.inkheap.module.digitallife.client.ModelClient;
+import cn.inkheap.module.digitallife.client.ChatModelRouter;
 import cn.inkheap.module.digitallife.constant.DigitalLifeDefaults;
 import cn.inkheap.module.digitallife.entity.ChatMessage;
 import cn.inkheap.module.digitallife.entity.DlPersona;
@@ -39,7 +39,7 @@ public class ChatServiceImpl implements ChatService {
 
     private final VectorService vectorService;
 
-    private final ModelClient modelClient;
+    private final ChatModelRouter chatModelRouter;
 
     private final ChatContextCache chatContextCache;
 
@@ -87,39 +87,15 @@ public class ChatServiceImpl implements ChatService {
         }
         messages.add(Map.of("role", "user", "content", content));
 
-        // 5、通用模型按顺序尝试（未指定则自动 fallback）
+        // 5、通用模型按顺序尝试（未指定则自动 fallback，已出字不再切换）
         List<ModelConfigService.ActiveModel> models = modelConfigService.getActiveModels(options.modelId());
-        StringBuilder full = new StringBuilder();
-        String lastError = "";
-
-        for (ModelConfigService.ActiveModel model : models) {
-            try {
-                modelClient.streamChat(
-                        DigitalLifeDefaults.baseUrlOf(model.model().getProvider()),
-                        model.apiKey(),
-                        model.model().getModelId(),
-                        messages,
-                        text -> {
-                            full.append(text);
-                            options.onDelta().accept(text);
-                        });
-                lastError = "";
-                break;
-            } catch (Exception e) {
-                lastError = e.getMessage() == null ? "生成失败" : e.getMessage();
-                log.warn("模型「{}」生成失败: {}", model.model().getName(), lastError);
-                if (full.length() > 0) {
-                    // 已有输出（流中断）：不再切换模型，保留已生成部分
-                    break;
-                }
-            }
-        }
+        ChatModelRouter.StreamResult result = chatModelRouter.stream(models, messages, options.onDelta());
 
         // 6、结果处理
-        if (full.isEmpty()) {
-            log.error("全部模型生成失败: {}", lastError);
-            options.onError().accept(lastError.isEmpty() ? "生成回复失败，请稍后再试"
-                    : "生成回复失败：" + lastError + "（已尝试 " + models.size() + " 个启用的模型）");
+        if (!result.success()) {
+            log.error("全部模型生成失败: {}", result.lastError());
+            options.onError().accept(result.lastError().isEmpty() ? "生成回复失败，请稍后再试"
+                    : "生成回复失败：" + result.lastError() + "（已尝试 " + models.size() + " 个启用的模型）");
             return;
         }
 
@@ -129,14 +105,14 @@ public class ChatServiceImpl implements ChatService {
                 .userId(userId)
                 .sessionId(sessionId)
                 .role("assistant")
-                .content(full.toString())
+                .content(result.content())
                 .ip(options.ip())
                 .createdAt(Instant.now())
                 .build();
         chatMessageMapper.insert(assistantMessage);
         chatContextCache.append(userId, sessionId, assistantMessage);
 
-        options.onDone().accept(assistantMessage.getId(), full.toString());
+        options.onDone().accept(assistantMessage.getId(), result.content());
     }
 
     /**

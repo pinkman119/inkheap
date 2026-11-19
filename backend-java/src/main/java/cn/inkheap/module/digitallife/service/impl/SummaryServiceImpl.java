@@ -2,8 +2,8 @@ package cn.inkheap.module.digitallife.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import cn.inkheap.common.exception.BusinessException;
+import cn.inkheap.module.digitallife.client.ChatModelRouter;
 import cn.inkheap.module.digitallife.client.ModelClient;
-import cn.inkheap.module.digitallife.constant.DigitalLifeDefaults;
 import cn.inkheap.module.digitallife.service.ModelConfigService;
 import cn.inkheap.module.digitallife.service.SummaryService;
 import lombok.RequiredArgsConstructor;
@@ -45,7 +45,7 @@ public class SummaryServiceImpl implements SummaryService {
 
     private final ModelConfigService modelConfigService;
 
-    private final ModelClient modelClient;
+    private final ChatModelRouter chatModelRouter;
 
     @Override
     public String generate(String content, String title) {
@@ -76,26 +76,13 @@ public class SummaryServiceImpl implements SummaryService {
                 Map.of("role", "system", "content", systemPrompt),
                 Map.of("role", "user", "content", human.toString()));
 
-        // 3、无可用模型（未启用 / 未配置 Key）时抛 409
+        // 3、按 sortOrder 依次尝试；全部失败（或无可用模型）时转 500
         List<ModelConfigService.ActiveModel> models = modelConfigService.getActiveModels(null);
-        String lastError = "";
-        for (ModelConfigService.ActiveModel model : models) {
-            try {
-                String reply = modelClient.chat(DigitalLifeDefaults.baseUrlOf(model.model().getProvider()),
-                        model.apiKey(), model.model().getModelId(), messages);
-                String summary = normalize(reply);
-                if (!summary.isEmpty()) {
-                    return summary;
-                }
-                lastError = "模型返回内容为空";
-            } catch (Exception e) {
-                lastError = e.getMessage() == null ? "生成失败" : e.getMessage();
-                log.warn("摘要生成失败（模型「{}」）：{}", model.model().getName(), lastError);
-            }
+        try {
+            return chatModelRouter.chat(models, messages, this::normalize);
+        } catch (ModelClient.ModelException e) {
+            throw BusinessException.serverError("生成摘要失败：" + e.getMessage());
         }
-
-        throw BusinessException.serverError(
-                lastError.isEmpty() ? "生成摘要失败，请稍后再试" : "生成摘要失败：" + lastError);
     }
 
     private String normalize(String raw) {
