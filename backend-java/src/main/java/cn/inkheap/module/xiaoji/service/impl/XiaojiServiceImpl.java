@@ -268,23 +268,48 @@ public class XiaojiServiceImpl extends ServiceImpl<BlogMapper, Blog> implements 
             slug = buildUniqueSlug(base, id);
         }
 
-        // 5、构建更新对象并回写（null 字段由 updateById(ignoreNulls=false) 语义保留）
-        Blog update = Blog.builder()
-                .id(id)
-                .title(request.getTitle())
-                .type(request.getType())
-                .content(request.getContent())
-                .summary(request.getSummary() == null ? null : StrUtil.emptyToNull(request.getSummary()))
-                .quote(request.getQuote() == null ? null : StrUtil.emptyToNull(request.getQuote()))
-                .photos(request.getPhotos() == null ? null : JsonUtils.toJson(request.getPhotos()))
-                .date(request.getDate() == null ? null : StrUtil.emptyToNull(request.getDate()))
-                .published(request.getPublished())
-                .virtualViewCount(request.getVirtualViewCount())
-                .tags(request.getTags() == null ? null : JsonUtils.toJson(saveTags(request.getTags())))
-                .location(location)
-                .slug(slug)
-                .updatedAt(Instant.now())
-                .build();
+        // 5、在原值上回写：updateById(..., false) 会把实体里的 null 一并写库，
+        //    先复制原值可保证 slug / content / published 等非空列不被清成 null
+        Blog update = new Blog();
+        BeanUtil.copyProperties(existing, update);
+        if (request.getTitle() != null) {
+            update.setTitle(request.getTitle());
+        }
+        if (request.getType() != null) {
+            update.setType(request.getType());
+        }
+        if (request.getContent() != null) {
+            update.setContent(request.getContent());
+        }
+        // 空字符串表示清空可选字段
+        if (request.getSummary() != null) {
+            update.setSummary(StrUtil.emptyToNull(request.getSummary()));
+        }
+        if (request.getQuote() != null) {
+            update.setQuote(StrUtil.emptyToNull(request.getQuote()));
+        }
+        if (request.getPhotos() != null) {
+            update.setPhotos(JsonUtils.toJson(request.getPhotos()));
+        }
+        if (request.getDate() != null) {
+            update.setDate(StrUtil.emptyToNull(request.getDate()));
+        }
+        if (request.getPublished() != null) {
+            update.setPublished(request.getPublished());
+        }
+        if (request.getVirtualViewCount() != null) {
+            update.setVirtualViewCount(request.getVirtualViewCount());
+        }
+        if (request.getTags() != null) {
+            update.setTags(JsonUtils.toJson(saveTags(request.getTags())));
+        }
+        if (request.getFootprintId() != null || request.getLocation() != null) {
+            update.setLocation(location);
+        }
+        if (slug != null) {
+            update.setSlug(slug);
+        }
+        update.setUpdatedAt(Instant.now());
         this.updateById(update, false);
 
         // 6、同步足迹绑定（footprintId 传入即生效，空串表示解绑）

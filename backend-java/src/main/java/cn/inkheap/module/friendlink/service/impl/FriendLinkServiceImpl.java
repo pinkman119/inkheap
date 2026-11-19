@@ -1,5 +1,6 @@
 package cn.inkheap.module.friendlink.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.inkheap.common.exception.BusinessException;
@@ -144,11 +145,17 @@ public class FriendLinkServiceImpl extends ServiceImpl<FriendLinkMapper, FriendL
         // 1、确认存在并取出原值
         FriendLink existing = findOne(id);
 
-        // 2、逐个字段覆盖（空字符串表示清空可选字段）
+        // 2、基于原值覆盖：updateById(..., false) 会把实体里的 null 一并写库，
+        //    先复制原值，避免 created_at / is_self / application_id 等必填列被清成 null
         FriendLink update = new FriendLink();
-        update.setId(id);
-        update.setName(request.getName());
-        update.setUrl(request.getUrl());
+        BeanUtil.copyProperties(existing, update);
+        if (request.getName() != null) {
+            update.setName(request.getName());
+        }
+        if (request.getUrl() != null) {
+            update.setUrl(request.getUrl());
+        }
+        // 空字符串表示清空可选字段
         if (request.getAvatar() != null) {
             update.setAvatar(StrUtil.emptyToNull(request.getAvatar()));
         }
@@ -164,10 +171,18 @@ public class FriendLinkServiceImpl extends ServiceImpl<FriendLinkMapper, FriendL
         if (request.getMessage() != null) {
             update.setMessage(StrUtil.emptyToNull(request.getMessage()));
         }
-        update.setMode(request.getMode());
-        update.setStatus(request.getStatus());
-        update.setIsSelf(request.getIsSelf());
-        update.setSortOrder(request.getSortOrder());
+        if (request.getMode() != null) {
+            update.setMode(request.getMode());
+        }
+        if (request.getStatus() != null) {
+            update.setStatus(request.getStatus());
+        }
+        if (request.getIsSelf() != null) {
+            update.setIsSelf(request.getIsSelf());
+        }
+        if (request.getSortOrder() != null) {
+            update.setSortOrder(request.getSortOrder());
+        }
         update.setUpdatedAt(Instant.now());
         this.updateById(update, false);
 
@@ -185,14 +200,16 @@ public class FriendLinkServiceImpl extends ServiceImpl<FriendLinkMapper, FriendL
 
         // 3、来源申请退回待审核，允许重新通过
         if (StrUtil.isNotBlank(link.getApplicationId())) {
-            FriendApplication application = FriendApplication.builder()
-                    .id(link.getApplicationId())
-                    .status("pending")
-                    .linkId(null)
-                    .handledAt(null)
-                    .updatedAt(Instant.now())
-                    .build();
-            applicationMapper.update(application, false);
+            // 先取原值再改：update(..., false) 会把未赋值字段写成 null，撞上 name / email / url 等非空约束
+            // 申请可能已被删除，取不到时跳过，保持「删友链不影响其他数据」的原行为
+            FriendApplication application = applicationMapper.selectOneById(link.getApplicationId());
+            if (application != null) {
+                application.setStatus("pending");
+                application.setLinkId(null);
+                application.setHandledAt(null);
+                application.setUpdatedAt(Instant.now());
+                applicationMapper.update(application, false);
+            }
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
@@ -329,20 +346,21 @@ public class FriendLinkServiceImpl extends ServiceImpl<FriendLinkMapper, FriendL
             sortOrder = (last == null || last.getSortOrder() == null ? -1 : last.getSortOrder()) + 1;
         }
 
-        // 3、申请置为已通过
-        FriendApplication updateApplication = FriendApplication.builder()
-                .id(application.getId())
-                .status("approved")
-                .handledAt(Instant.now())
-                .remark("")
-                .updatedAt(Instant.now())
-                .build();
-        applicationMapper.update(updateApplication, false);
+        // 3、申请置为已通过（在原值上改，避免 update(..., false) 把 name / email / url 等非空列写成 null）
+        application.setStatus("approved");
+        application.setHandledAt(Instant.now());
+        application.setRemark("");
+        application.setUpdatedAt(Instant.now());
+        applicationMapper.update(application, false);
 
         // 4、按 applicationId upsert 友链（保证同一申请不重复建链）
         FriendLink existing = this.getOne(QueryWrapper.create()
                 .eq(FriendLink::getApplicationId, application.getId()).limit(1));
         FriendLink link = new FriendLink();
+        if (existing != null) {
+            // 先复制原值：下面 updateById(..., false) 会把未赋值字段写成 null（created_at / is_self 等非空列）
+            BeanUtil.copyProperties(existing, link);
+        }
         link.setName(StrUtil.isNotBlank(dto.getName()) ? dto.getName() : application.getName());
         link.setUrl(StrUtil.isNotBlank(dto.getUrl()) ? dto.getUrl() : application.getUrl());
         link.setAvatar(StrUtil.isNotBlank(dto.getAvatar()) ? dto.getAvatar()
@@ -382,17 +400,14 @@ public class FriendLinkServiceImpl extends ServiceImpl<FriendLinkMapper, FriendL
 
     @Override
     public FriendApplication reject(String id, String remark) {
-        // 1、确认存在
-        findApplication(id);
+        // 1、确认存在并取出原值
+        FriendApplication update = findApplication(id);
 
-        // 2、置为已拒绝并记录原因
-        FriendApplication update = FriendApplication.builder()
-                .id(id)
-                .status("rejected")
-                .remark(StrUtil.emptyToNull(remark))
-                .handledAt(Instant.now())
-                .updatedAt(Instant.now())
-                .build();
+        // 2、置为已拒绝并记录原因（在原值上改，避免把 name / email / url 等非空列写成 null）
+        update.setStatus("rejected");
+        update.setRemark(StrUtil.emptyToNull(remark));
+        update.setHandledAt(Instant.now());
+        update.setUpdatedAt(Instant.now());
         applicationMapper.update(update, false);
 
         return findApplication(id);
