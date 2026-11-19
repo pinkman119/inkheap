@@ -3,10 +3,8 @@ package cn.inkheap.module.digitallife.client;
 import cn.inkheap.common.util.JsonUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.document.MetadataMode;
 import org.springframework.ai.embedding.Embedding;
 import org.springframework.ai.embedding.EmbeddingResponse;
@@ -75,8 +73,12 @@ public class ModelClient {
      */
     public String chat(String baseUrl, String apiKey, String model, List<Message> messages) {
         try {
-            ChatResponse response = chatModel(baseUrl, apiKey, model).call(new Prompt(messages));
-            return textOf(response);
+            String content = chatClient(baseUrl, apiKey, model)
+                    .prompt()
+                    .messages(messages)
+                    .call()
+                    .content();
+            return content == null ? "" : content;
         } catch (Exception e) {
             throw asModelException(e);
         }
@@ -91,9 +93,12 @@ public class ModelClient {
     public void streamChat(String baseUrl, String apiKey, String model,
                            List<Message> messages, Consumer<String> onDelta) {
         try {
-            Flux<ChatResponse> flux = chatModel(baseUrl, apiKey, model).stream(new Prompt(messages));
-            for (ChatResponse response : flux.timeout(READ_TIMEOUT).toIterable()) {
-                String text = textOf(response);
+            Flux<String> flux = chatClient(baseUrl, apiKey, model)
+                    .prompt()
+                    .messages(messages)
+                    .stream()
+                    .content();
+            for (String text : flux.timeout(READ_TIMEOUT).toIterable()) {
                 if (!text.isEmpty()) {
                     onDelta.accept(text);
                 }
@@ -151,6 +156,15 @@ public class ModelClient {
     }
 
     /**
+     * 构建对话客户端：ChatClient 是 Spring AI 的高层入口，后续挂 Advisor / 工具调用都从这里扩展。
+     *
+     * @return 与该 baseUrl / apiKey / model 绑定的客户端（每次调用新建）
+     */
+    private ChatClient chatClient(String baseUrl, String apiKey, String model) {
+        return ChatClient.builder(chatModel(baseUrl, apiKey, model)).build();
+    }
+
+    /**
      * 按 baseUrl + apiKey 构建 OpenAI 协议入口。
      * 非流式走 RestClient（15s 连接 / 120s 读超时），流式走 WebClient + JDK HttpClient 连接器。
      *
@@ -175,21 +189,6 @@ public class ModelClient {
                 .restClientBuilder(RestClient.builder().requestFactory(requestFactory))
                 .webClientBuilder(WebClient.builder().clientConnector(connector))
                 .build();
-    }
-
-    /**
-     * 安全取出响应文本：流式结束帧、以及只带 usage 的帧里 result / output 可能为 null，
-     * 统一返回空串，避免调用方到处判空。
-     */
-    private String textOf(ChatResponse response) {
-        if (response == null || response.getResult() == null) {
-            return "";
-        }
-        AssistantMessage output = response.getResult().getOutput();
-        if (output == null || output.getText() == null) {
-            return "";
-        }
-        return output.getText();
     }
 
     /**
