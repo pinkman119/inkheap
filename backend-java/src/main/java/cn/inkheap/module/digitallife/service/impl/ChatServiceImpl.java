@@ -3,6 +3,7 @@ package cn.inkheap.module.digitallife.service.impl;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.inkheap.common.exception.BusinessException;
+import cn.inkheap.module.digitallife.cache.ChatContextCache;
 import cn.inkheap.module.digitallife.client.ModelClient;
 import cn.inkheap.module.digitallife.constant.DigitalLifeDefaults;
 import cn.inkheap.module.digitallife.entity.ChatMessage;
@@ -27,9 +28,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
-    /** 上下文窗口：最近 20 条消息（约 10 轮） */
-    private static final int CONTEXT_MESSAGE_LIMIT = 20;
-
     /** RAG 检索 top-K */
     private static final int RAG_TOP_K = 5;
 
@@ -42,6 +40,8 @@ public class ChatServiceImpl implements ChatService {
     private final VectorService vectorService;
 
     private final ModelClient modelClient;
+
+    private final ChatContextCache chatContextCache;
 
     @Override
     public List<ChatMessage> getHistory(String userId, String sessionId, int limit) {
@@ -57,7 +57,11 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public void run(String userId, String sessionId, String content, ChatOptions options) {
-        // 1、用户消息先入库（生成失败也保留提问）
+        // 1、取会话上下文窗口：首次访问从库回填，之后只做追加，不再每轮查库
+        List<ChatMessage> history = chatContextCache.window(userId, sessionId,
+                ignored -> getHistory(userId, sessionId, ChatContextCache.WINDOW_SIZE));
+
+        // 2、用户消息入库（生成失败也保留提问），成功后并入上下文窗口
         ChatMessage userMessage = ChatMessage.builder()
                 .id(IdUtil.randomUUID())
                 .userId(userId)
@@ -68,23 +72,22 @@ public class ChatServiceImpl implements ChatService {
                 .createdAt(Instant.now())
                 .build();
         chatMessageMapper.insert(userMessage);
+        chatContextCache.append(userId, sessionId, userMessage);
 
-        // 2、RAG 检索并渲染资料片段块
+        // 3、RAG 检索并渲染资料片段块
         String chunksBlock = renderChunksBlock(content);
 
-        // 3、组装 messages（system + 最近 10 轮历史）
+        // 4、组装 messages：system + 窗口内历史 + 本轮提问
         String systemPrompt = buildSystemPrompt(chunksBlock);
-        List<Map<String, String>> messages = new ArrayList<>();
+        List<Map<String, String>> messages = new ArrayList<>(history.size() + 2);
         messages.add(Map.of("role", "system", "content", systemPrompt));
-        for (ChatMessage history : getHistory(userId, sessionId, CONTEXT_MESSAGE_LIMIT)) {
-            if (history.getId().equals(userMessage.getId())) {
-                continue;
-            }
-            messages.add(Map.of("role", "user".equals(history.getRole()) ? "user" : "assistant",
-                    "content", history.getContent()));
+        for (ChatMessage item : history) {
+            messages.add(Map.of("role", "user".equals(item.getRole()) ? "user" : "assistant",
+                    "content", item.getContent()));
         }
+        messages.add(Map.of("role", "user", "content", content));
 
-        // 4、通用模型按顺序尝试（未指定则自动 fallback）
+        // 5、通用模型按顺序尝试（未指定则自动 fallback）
         List<ModelConfigService.ActiveModel> models = modelConfigService.getActiveModels(options.modelId());
         StringBuilder full = new StringBuilder();
         String lastError = "";
@@ -112,7 +115,7 @@ public class ChatServiceImpl implements ChatService {
             }
         }
 
-        // 5、结果处理
+        // 6、结果处理
         if (full.isEmpty()) {
             log.error("全部模型生成失败: {}", lastError);
             options.onError().accept(lastError.isEmpty() ? "生成回复失败，请稍后再试"
@@ -120,7 +123,7 @@ public class ChatServiceImpl implements ChatService {
             return;
         }
 
-        // 6、完整回复入库
+        // 7、完整回复入库并并入上下文窗口
         ChatMessage assistantMessage = ChatMessage.builder()
                 .id(IdUtil.randomUUID())
                 .userId(userId)
@@ -131,6 +134,7 @@ public class ChatServiceImpl implements ChatService {
                 .createdAt(Instant.now())
                 .build();
         chatMessageMapper.insert(assistantMessage);
+        chatContextCache.append(userId, sessionId, assistantMessage);
 
         options.onDone().accept(assistantMessage.getId(), full.toString());
     }
