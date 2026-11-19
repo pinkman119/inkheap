@@ -173,6 +173,11 @@ onMounted(async () => {
     </div>
 
     <template v-else>
+      <!-- ===== 无人格数据 ===== -->
+      <div v-if="!personas.length" class="empty">
+        <span>暂无人格数据，请联系管理员初始化默认人格后再编辑。</span>
+      </div>
+
       <!-- ===== 人格切换 ===== -->
       <section class="persona-bar">
         <div

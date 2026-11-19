@@ -138,21 +138,27 @@ public class ModelConfigServiceImpl implements ModelConfigService {
             throw BusinessException.badRequest("不支持的模型类型：" + request.getModelType());
         }
 
-        // 3、组装更新字段（apiKey 空串表示清除）
-        String apiKeyEnc = null;
-        if (request.getApiKey() != null) {
-            String key = request.getApiKey().trim();
-            apiKeyEnc = key.isEmpty() ? null : cryptoUtils.encrypt(key);
-        }
+        // 3、组装更新字段
+        // provider 由新增时确定、不支持编辑；enabled / sortOrder 走 toggle 与排序接口，这里都不传
+        // apiKey：null 表示未改动（保留原值），空串表示清除，其余按新值加密
+        boolean clearApiKey = request.getApiKey() != null && request.getApiKey().trim().isEmpty();
+        Instant now = Instant.now();
         DlModel update = DlModel.builder()
                 .id(id)
                 .name(request.getName() == null ? null : request.getName().trim())
                 .modelId(request.getModelId() == null ? null : request.getModelId().trim())
                 .modelType(request.getModelType())
-                .apiKeyEnc(apiKeyEnc)
-                .updatedAt(Instant.now())
+                .apiKeyEnc(clearApiKey || request.getApiKey() == null
+                        ? null : cryptoUtils.encrypt(request.getApiKey().trim()))
+                .updatedAt(now)
                 .build();
-        dlModelMapper.update(update, false);
+        // 忽略 null 字段：未传的列保持原值，否则会把 provider / enabled / sort_order 等非空列写成 null
+        dlModelMapper.update(update);
+
+        // 4、清除 Key 需单独置空：上面的 update 会跳过 null 字段
+        if (clearApiKey) {
+            dlModelMapper.clearApiKey(id, now);
+        }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("success", true);

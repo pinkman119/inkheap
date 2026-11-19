@@ -22,6 +22,16 @@ public class PersonaServiceImpl implements PersonaService {
 
     @Override
     public List<DlPersona> list() {
+        List<DlPersona> personas = selectAll();
+        if (personas.isEmpty()) {
+            // 无人格数据时写入默认种子，保证管理端「人格编写」页至少有一个可编辑人格
+            getActivePersona();
+            personas = selectAll();
+        }
+        return personas;
+    }
+
+    private List<DlPersona> selectAll() {
         return dlPersonaMapper.selectListByQuery(QueryWrapper.create().orderBy(DlPersona::getSortOrder, true));
     }
 
@@ -52,7 +62,8 @@ public class PersonaServiceImpl implements PersonaService {
                 .personalityType(request.getPersonalityType() == null ? null : request.getPersonalityType().trim())
                 .updatedAt(Instant.now())
                 .build();
-        dlPersonaMapper.update(update, false);
+        // ignoreNulls = true：只更新请求里带了的字段，避免把 sortOrder / createdAt 等未赋值字段写成 null
+        dlPersonaMapper.update(update, true);
 
         return detail(id);
     }

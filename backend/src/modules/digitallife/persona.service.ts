@@ -14,6 +14,10 @@ export class PersonaService {
 
   /** 人格列表（全部结构化字段） */
   async list() {
+    const personas = await this.prisma.dlPersona.findMany({ orderBy: { sortOrder: 'asc' } });
+    if (personas.length > 0) return personas;
+    // 无人格数据时写入默认种子，保证管理端「人格编写」页至少有一个可编辑人格
+    await this.seedIfEmpty();
     return this.prisma.dlPersona.findMany({ orderBy: { sortOrder: 'asc' } });
   }
 
