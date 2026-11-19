@@ -14,6 +14,7 @@ import cn.inkheap.module.digitallife.service.ModelConfigService;
 import com.mybatisflex.core.query.QueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -202,7 +203,7 @@ public class ModelConfigServiceImpl implements ModelConfigService {
                 return result;
             }
             String reply = modelClient.chat(baseUrl, apiKey, model.getModelId(),
-                    List.of(Map.of("role", "user", "content", "你好")));
+                    List.of(new UserMessage("你好")));
             long latency = System.currentTimeMillis() - started;
             String preview = reply.length() > 80 ? reply.substring(0, 80) : reply;
             result.put("success", true);

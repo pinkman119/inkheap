@@ -5,8 +5,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.document.MetadataMode;
@@ -29,7 +27,6 @@ import reactor.core.publisher.Flux;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
@@ -72,13 +69,13 @@ public class ModelClient {
      * @param baseUrl  模型服务基址（已含 /v1 等前缀）
      * @param apiKey   明文 API Key
      * @param model    模型标识，如 gpt-4o-mini、glm-4-plus
-     * @param messages role/content 形式的消息列表（system / user / assistant）
+     * @param messages Spring AI 消息列表（System / User / Assistant）
      * @return 模型回复文本；响应为空时返回空串
      * @throws ModelException 请求失败、鉴权失败或返回内容无法解析
      */
-    public String chat(String baseUrl, String apiKey, String model, List<Map<String, String>> messages) {
+    public String chat(String baseUrl, String apiKey, String model, List<Message> messages) {
         try {
-            ChatResponse response = chatModel(baseUrl, apiKey, model).call(prompt(messages));
+            ChatResponse response = chatModel(baseUrl, apiKey, model).call(new Prompt(messages));
             return textOf(response);
         } catch (Exception e) {
             throw asModelException(e);
@@ -92,9 +89,9 @@ public class ModelClient {
      * @throws ModelException 建连失败、服务端报错或流读取中断；中途失败时已回调的文本不会回滚
      */
     public void streamChat(String baseUrl, String apiKey, String model,
-                           List<Map<String, String>> messages, Consumer<String> onDelta) {
+                           List<Message> messages, Consumer<String> onDelta) {
         try {
-            Flux<ChatResponse> flux = chatModel(baseUrl, apiKey, model).stream(prompt(messages));
+            Flux<ChatResponse> flux = chatModel(baseUrl, apiKey, model).stream(new Prompt(messages));
             for (ChatResponse response : flux.timeout(READ_TIMEOUT).toIterable()) {
                 String text = textOf(response);
                 if (!text.isEmpty()) {
@@ -178,24 +175,6 @@ public class ModelClient {
                 .restClientBuilder(RestClient.builder().requestFactory(requestFactory))
                 .webClientBuilder(WebClient.builder().clientConnector(connector))
                 .build();
-    }
-
-    /**
-     * 把 role/content 的 Map 消息转换成 Spring AI 的强类型 Message。
-     * role 缺省或无法识别时按 user 处理，保证调用方能继续下发。
-     */
-    private Prompt prompt(List<Map<String, String>> messages) {
-        List<Message> instructions = new ArrayList<>(messages.size());
-        for (Map<String, String> message : messages) {
-            String role = message.getOrDefault("role", "user");
-            String content = message.getOrDefault("content", "");
-            switch (role) {
-                case "system" -> instructions.add(new SystemMessage(content));
-                case "assistant" -> instructions.add(new AssistantMessage(content));
-                default -> instructions.add(new UserMessage(content));
-            }
-        }
-        return new Prompt(instructions);
     }
 
     /**

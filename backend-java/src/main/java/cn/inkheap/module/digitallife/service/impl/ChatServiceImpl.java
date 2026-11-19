@@ -16,6 +16,10 @@ import cn.inkheap.module.digitallife.service.VectorService;
 import com.mybatisflex.core.query.QueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -79,13 +83,12 @@ public class ChatServiceImpl implements ChatService {
 
         // 4、组装 messages：system + 窗口内历史 + 本轮提问
         String systemPrompt = buildSystemPrompt(chunksBlock);
-        List<Map<String, String>> messages = new ArrayList<>(history.size() + 2);
-        messages.add(Map.of("role", "system", "content", systemPrompt));
+        List<Message> messages = new ArrayList<>(history.size() + 2);
+        messages.add(new SystemMessage(systemPrompt));
         for (ChatMessage item : history) {
-            messages.add(Map.of("role", "user".equals(item.getRole()) ? "user" : "assistant",
-                    "content", item.getContent()));
+            messages.add(toMessage(item));
         }
-        messages.add(Map.of("role", "user", "content", content));
+        messages.add(new UserMessage(content));
 
         // 5、通用模型按顺序尝试（未指定则自动 fallback，已出字不再切换）
         List<ModelConfigService.ActiveModel> models = modelConfigService.getActiveModels(options.modelId());
@@ -172,5 +175,14 @@ public class ChatServiceImpl implements ChatService {
             log.warn("RAG 检索失败，跳过资料注入: {}", e.getMessage());
             return "- （资料检索暂不可用，按你的人格与已知信息回答）";
         }
+    }
+
+    /**
+     * 历史消息转 Spring AI 消息：用户侧为 UserMessage，其余（助手）按 AssistantMessage 处理。
+     */
+    private Message toMessage(ChatMessage message) {
+        return "user".equals(message.getRole())
+                ? new UserMessage(message.getContent())
+                : new AssistantMessage(message.getContent());
     }
 }

@@ -4,10 +4,10 @@ import cn.inkheap.module.digitallife.constant.DigitalLifeDefaults;
 import cn.inkheap.module.digitallife.service.ModelConfigService.ActiveModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.messages.Message;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -29,11 +29,11 @@ public class ChatModelRouter {
      * 流式生成：逐段回调文本，遇到可用模型即返回。
      *
      * @param candidates 候选模型（已按优先级排序）
-     * @param messages   role/content 消息体
+     * @param messages   Spring AI 消息列表
      * @param onDelta    文本增量回调
      * @return 累积内容与最后一个错误；content 为空表示全部失败
      */
-    public StreamResult stream(List<ActiveModel> candidates, List<Map<String, String>> messages,
+    public StreamResult stream(List<ActiveModel> candidates, List<Message> messages,
                                Consumer<String> onDelta) {
         StringBuilder content = new StringBuilder();
         String lastError = "";
@@ -67,7 +67,7 @@ public class ChatModelRouter {
      * @param extractor 从原始回复中提取有效结果，返回空表示该模型结果不可用，继续尝试下一个
      * @throws ModelClient.ModelException 全部模型失败或结果为空
      */
-    public String chat(List<ActiveModel> candidates, List<Map<String, String>> messages,
+    public String chat(List<ActiveModel> candidates, List<Message> messages,
                        Function<String, String> extractor) {
         String lastError = "";
         for (ActiveModel candidate : candidates) {

@@ -8,10 +8,12 @@ import cn.inkheap.module.digitallife.service.ModelConfigService;
 import cn.inkheap.module.digitallife.service.SummaryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * 摘要生成：多模型按 sortOrder 依次尝试，任一成功即返回。
@@ -72,9 +74,9 @@ public class SummaryServiceImpl implements SummaryService {
             human.append(titleLabel).append(title.trim()).append("\n");
         }
         human.append(contentLabel).append("\n").append(excerpt);
-        List<Map<String, String>> messages = List.of(
-                Map.of("role", "system", "content", systemPrompt),
-                Map.of("role", "user", "content", human.toString()));
+        List<Message> messages = List.of(
+                new SystemMessage(systemPrompt),
+                new UserMessage(human.toString()));
 
         // 3、按 sortOrder 依次尝试；全部失败（或无可用模型）时转 500
         List<ModelConfigService.ActiveModel> models = modelConfigService.getActiveModels(null);
