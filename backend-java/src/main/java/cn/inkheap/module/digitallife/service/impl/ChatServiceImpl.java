@@ -91,8 +91,12 @@ public class ChatServiceImpl implements ChatService {
 
         for (ModelConfigService.ActiveModel model : models) {
             try {
-                modelClient.streamChat(DigitalLifeDefaults.baseUrlOf(model.model().getProvider()),
-                        model.apiKey(), model.model().getModelId(), messages, text -> {
+                modelClient.streamChat(
+                        DigitalLifeDefaults.baseUrlOf(model.model().getProvider()),
+                        model.apiKey(),
+                        model.model().getModelId(),
+                        messages,
+                        text -> {
                             full.append(text);
                             options.onDelta().accept(text);
                         });
@@ -109,7 +113,7 @@ public class ChatServiceImpl implements ChatService {
         }
 
         // 5、结果处理
-        if (full.length() == 0) {
+        if (full.isEmpty()) {
             log.error("全部模型生成失败: {}", lastError);
             options.onError().accept(lastError.isEmpty() ? "生成回复失败，请稍后再试"
                     : "生成回复失败：" + lastError + "（已尝试 " + models.size() + " 个启用的模型）");

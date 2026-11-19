@@ -85,6 +85,7 @@ public class ChatController {
         String content = StrUtil.nullToEmpty(request.getContent()).trim();
 
         // 1、空内容：400 JSON（不进入 SSE）
+        // todo 问题内容合规性检查
         if (content.isEmpty()) {
             throw BusinessException.badRequest("消息内容不能为空");
         }
@@ -110,7 +111,9 @@ public class ChatController {
         executor.execute(() -> {
             try {
                 chatService.run(currentUser.getId(), sessionId, content,
-                        new ChatService.ChatOptions(request.getModelId(), clientIp,
+                        new ChatService.ChatOptions(
+                                request.getModelId(),
+                                clientIp,
                                 text -> send(emitter, "delta", Map.of("text", text)),
                                 (messageId, full) -> {
                                     send(emitter, "done", Map.of("messageId", messageId, "content", full));
