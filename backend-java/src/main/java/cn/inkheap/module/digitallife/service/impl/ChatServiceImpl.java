@@ -12,7 +12,6 @@ import cn.inkheap.module.digitallife.mapper.ChatMessageMapper;
 import cn.inkheap.module.digitallife.service.ChatService;
 import cn.inkheap.module.digitallife.service.ModelConfigService;
 import cn.inkheap.module.digitallife.service.PersonaService;
-import cn.inkheap.module.digitallife.service.VectorService;
 import com.mybatisflex.core.query.QueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,12 +19,14 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -35,13 +36,16 @@ public class ChatServiceImpl implements ChatService {
     /** RAG 检索 top-K */
     private static final int RAG_TOP_K = 5;
 
+    /** RAG 相似度阈值：pgvector 余弦距离转相似度（1 - distance），低于该值的片段丢弃 */
+    private static final double RAG_SIMILARITY_THRESHOLD = 0.5;
+
     private final ChatMessageMapper chatMessageMapper;
 
     private final ModelConfigService modelConfigService;
 
     private final PersonaService personaService;
 
-    private final VectorService vectorService;
+    private final VectorStore vectorStore;
 
     private final ChatModelRouter chatModelRouter;
 
@@ -160,14 +164,20 @@ public class ChatServiceImpl implements ChatService {
      */
     private String renderChunksBlock(String question) {
         try {
-            List<Map<String, Object>> chunks = vectorService.search(question, RAG_TOP_K);
+            List<Document> chunks = vectorStore.similaritySearch(
+                    SearchRequest.builder()
+                            .query(question)
+                            .topK(RAG_TOP_K)
+                            .similarityThreshold(RAG_SIMILARITY_THRESHOLD)
+                            .build());
             if (chunks.isEmpty()) {
                 return "- 以下无检索到的资料片段，按你的人格与已知信息回答。";
             }
             List<String> lines = new ArrayList<>(chunks.size());
-            for (Map<String, Object> chunk : chunks) {
-                String label = DigitalLifeDefaults.refTypeLabel(String.valueOf(chunk.get("refType")));
-                lines.add("- （来源：" + label + "）" + chunk.get("content"));
+            for (Document chunk : chunks) {
+                Object refType = chunk.getMetadata().get("refType");
+                String label = DigitalLifeDefaults.refTypeLabel(refType == null ? "" : refType.toString());
+                lines.add("- （来源：" + label + "）" + chunk.getText());
             }
             return "- 以下是从站长知识库/小记/简历/关于我中检索到的资料片段，回答时优先依据资料：\n"
                     + String.join("\n", lines);

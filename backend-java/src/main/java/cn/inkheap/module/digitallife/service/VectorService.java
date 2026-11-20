@@ -13,9 +13,10 @@ public interface VectorService {
      *
      * @param queryText 查询文本
      * @param topK      top-K
-     * @return 片段列表
+     * @param refTypes  数据源类型白名单，null 或空表示不过滤
+     * @return 片段列表（含 distance）
      */
-    List<Map<String, Object>> search(String queryText, int topK);
+    List<Map<String, Object>> search(String queryText, int topK, List<String> refTypes);
 
     /**
      * 替换写入：先删旧向量再插入新 chunks。

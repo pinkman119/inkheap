@@ -31,6 +31,10 @@ public interface VectorMapper {
 
     @Select("SELECT content AS \"content\", ref_type AS \"refType\", ref_id AS \"refId\", "
             + "chunk_index AS \"chunkIndex\", (embedding <=> #{embedding}::vector) AS \"distance\" "
-            + "FROM dl_vectors ORDER BY embedding <=> #{embedding}::vector LIMIT #{topK}")
-    List<Map<String, Object>> search(@Param("embedding") String embedding, @Param("topK") int topK);
+            + "FROM dl_vectors "
+            + "WHERE (#{refTypes}::text IS NULL OR ref_type = ANY(string_to_array(#{refTypes}::text, ','))) "
+            + "ORDER BY embedding <=> #{embedding}::vector LIMIT #{topK}")
+    List<Map<String, Object>> search(@Param("embedding") String embedding,
+                                     @Param("topK") int topK,
+                                     @Param("refTypes") String refTypes);
 }

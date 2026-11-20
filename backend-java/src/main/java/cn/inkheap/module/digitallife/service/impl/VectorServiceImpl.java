@@ -25,18 +25,22 @@ public class VectorServiceImpl implements VectorService {
     private final ModelClient modelClient;
 
     @Override
-    public List<Map<String, Object>> search(String queryText, int topK) {
+    public List<Map<String, Object>> search(String queryText, int topK, List<String> refTypes) {
         try {
-            // 1、查询向量化（独立 try：失败仅降级无上下文）
+            // 1、获取 Embedding 模型
             ModelConfigService.EmbeddingModel model = modelConfigService.resolveEmbeddingModel(null);
-            List<float[]> vectors = modelClient.embed(model.baseUrl(), model.apiKey(), model.modelId(),
+
+            // 2、将 queryText 转为向量表示
+            List<float[]> vectors = modelClient.embed(
+                    model.baseUrl(), model.apiKey(), model.modelId(),
                     List.of(queryText));
             if (vectors.isEmpty()) {
                 return new ArrayList<>();
             }
 
-            // 2、pgvector 余弦检索
-            List<Map<String, Object>> rows = vectorMapper.search(toVectorLiteral(vectors.get(0)), topK);
+            // 3、使用 pgvector 进行余弦检索
+            String refTypeFilter = refTypes == null || refTypes.isEmpty() ? null : String.join(",", refTypes);
+            List<Map<String, Object>> rows = vectorMapper.search(toVectorLiteral(vectors.get(0)), topK, refTypeFilter);
             List<Map<String, Object>> result = new ArrayList<>(rows.size());
             for (Map<String, Object> row : rows) {
                 Object distance = row.get("distance");
